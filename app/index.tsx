@@ -1,6 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
-import {  StyleSheet,  Text,  View,  TextInput,  Alert,  ImageBackground,  Image,  TouchableOpacity,} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  Alert,
+  ImageBackground,
+  Image,
+  TouchableOpacity,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -20,6 +29,11 @@ const SignIn: React.FC = () => {
       setIsInvalid(true);
     }
   };
+
+  useEffect(() => {
+    // Focus on the email input field when the component mounts
+    // You can use a ref for the TextInput if needed
+  }, []);
 
   return (
     <ImageBackground
@@ -49,6 +63,7 @@ const SignIn: React.FC = () => {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              autoFocus={true} // Automatically focus on this field (email)
             />
             <View style={styles.passwordContainer}>
               <TextInput
@@ -78,7 +93,7 @@ const SignIn: React.FC = () => {
 };
 const styles = StyleSheet.create({
   background: {
-    flex: 1, // Fill the entire screen
+    flex: 1, 
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -92,7 +107,7 @@ const styles = StyleSheet.create({
     width: 350, // Set a fixed width for the icon
     height: 130, // Set a fixed height for the icon to maintain aspect ratio
     marginBottom: 20, // Space between icon and login form
-    marginTop: -250,
+    marginTop: -100,
   },
   loginContainer: {
     width: '100%', // Set width to 100% of the available space

@@ -8,6 +8,8 @@ import {
   FlatList,
   ImageBackground,
   Image,
+  KeyboardAvoidingView,
+  Platform,  // Added import for Platform
 } from 'react-native';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
 import { useRouter } from 'expo-router'; // Import useRouter
@@ -66,58 +68,67 @@ const Project: React.FC = () => {
   };
 
   return (
-    <ImageBackground
-      source={require('../assets/images/background.png')}
-      style={styles.background}
+    <KeyboardAvoidingView
+      style={styles.container} // Added KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} // Adjusts behavior based on platform
     >
-      {/* Logo Image */}
-      <Image
-        source={require('../assets/images/crewzControlIcon.png')}
-        style={styles.logoImage}
-        resizeMode="contain"
-      />
+      <ImageBackground
+        source={require('../assets/images/background.png')}
+        style={styles.background}
+      >
+        {/* Logo Image */}
+        <Image
+          source={require('../assets/images/crewzControlIcon.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
 
-      {/* Main Div (Wrapper for Close to and Recent Sections) */}
-      <View style={styles.mainDiv}>
-        
-        {/* Close to Section */}
-        <View style={styles.sectionDiv}>
-          <Text style={styles.sectionTitle}>Close to:</Text>
-          <FlatList
-            data={jobs.slice(0, 1)}  // Display only the first job
-            renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
-            keyExtractor={(item) => item.id.toString()}
-          />
-        </View>
+        {/* Main Div (Wrapper for Close to and Recent Sections) */}
+        <View style={styles.mainDiv}>
+          {/* Close to Section */}
+          <View style={styles.sectionDiv}>
+            <Text style={styles.sectionTitle}>Close to:</Text>
+            <FlatList
+              data={jobs.slice(0, 1)}  // Display only the first job
+              renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
+              keyExtractor={(item) => item.id.toString()}
+            />
+          </View>
 
-        {/* Recent Section */}
-        <View style={styles.sectionDiv}>
-          <Text style={styles.sectionTitle}>Recent:</Text>
-          <FlatList
-            data={jobs.slice(0, 4)}  // Display only the first 4 jobs
-            renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
-            keyExtractor={(item) => item.id.toString()}
-          />
-        </View>
+          {/* Recent Section */}
+          <View style={styles.sectionDiv}>
+            <Text style={styles.sectionTitle}>Recent:</Text>
+            <FlatList
+              data={jobs.slice(0, 4)}  // Display only the first 4 jobs
+              renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
+              keyExtractor={(item) => item.id.toString()}
+            />
+          </View>
 
-        {/* Search Section */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Enter job name"
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-          />
-          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-            <Text style={styles.searchButtonText}>Search</Text>
-          </TouchableOpacity>
+          {/* Search Section */}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Enter job name"
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              onFocus={() => { setSearchTerm(searchTerm); }} // Keep the search term on focus
+            />
+            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </ImageBackground>
+      </ImageBackground>
+    </KeyboardAvoidingView>
   );
 };
 
+// Styles
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   background: {
     flex: 1,
     padding: 20,
