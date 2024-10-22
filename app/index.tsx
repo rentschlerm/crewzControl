@@ -76,7 +76,7 @@ const SignIn: React.FC = () => {
       
       console.log("Parsed XML Result:", result); // Log the parsed result
   
-      // Access the required fields based on your expected XML structure
+      // Access the required fields based on the expected XML structure
       const resultInfo = result.ResultInfo; // Adjust according to the actual root element
       if (resultInfo) {
         const resultCode = resultInfo.Result; // Check for Success or Fail
@@ -144,7 +144,7 @@ const SignIn: React.FC = () => {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off' : 'eye'}
                   size={24}
@@ -165,6 +165,7 @@ const SignIn: React.FC = () => {
                 <Text style={styles.linkText}>Privacy Policy</Text>.
               </Text>
             </View>
+              {/* End of Terms of Service and Privacy Policy Checkbox */}
             <TouchableOpacity
               style={[styles.button, !isChecked && styles.disabledButton]}
               onPress={handleLogin}
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
   eyeIcon: {
     position: 'absolute', // Position the icon absolutely within the container
     right: 10, // Space from the right edge
-    bottom: 10, // Space from the bottom edge
+    bottom: 25, // Space from the bottom edge
   },
   button: {
     backgroundColor: '#20D5FF', // Button background color
