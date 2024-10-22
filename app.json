@@ -2,7 +2,7 @@
   "expo": {
     "name": "crewzControl",
     "slug": "crewzControl",
-    "version": "1.0.0",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -14,14 +14,22 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cerenimbus.crewzcontrol"
+      "bundleIdentifier": "com.cerenimbus.crewzcontrol",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location for providing location-based features.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location at all times."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.doomjay09.crewzControl"
+      "package": "com.doomjay09.crewzControl",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",

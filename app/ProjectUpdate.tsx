@@ -177,8 +177,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoImage: {
-    width: '90%',
-    height: 80,
+    width: 350, // Set a fixed width for the icon
+    height: 500, // Set a fixed height for the icon to maintain aspect ratio
+    marginBottom: -150, // Space between icon and login form
+    marginTop: -200,
     position: 'absolute',
     top: 20,
     alignSelf: 'center', // Center the logo

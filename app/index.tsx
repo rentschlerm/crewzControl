@@ -10,30 +10,101 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
+import { Checkbox } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { getDeviceInfo } from '../components/DeviceUtils'; // Import the getDeviceInfo function
+import CryptoJS from 'crypto-js'; // SHA-1 hashing
+import { XMLParser } from 'fast-xml-parser'; // Import Fast XML Parser
 
 const SignIn: React.FC = () => {
   const router = useRouter();
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
+  const [email, setEmail] = useState<string>('test@example.com');
+  const [password, setPassword] = useState<string>('password');
+  const [deviceInfo, setDeviceInfo] = useState<{ id: string; type: string; version: string } | null>(null);
+  const [location, setLocation] = useState<{ longitude: string; latitude: string; accuracy: string } | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isInvalid, setIsInvalid] = useState<boolean>(false);
+  const [isChecked, setIsChecked] = useState<boolean>(false);
 
-  const handleLogin = () => {
-    if (email === 'test@example.com' && password === 'password') {
-      Alert.alert(`Welcome, ${email}!`);
-      setIsInvalid(false);
-      router.push('/Project'); // Navigate to the Project screen
-    } else {
+  // Fetch device info on component mount
+  useEffect(() => {
+    const fetchDeviceInfo = async () => {
+      const info = await getDeviceInfo();
+      setDeviceInfo(info);
+
+      // Set mock location values for testing
+      setLocation({
+        longitude: '123.456', // Replace with your desired mock longitude
+        latitude: '78.910',    // Replace with your desired mock latitude
+        accuracy: '5.0',       // Replace with desired accuracy
+      });
+    };
+
+    fetchDeviceInfo();
+  }, []);
+  
+  const handleLogin = async () => {
+    if (!deviceInfo || !location) {
+      Alert.alert('Device or location information is missing');
+      return;
+    }
+ 
+    const crewzControlVersion = '10'; // Hardcoded version
+  
+    // Get current date in MM/DD/YYYY-HH:mm format
+    const currentDate = new Date();
+    const formattedDate = `${currentDate.getMonth() + 1}/${currentDate.getDate()}/${currentDate.getFullYear()}-${currentDate.getHours()}:${currentDate.getMinutes()}`;
+  
+    // Create SHA-1 key
+    const keyString = `${deviceInfo.id}${formattedDate}${email}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+  
+    // Construct API URL
+    const url = `https://crewzcontrol.com/dev/CCService/AuthorizeEmployee.php?DeviceID=${deviceInfo.id}&DeviceType=${deviceInfo.type}&DeviceModel=${deviceInfo.type}&SoftwareVersion=${deviceInfo.version}&Date=${formattedDate}&Key=${key}&UserName=${email}&Password=${password}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&GeoAccuracy=${location.accuracy}&Language=EN&TestFlag=1`;
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+  
+      console.log("Raw API Response:", data);
+      console.log("Constructed URL:", url);
+      
+      // Parse the XML response using Fast XML Parser
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+      
+      console.log("Parsed XML Result:", result); // Log the parsed result
+  
+      // Access the required fields based on your expected XML structure
+      const resultInfo = result.ResultInfo; // Adjust according to the actual root element
+      if (resultInfo) {
+        const resultCode = resultInfo.Result; // Check for Success or Fail
+        const message = resultInfo.Message;    // Message for the user
+        const authCode = resultInfo.Auth;      // 10 digit authentication code
+        const companyName = resultInfo.Comp;   // Company name
+        const employeeName = resultInfo.Name;   // Employee name
+  
+        if (resultCode === 'Success') {
+          Alert.alert(`Welcome, ${email}! Your Auth Code: ${authCode}`);
+          setIsInvalid(false);
+          router.push('/Project'); // Navigate to the Project screen
+        } else {
+          Alert.alert('Login Failed', message || 'An unknown error occurred');
+          setIsInvalid(true);
+        }
+      } else {
+        Alert.alert('Error', 'Unexpected response structure from the server.');
+        console.log("Parsed Result:", result);
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      Alert.alert('Login Failed', 'An error occurred during login');
       setIsInvalid(true);
     }
   };
-
-  useEffect(() => {
-    // Focus on the email input field when the component mounts
-    // You can use a ref for the TextInput if needed
-  }, []);
+  
+  
 
   return (
     <ImageBackground
@@ -63,7 +134,7 @@ const SignIn: React.FC = () => {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              autoFocus={true} // Automatically focus on this field (email)
+              autoFocus={true}
             />
             <View style={styles.passwordContainer}>
               <TextInput
@@ -80,22 +151,72 @@ const SignIn: React.FC = () => {
                   color="#007BFF"
                 />
               </TouchableOpacity>
+             
             </View>
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
+             {/* Terms of Service and Privacy Policy Checkbox */}
+             <View style={styles.checkboxContainer}>
+              <Checkbox
+                status={isChecked ? 'checked' : 'unchecked'}
+                onPress={() => setIsChecked(!isChecked)}
+              />
+              <Text style={styles.checkboxLabel}>
+                I agree to the{' '}
+                <Text style={styles.linkText}>Terms of Service</Text> and{' '}
+                <Text style={styles.linkText}>Privacy Policy</Text>.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.button, !isChecked && styles.disabledButton]}
+              onPress={handleLogin}
+              disabled={!isChecked}
+            >
               <Text style={styles.buttonText}>Sign-in</Text>
             </TouchableOpacity>
+            
           </View>
         )}
+        {/* {deviceInfo && (
+          <View>
+            <Text>Device ID: {deviceInfo.id}</Text>
+            <Text>Device Type: {deviceInfo.type}</Text>
+            <Text>Software Version: {deviceInfo.version}</Text>
+          </View>
+        )}
+        {location && (
+          <View>
+            <Text>Longitude: {location.longitude}</Text>
+            <Text>Latitude: {location.latitude}</Text>
+            <Text>Accuracy: {location.accuracy} meters</Text>
+          </View>
+        )} */}
       </View>
       <StatusBar style="auto" />
     </ImageBackground>
   );
 };
+
 const styles = StyleSheet.create({
   background: {
     flex: 1, 
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginLeft: -15
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: '#333',
+  },
+  linkText: {
+    color: '#007BFF',
+    textDecorationLine: 'underline',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc', // Grey out the button when disabled
   },
   container: {
     flex: 1,
@@ -105,9 +226,9 @@ const styles = StyleSheet.create({
   },
   icon: {
     width: 350, // Set a fixed width for the icon
-    height: 130, // Set a fixed height for the icon to maintain aspect ratio
-    marginBottom: 20, // Space between icon and login form
-    marginTop: -100,
+    height: 500, // Set a fixed height for the icon to maintain aspect ratio
+    marginBottom: -150, // Space between icon and login form
+    marginTop: -350,
   },
   loginContainer: {
     width: '100%', // Set width to 100% of the available space

@@ -134,10 +134,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logoImage: {
-    width: '90%',
-    height: 150,
-    alignSelf: 'center',
-    marginBottom: 20,
+    width: 350, // Set a fixed width for the icon
+    height: 500, // Set a fixed height for the icon to maintain aspect ratio
+    marginBottom: -150, // Space between icon and login form
+    marginTop: -200,
+    
   },
   mainDiv: {
     padding: 10,
