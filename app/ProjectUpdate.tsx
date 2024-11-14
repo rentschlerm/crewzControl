@@ -2,16 +2,17 @@ import React, { useState, useContext } from 'react';
 import { 
   View, 
   Text, 
-  TextInput, 
   TouchableOpacity, 
   StyleSheet, 
   Alert, 
-  ScrollView, 
   ImageBackground, 
   Image 
 } from 'react-native';
 import { JobsContext, Job } from '../components/JobContext'; // Import the context and Job type
 import { useRouter, useLocalSearchParams } from 'expo-router'; // Import useRouter and useLocalSearchParams
+import LogoStyles from '../components/LogoStyles';
+import DropDownPicker from 'react-native-dropdown-picker'; // Import DropDownPicker
+import { TextInput } from 'react-native-paper';
 
 // Service List Item Component
 interface ServiceListItemProps {
@@ -36,24 +37,26 @@ const ProjectUpdate: React.FC = () => {
   const jobObj: Job = JSON.parse(job as string); // Parse the job JSON string back to an object
   const { updateJob } = useContext(JobsContext)!; // Use context to update job
 
-  const [name, setName] = useState(jobObj.name);
-  const [address, setAddress] = useState(jobObj.info);
-  const [city, setCity] = useState('Sample City');
-  const [urgency, setUrgency] = useState('High');
+  const [customerName, setName] = useState(jobObj.customerName);
+  const [address, setAddress] = useState(jobObj.address);
+  const [city, setCity] = useState(jobObj.city);
+  const [urgency, setUrgency] = useState('High'); // Use "High" as default urgency
   const [baseHours, setBaseHours] = useState('');
   const [selectedService, setSelectedService] = useState('');
+
+  const [urgencyOpen, setUrgencyOpen] = useState(false); // Managed dropdown state
 
   const serviceNames = ['Service Name 1', 'Service Name 2', 'Service Name 3', 'Service Name 4', 'Service Name 5', 'Service Name 6'];
 
   const handleSave = () => {
     const updatedJob: Job = {
       ...jobObj,
-      name,
-      info: address,
+      customerName,
+      address,
       city,
       urgency,
       baseHours,
-      extra: selectedService,
+      // extra: selectedService,
     };
 
     updateJob(updatedJob); // Update the job in the context
@@ -83,89 +86,92 @@ const ProjectUpdate: React.FC = () => {
     >
       <Image
         source={require('../assets/images/crewzControlIcon.png')}
-        style={styles.logoImage}
+        style={LogoStyles.logo}
         resizeMode="contain"
       />
       <View style={styles.mainDiv}>
-        <ScrollView>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.backText}>Back</Text>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Quote Update</Text>
+        </View>
+        <View style={styles.form}>
+          <View style={styles.row}>
+            <Text style={styles.label}>Name :</Text>
+            <Text style={styles.textValue}>
+              {customerName || "N/A"}  {/* Show default text if no name is available */}
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Address :</Text>
+            <Text style={styles.textValue}>
+              {address || "N/A"}  {/* Show default text if no address is available */}
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>City :</Text>
+            <Text style={styles.textValue}>
+              {city || "N/A"}  {/* Show default text if no city is available */}
+            </Text>
+          </View>
+
+          {/* Urgency Dropdown */}
+          <View style={styles.row}>
+            <Text style={styles.label}>Urgency :</Text>
+            <View style={styles.dropdownWrapper}>
+              <DropDownPicker
+                open={urgencyOpen} // Controlled by state
+                value={urgency}
+                items={[
+                  { label: 'Emergency', value: 'Emergency' },
+                  { label: 'Urgent', value: 'Urgent' },
+                  { label: 'Normal', value: 'Normal' }
+                ]}
+                setOpen={setUrgencyOpen} // Update the open state
+                setValue={setUrgency}
+                style={[styles.dropdownStyle, {width:220, marginLeft:-55, marginBottom:20}]}
+                dropDownContainerStyle={styles.dropDownContainerStyle}
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Base Hours :</Text>
+            <TextInput 
+              style={styles.input} 
+              keyboardType="numeric" 
+              value={baseHours} 
+              onChangeText={setBaseHours} 
+              placeholder="Enter Base Hours" 
+            />
+          </View>
+
+          {/* Select Service to Enter Alternative */}
+          <View style={styles.serviceContainer}>
+            <Text style={styles.sectionTitle}>Select Work Package to Enter Alternative</Text>
+            <View style={styles.serviceListContainer}>
+              {serviceNames.map((service, index) => (
+                <ServiceListItem 
+                  key={index} 
+                  service={service} 
+                  onPress={() => handleServicePress(service)} 
+                />
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>Project Update</Text>
+            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.form}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Name :</Text>
-              <TextInput 
-                style={styles.input} 
-                value={name} 
-                onChangeText={setName} 
-                placeholder="Enter Name" 
-              />
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Address :</Text>
-              <TextInput 
-                style={styles.input} 
-                value={address} 
-                onChangeText={setAddress} 
-                placeholder="Enter Address" 
-              />
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>City :</Text>
-              <TextInput 
-                style={styles.input} 
-                value={city} 
-                onChangeText={setCity} 
-                placeholder="Enter City" 
-              />
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Urgency :</Text>
-              <TextInput 
-                style={styles.input} 
-                value={urgency} 
-                onChangeText={setUrgency} 
-                placeholder="Enter Urgency" 
-              />
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Base Hours :</Text>
-              <TextInput 
-                style={styles.input} 
-                keyboardType="numeric" 
-                value={baseHours} 
-                onChangeText={setBaseHours} 
-                placeholder="Enter Base Hours" 
-              />
-            </View>
-
-            {/* Select Service to Enter Alternative */}
-            <View style={styles.serviceContainer}>
-              <Text style={styles.sectionTitle}>Select Service to Enter Alternative</Text>
-              <View style={styles.serviceListContainer}>
-                {serviceNames.map((service, index) => (
-                  <ServiceListItem 
-                    key={index} 
-                    service={service} 
-                    onPress={() => handleServicePress(service)} 
-                  />
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ScrollView>
+        </View>
       </View>
     </ImageBackground>
   );
@@ -176,15 +182,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoImage: {
-    width: 350, // Set a fixed width for the icon
-    height: 500, // Set a fixed height for the icon to maintain aspect ratio
-    marginBottom: -150, // Space between icon and login form
-    marginTop: -200,
-    position: 'absolute',
-    top: 20,
-    alignSelf: 'center', // Center the logo
-  },
+  dropdownStyle: { borderWidth: 1, borderColor: '#ccc', height: 40, borderRadius: 5 },
+  dropDownContainerStyle: { backgroundColor: '#fafafa' },
+  dropdownWrapper: { flex: 1 }, 
   mainDiv: {
     flex: 1,
     width: '90%',
@@ -192,6 +192,12 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 20,
     marginTop: 150, // Space for the logo
+  }, 
+  textValue: {
+    flex: 2,
+    fontSize: 16,
+    color: '#333',  // Color for the plain text
+    borderRadius: 8,
   },
   header: {
     flexDirection: 'row',
@@ -215,18 +221,18 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 5,
   },
   label: {
-    fontSize: 16,
-    fontWeight: 'bold',
     flex: 1,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   input: {
     flex: 2,
     borderWidth: 1,
     borderColor: '#ccc',
-    padding: 8,
+    padding: 0,
     borderRadius: 15,
   },
   picker: {
@@ -258,6 +264,8 @@ const styles = StyleSheet.create({
     padding: 10, // Optional padding for better touch targets
     backgroundColor: "#f9f9f9", 
     borderRadius: 8, 
+    marginTop: -5,
+    marginBottom: -5,
   },
   serviceListContainer: {
     marginTop: 10, // Add spacing between title and list

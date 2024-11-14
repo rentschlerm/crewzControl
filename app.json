@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "crewzControl",
+    "name": "CrewzControl",
     "slug": "crewzControl",
-    "version": "1.0.6",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
+    "jsEngine": "hermes",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
@@ -19,6 +20,7 @@
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location for providing location-based features.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location at all times."
       }
+      
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +39,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

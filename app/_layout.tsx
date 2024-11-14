@@ -6,7 +6,8 @@ export default function RootLayout() {
     <JobsProvider>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }}/>
-        <Stack.Screen name="Project" />
+        <Stack.Screen name="SecurityCodeScreen" options={{ headerShown: false }}/>
+        <Stack.Screen name="Project" options={{ headerShown: false }}/>
         <Stack.Screen name="ProjectUpdate" options={{ headerShown: false }}/>
         <Stack.Screen name="SearchResults" options={{ headerShown: false }}/>
         <Stack.Screen name="AlternativeSelection" options={{ headerShown: false }}/>

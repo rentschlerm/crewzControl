@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
 import { useRouter } from 'expo-router'; // Import useRouter
+import LogoStyles from '../components/LogoStyles';
+
 
 // JobListItem component
 interface JobListItemProps {
@@ -22,11 +24,20 @@ interface JobListItemProps {
 
 const JobListItem: React.FC<JobListItemProps> = ({ job, onPress }) => (
   <TouchableOpacity onPress={() => onPress(job)} style={styles.jobRow}>
-    <Text style={styles.column1}>{job.name}</Text>
-    <Text style={styles.column2}>{job.info}</Text>
-    <Text style={styles.column3}>{job.email}</Text>
-    <Text style={styles.column4}>{job.extra}</Text>
-  </TouchableOpacity>
+  {/* First row for Quote and Customer Name */}
+  <View style={styles.firstRow}>
+    <Text style={styles.column1}>{job.quoteName}</Text>
+    <Text style={styles.column2}>{job.customerName}</Text>
+    <Text style={styles.column2}>{'-'}</Text>
+  </View>
+  
+  {/* Second row for Address and City */}
+  <View style={styles.secondRow}>
+    <Text style={styles.column3}>{job.address}</Text>
+    <Text style={styles.column4}>{job.city}</Text>
+    <Text style={styles.column4}>{job.amount}</Text>
+  </View>
+</TouchableOpacity>
 );
 
 // Project component
@@ -47,17 +58,19 @@ const Project: React.FC = () => {
   }
 
   const handleSearch = () => {
-    // Filter jobs based on the search term
     const filteredJobs = jobs.filter((job) =>
-      job.name.toLowerCase().includes(searchTerm.toLowerCase())
+      (job.quoteName && job.quoteName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (job.customerName && job.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (job.address && job.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (job.city && job.city.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-
-    // Serialize filtered jobs when navigating
+  
     router.push({
       pathname: '/SearchResults',
-      params: { searchTerm, jobs: JSON.stringify(filteredJobs) }, // Pass filtered jobs as a JSON string
+      params: { searchTerm, jobs: JSON.stringify(filteredJobs) },
     });
   };
+
 
   const handleJobPress = (job: Job) => {
     // Navigate to ProjectUpdate screen with job data serialized as JSON
@@ -79,7 +92,7 @@ const Project: React.FC = () => {
         {/* Logo Image */}
         <Image
           source={require('../assets/images/crewzControlIcon.png')}
-          style={styles.logoImage}
+          style={LogoStyles.logo}
           resizeMode="contain"
         />
 
@@ -109,7 +122,7 @@ const Project: React.FC = () => {
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Enter job name"
+              placeholder="Enter quote customer name"
               value={searchTerm}
               onChangeText={setSearchTerm}
               onFocus={() => { setSearchTerm(searchTerm); }} // Keep the search term on focus
@@ -133,18 +146,12 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  logoImage: {
-    width: 350, // Set a fixed width for the icon
-    height: 500, // Set a fixed height for the icon to maintain aspect ratio
-    marginBottom: -150, // Space between icon and login form
-    marginTop: -200,
-    
-  },
   mainDiv: {
     padding: 10,
     backgroundColor: '#ffffff',
     borderRadius: 15,
     marginBottom: 20, // Spacing for the sections
+    marginTop: 140
   },
   sectionDiv: {
     marginBottom: 20, // Space between each section
@@ -155,7 +162,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   jobRow: {
-    flexDirection: 'row',
+    
     justifyContent: 'space-between',
     padding: 15,
     backgroundColor: '#fff',
@@ -166,9 +173,18 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
+  firstRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    // marginBottom: 0, // Add space between the rows
+  },
+  secondRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   column1: {
     flex: 1,
-    color: 'blue',
+    color: 'grey',
   },
   column2: {
     flex: 1,
@@ -176,7 +192,7 @@ const styles = StyleSheet.create({
   },
   column3: {
     flex: 1,
-    color: 'purple',
+    color: 'grey',
   },
   column4: {
     flex: 1,

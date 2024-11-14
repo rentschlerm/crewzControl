@@ -12,6 +12,7 @@ import {
 import { Checkbox } from 'react-native-paper'; // Import Checkbox from react-native-paper
 import { useRouter } from 'expo-router'; 
 import { useRoute } from '@react-navigation/native'; 
+import LogoStyles from '../components/LogoStyles';
 
 interface Alternative {
   name: string;
@@ -64,7 +65,7 @@ const AlternativeSelection: React.FC = () => {
     >
       <Image
         source={require('../assets/images/crewzControlIcon.png')}
-        style={styles.logoImage}
+        style={LogoStyles.logo}
         resizeMode="contain"
       />
 
@@ -118,20 +119,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoImage: {
-    width: 350, // Set a fixed width for the icon
-    height: 500, // Set a fixed height for the icon to maintain aspect ratio
-    marginBottom: -150, // Space between icon and login form
-    marginTop: -200,
-    position: 'absolute',
-    top: 20,
-    alignSelf: 'center', // Center the logo
-  },
   mainDiv: {
     width: '90%',
     padding: 20,
     backgroundColor: 'white',
     borderRadius: 10,
+    marginTop: 40
   },
   header: {
     flexDirection: 'row',

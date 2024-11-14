@@ -9,23 +9,32 @@ import {
   ImageBackground,
   Image,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Linking,
+  KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import { Checkbox } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { getDeviceInfo } from '../components/DeviceUtils'; // Import the getDeviceInfo function
-import CryptoJS from 'crypto-js'; // SHA-1 hashing
-import { XMLParser } from 'fast-xml-parser'; // Import Fast XML Parser
+import { getDeviceInfo } from '../components/DeviceUtils';
+import CryptoJS from 'crypto-js';
+import { XMLParser } from 'fast-xml-parser';
+import LogoStyles from '../components/LogoStyles';
 
 const SignIn: React.FC = () => {
   const router = useRouter();
-  const [email, setEmail] = useState<string>('test@example.com');
-  const [password, setPassword] = useState<string>('password');
-  const [deviceInfo, setDeviceInfo] = useState<{ id: string; type: string; version: string } | null>(null);
+  const [email, setEmail] = useState<string>();
+  const [password, setPassword] = useState<string>();
+  const [deviceInfo, setDeviceInfo] = useState<{
+    softwareVersion: string | number | boolean; id: string; type: string; model: string; version: string 
+} | null>(null);
   const [location, setLocation] = useState<{ longitude: string; latitude: string; accuracy: string } | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isInvalid, setIsInvalid] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false); // Add loading state
 
   // Fetch device info on component mount
   useEffect(() => {
@@ -35,166 +44,160 @@ const SignIn: React.FC = () => {
 
       // Set mock location values for testing
       setLocation({
-        longitude: '123.456', // Replace with your desired mock longitude
-        latitude: '78.910',    // Replace with your desired mock latitude
-        accuracy: '5.0',       // Replace with desired accuracy
+        longitude: '123.456',
+        latitude: '78.910',
+        accuracy: '5',
       });
     };
 
     fetchDeviceInfo();
   }, []);
-  
+  const handleback = async () => {router.push('/Project');}
   const handleLogin = async () => {
     if (!deviceInfo || !location) {
       Alert.alert('Device or location information is missing');
       return;
     }
- 
-    const crewzControlVersion = '10'; // Hardcoded version
-  
-    // Get current date in MM/DD/YYYY-HH:mm format
+
+    setIsLoading(true); // Show loading indicator
+
+    const crewzControlVersion = '10';
     const currentDate = new Date();
-    const formattedDate = `${currentDate.getMonth() + 1}/${currentDate.getDate()}/${currentDate.getFullYear()}-${currentDate.getHours()}:${currentDate.getMinutes()}`;
-  
-    // Create SHA-1 key
-    const keyString = `${deviceInfo.id}${formattedDate}${email}`;
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    const keyString = `${deviceInfo.id}${formattedDate}`;
     const key = CryptoJS.SHA1(keyString).toString();
-  
-    // Construct API URL
-    const url = `https://crewzcontrol.com/dev/CCService/AuthorizeEmployee.php?DeviceID=${deviceInfo.id}&DeviceType=${deviceInfo.type}&DeviceModel=${deviceInfo.type}&SoftwareVersion=${deviceInfo.version}&Date=${formattedDate}&Key=${key}&UserName=${email}&Password=${password}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&GeoAccuracy=${location.accuracy}&Language=EN&TestFlag=1`;
-  
+    console.log(`Keystring Before Hashing: ${keyString}`);
+    console.log(`Hashed: ${key}`);
+
+    const validEmail = email ?? ''; // If email is undefined, use an empty string
+    const validPassword = password ?? ''; // If password is undefined, use an empty string
+
+    const url = `https://crewzcontrol.com/dev/CCService/AuthorizeEmployee.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&DeviceType=${encodeURIComponent(deviceInfo.type)}&DeviceModel=${encodeURIComponent(deviceInfo.model)}&DeviceVersion=${encodeURIComponent(deviceInfo.version)}&SoftwareVersion=${encodeURIComponent(deviceInfo.softwareVersion)}&Date=${formattedDate}&Key=${key}&UserName=${encodeURIComponent(validEmail)}&Password=${encodeURIComponent(validPassword)}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN&GeoAccuracy=${location.accuracy}&TestFlag=1`;
+    console.log(`${url}`);
+
     try {
       const response = await fetch(url);
       const data = await response.text();
-  
-      console.log("Raw API Response:", data);
-      console.log("Constructed URL:", url);
       
-      // Parse the XML response using Fast XML Parser
       const parser = new XMLParser();
       const result = parser.parse(data);
-      
-      console.log("Parsed XML Result:", result); // Log the parsed result
-  
-      // Access the required fields based on the expected XML structure
-      const resultInfo = result.ResultInfo; // Adjust according to the actual root element
+      const resultInfo = result.ResultInfo;
+
       if (resultInfo) {
-        const resultCode = resultInfo.Result; // Check for Success or Fail
-        const message = resultInfo.Message;    // Message for the user
-        const authCode = resultInfo.Auth;      // 10 digit authentication code
-        const companyName = resultInfo.Comp;   // Company name
-        const employeeName = resultInfo.Name;   // Employee name
-  
+        const resultCode = resultInfo.Result;
+        const message = resultInfo.Message;
+
         if (resultCode === 'Success') {
-          Alert.alert(`Welcome, ${email}! Your Auth Code: ${authCode}`);
+          Alert.alert(`Welcome, ${email}!. A security code has been sent to your email.`);
           setIsInvalid(false);
-          router.push('/Project'); // Navigate to the Project screen
+          router.push({
+            pathname: '/SecurityCodeScreen',
+            params: {
+              deviceInfo: JSON.stringify(deviceInfo),
+              location: JSON.stringify(location),
+            },
+          });
         } else {
           Alert.alert('Login Failed', message || 'An unknown error occurred');
           setIsInvalid(true);
         }
       } else {
         Alert.alert('Error', 'Unexpected response structure from the server.');
-        console.log("Parsed Result:", result);
       }
     } catch (error) {
       console.error('Error during login:', error);
       Alert.alert('Login Failed', 'An error occurred during login');
       setIsInvalid(true);
+    } finally {
+      setIsLoading(false); // Hide loading indicator
     }
   };
-  
-  
-
   return (
-    <ImageBackground
-      source={require('../assets/images/background.png')}
-      style={styles.background}
-    >
-      <View style={styles.container}>
-        <Image
-          source={require('../assets/images/crewzControlIcon.png')}
-          style={styles.icon}
-          resizeMode="contain"
-        />
-        {isInvalid ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Invalid Sign-in. Please Try Again.</Text>
-            <TouchableOpacity style={styles.button} onPress={() => setIsInvalid(false)}>
-              <Text style={styles.buttonText}>Back to Login</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.loginContainer}>
-            <Text style={styles.title}>Sign-in</Text>
-            <TextInput
-              style={styles.email}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoFocus={true}
-            />
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? 'eye-off' : 'eye'}
-                  size={24}
-                  color="#007BFF"
-                />
-              </TouchableOpacity>
-             
-            </View>
-             {/* Terms of Service and Privacy Policy Checkbox */}
-             <View style={styles.checkboxContainer}>
-              <Checkbox
-                status={isChecked ? 'checked' : 'unchecked'}
-                onPress={() => setIsChecked(!isChecked)}
-              />
-              <Text style={styles.checkboxLabel}>
-                I agree to the{' '}
-                <Text style={styles.linkText}>Terms of Service</Text> and{' '}
-                <Text style={styles.linkText}>Privacy Policy</Text>.
-              </Text>
-            </View>
-              {/* End of Terms of Service and Privacy Policy Checkbox */}
-            <TouchableOpacity
-              style={[styles.button, !isChecked && styles.disabledButton]}
-              onPress={handleLogin}
-              disabled={!isChecked}
-            >
-              <Text style={styles.buttonText}>Sign-in</Text>
-            </TouchableOpacity>
+    <ImageBackground source={require('../assets/images/background.png')} style={styles.background}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView style={styles.container} behavior="padding">
+          <View style={styles.container}>
+            <Image source={require('../assets/images/crewzControlIcon.png')} style={LogoStyles.logo} resizeMode="contain" />
             
+            {isLoading ? (
+              // Loading indicator screen
+              <ActivityIndicator size="large" color="#ffffff" style={[styles.loading,  { transform: [{ scale: 2 }] }]} />
+            ) : (
+              isInvalid ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>Invalid Sign-in. Please Try Again.</Text>
+                  <TouchableOpacity style={styles.button} onPress={() => setIsInvalid(false)}>
+                    <Text style={styles.buttonText}>Back to Login</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.loginContainer}>
+                  <Text style={styles.title}>Sign-in</Text>
+                  <TextInput
+                    style={styles.email}
+                    placeholder="Username"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    autoFocus={true}
+                  />
+                  <View style={styles.passwordContainer}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Password"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                    />
+                    <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
+                      <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="#007BFF" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.checkboxContainer}>
+                    <View style={styles.checkboxWrapper}>
+                    <Checkbox
+                      status={isChecked ? 'checked' : 'unchecked'}
+                      onPress={() => setIsChecked(!isChecked)}
+                      color="#007BFF"
+                      uncheckedColor="#666"
+                    />
+                    </View>
+                    <Text style={styles.checkboxLabel}>
+                      I agree to the{' '}
+                      <Text style={styles.linkText} onPress={() => Linking.openURL('https://crewzcontrol.com/CrewzControlEndUserLicenseAgreement.htm')}>
+                        Terms of Service
+                      </Text> and{' '}
+                      <Text style={styles.linkText} onPress={() => Linking.openURL('https://crewzcontrol.com/CrewzControlPrivacyPolicy.htm')}>
+                        Privacy Policy
+                      </Text>.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.button, !isChecked && styles.disabledButton]}
+                    onPress={handleLogin}
+                    disabled={!isChecked}
+                  >
+                    <Text style={styles.buttonText}>Sign-in</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.button, !isChecked && styles.disabledButton]}
+                    onPress={handleback}
+                    disabled={!isChecked}
+                  >
+                    <Text style={styles.buttonText}>Quotes</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            )}
           </View>
-        )}
-        {/* {deviceInfo && (
-          <View>
-            <Text>Device ID: {deviceInfo.id}</Text>
-            <Text>Device Type: {deviceInfo.type}</Text>
-            <Text>Software Version: {deviceInfo.version}</Text>
-          </View>
-        )}
-        {location && (
-          <View>
-            <Text>Longitude: {location.longitude}</Text>
-            <Text>Latitude: {location.latitude}</Text>
-            <Text>Accuracy: {location.accuracy} meters</Text>
-          </View>
-        )} */}
-      </View>
-      <StatusBar style="auto" />
+          <StatusBar style="auto" />
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </ImageBackground>
   );
 };
+
 
 const styles = StyleSheet.create({
   background: {
@@ -206,11 +209,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    marginLeft: -15
+    marginLeft: -15,
   },
   checkboxLabel: {
     fontSize: 16,
     color: '#333',
+    marginLeft: 10
+  },
+  checkboxWrapper: {
+    borderWidth: 1,
+    borderColor: '#007BFF',
+    borderRadius: 4,
+    justifyContent: 'center',
   },
   linkText: {
     color: '#007BFF',
@@ -225,12 +235,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', // Center horizontally
     padding: 20, // Add padding to the container
   },
-  icon: {
-    width: 350, // Set a fixed width for the icon
-    height: 500, // Set a fixed height for the icon to maintain aspect ratio
-    marginBottom: -150, // Space between icon and login form
-    marginTop: -350,
-  },
   loginContainer: {
     width: '100%', // Set width to 100% of the available space
     padding: 20,
@@ -244,6 +248,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, // Shadow opacity for Android
     shadowRadius: 2, // Shadow radius for Android
     elevation: 5, // Elevation for iOS
+    marginTop: 0
+  },
+  loading: {
+    
+    
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   email:{
     width: undefined,
