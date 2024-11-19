@@ -22,6 +22,7 @@ import { getDeviceInfo } from '../components/DeviceUtils';
 import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import LogoStyles from '../components/LogoStyles';
+import * as Location from 'expo-location';
 
 const SignIn: React.FC = () => {
   const router = useRouter();
@@ -38,19 +39,39 @@ const SignIn: React.FC = () => {
 
   // Fetch device info on component mount
   useEffect(() => {
-    const fetchDeviceInfo = async () => {
+    const fetchDeviceInfoAndLocation = async () => {
+      // Fetch device info (assume getDeviceInfo is implemented elsewhere)
       const info = await getDeviceInfo();
       setDeviceInfo(info);
 
-      // Set mock location values for testing
-      setLocation({
-        longitude: '123.456',
-        latitude: '78.910',
-        accuracy: '5',
-      });
+      // Request location permissions
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('Location permission not granted. Using mock location.');
+          // Use mock location if permission is not granted
+          setLocation({
+            longitude: '123.456',
+            latitude: '78.910',
+            accuracy: '5',
+          });
+          return;
+        }
+
+        // Get current location
+        const currentLocation = await Location.getCurrentPositionAsync({});
+        setLocation({
+          longitude: currentLocation.coords.longitude.toString(),
+          latitude: currentLocation.coords.latitude.toString(),
+          accuracy: currentLocation.coords.accuracy.toString(),
+        });
+      } catch (error) {
+        console.error('Error fetching location:', error);
+        Alert.alert('Error', 'Unable to retrieve location.');
+      }
     };
 
-    fetchDeviceInfo();
+    fetchDeviceInfoAndLocation();
   }, []);
   const handleback = async () => {router.push('/Project');}
   const handleLogin = async () => {
