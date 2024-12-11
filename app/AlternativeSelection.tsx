@@ -1,44 +1,44 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  Image, 
-  ImageBackground 
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Image,
+  ImageBackground,
 } from 'react-native';
-import { Checkbox } from 'react-native-paper'; // Import Checkbox from react-native-paper
-import { useRouter } from 'expo-router'; 
-import { useRoute } from '@react-navigation/native'; 
+import { Checkbox } from 'react-native-paper'; // Using react-native-paper for checkboxes
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import LogoStyles from '../components/LogoStyles';
 
 interface Alternative {
+  AlternateHour: string;
   name: string;
   hours: string;
   checked?: boolean;
 }
 
 const AlternativeSelection: React.FC = () => {
-  const router = useRouter(); 
-  const route = useRoute(); 
-  const { selectedService, saveAlternatives } = route.params as {
-    selectedService: string;
-    saveAlternatives: (alternatives: Alternative[]) => void;
-  }; 
+  const router = useRouter();
+  const { workPackageName, workPackageAlternates } = useLocalSearchParams();
 
-  const alternativesData: Alternative[] = [
-    { name: 'Service Name 1', hours: '' },
-    { name: 'Service Name 2', hours: '' },
-    { name: 'Service Name 3', hours: '' },
-    { name: 'Service Name 4', hours: '' },
-    { name: 'Service Name 5', hours: '' },
-    { name: 'Service Name 6', hours: '' },
-    { name: 'Service Name 7', hours: '' },
-  ];
+  // Parse alternates if passed via route params
+  const parsedAlternates = workPackageAlternates
+    ? JSON.parse(Array.isArray(workPackageAlternates) ? workPackageAlternates.join('') : workPackageAlternates)
+    : [];
 
+  const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => ({
+    name: alt.AlternateName || 'Unnamed Alternate',
+    hours: alt.AlternateHour ? alt.AlternateHour.toString() : '',  // Make sure hours is a string
+    checked: false,
+  }));
   const [alternatives, setAlternatives] = useState<Alternative[]>(alternativesData);
+  // console.log('Initial Alternatives State:', alternatives);
+  useEffect(() => {
+    
+  }, [alternatives]); 
 
   const toggleCheckbox = (index: number) => {
     const updatedAlternatives = [...alternatives];
@@ -46,21 +46,21 @@ const AlternativeSelection: React.FC = () => {
     setAlternatives(updatedAlternatives);
   };
 
-  const updateHours = (index: number, hours: string) => {
-    const updatedAlternatives = [...alternatives];
-    updatedAlternatives[index].hours = hours;
-    setAlternatives(updatedAlternatives);
-  };
-
   const handleSave = () => {
     const selectedAlternatives = alternatives.filter((item) => item.checked);
-    saveAlternatives(selectedAlternatives); 
-    router.back(); 
+    console.log('Selected Alternatives:', selectedAlternatives);
+    router.back();
   };
+  const handleHoursChange = (text: string, alt: { hours: string }) => {
+    const updatedHours = text.replace(/[^0-9]/g, ''); // Allow only numeric values
+    alt.hours = updatedHours; // Update the value in the `alt` object
+    setAlternatives((prev) => [...prev]); // Trigger a re-render (if using state or context)
+  };
+  
 
   return (
     <ImageBackground
-      source={require('../assets/images/background.png')} 
+      source={require('../assets/images/background.png')}
       style={styles.background}
     >
       <Image
@@ -75,35 +75,68 @@ const AlternativeSelection: React.FC = () => {
             <TouchableOpacity onPress={() => router.back()}>
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>Get Alternatives</Text>
+            <Text style={styles.title}>
+              {workPackageName || 'Work Package'}
+            </Text>
           </View>
 
-          <Text style={styles.serviceLabel}>Service: {selectedService}</Text>
+          <Text style={styles.subtitle}>Available Alternatives:</Text>
 
-          <Text style={styles.sectionTitle}>Select Alternatives</Text>
+          {alternatives.length > 0 ? (
+            alternatives.map((alt, index) => {
+              // console.log('Rendering alt:', alt);  // Log alt to ensure data is correctly passed
+              return (
+                <View key={index} style={styles.row}>
+                  <View style={styles.checkboxContainer}>
+                    <View style={styles.checkboxWrapper}>
+                    <Checkbox
+                      status={alt.checked ? 'checked' : 'unchecked'}
+                      onPress={() => toggleCheckbox(index)}
+                      color="#007BFF"
+                      uncheckedColor="#666"
+                    />
+                    </View>
+                    </View>
+                  {/* <Checkbox
+                    status={alt.checked ? 'checked' : 'unchecked'}
+                    onPress={() => toggleCheckbox(index)}
+                  /> */}
+                  <Text style={styles.altText}>{alt.name}</Text>
 
-          {alternatives.map((alt, index) => (
-            <View key={index} style={styles.row}>
-              <Checkbox
-                status={alt.checked ? 'checked' : 'unchecked'}
-                onPress={() => toggleCheckbox(index)}
-              />
-              <Text style={styles.altText}>{alt.name}</Text>
-              <TextInput
-                style={styles.hoursInput}
-                value={alt.hours}
-                onChangeText={(text) => updateHours(index, text)}
-                placeholder="Add Hours"
-                keyboardType="numeric"
-              />
-            </View>
-          ))}
+                  {/* Check if hours are rendered correctly */}
+                  <View style={styles.hoursField}>
+                    <TextInput
+                      style={styles.hoursText} // Apply your custom styling
+                      value={alt.hours} // Bind the `alt.hours` state
+                      onChangeText={(text) => handleHoursChange(text, alt)} // Handle text changes
+                      editable={true} // Enable editing
+                      selectTextOnFocus={true} // Allow text selection
+                      keyboardType="numeric" // Use a numeric keyboard for hours input
+                    />
+                    <Text style={styles.unitText}>
+                      {alt.hours === '1' ? 'hr' : 'hrs'}
+                    </Text>
+                  </View>
+
+                </View>
+              );
+            })
+          ) : (
+            <Text>No alternatives available.</Text>
+          )}
+
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={() => router.back()}
+            >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <TouchableOpacity 
+              style={styles.saveButton} 
+              onPress={handleSave}
+            >
               <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity>
           </View>
@@ -113,11 +146,57 @@ const AlternativeSelection: React.FC = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   background: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  checkboxWrapper: {
+    borderWidth: 1,
+    borderColor: '#007BFF',
+    borderRadius: 4,
+    justifyContent: 'center',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    marginLeft: 15,
+    marginRight: 15,
+    marginTop: 15,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 10,
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  hoursField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    marginLeft: 10,
+    minWidth: 80,
+    backgroundColor: '#f9f9f9',
+  },
+  hoursText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+    textAlign: 'center',
+  },
+  unitText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 5,
   },
   mainDiv: {
     width: '90%',

@@ -7,8 +7,8 @@ const LogoStyles = StyleSheet.create({
     marginBottom: 20, // Adjust as per the space you want between the logo and the rest of the content
   },
   logo: {
-    width: 350, // Adjust width as per your design
-    height: 500, // Adjust height as per your design
+    width: 250, // Adjust width as per your design
+    height: 400, // Adjust height as per your design
     resizeMode: 'contain', // Ensures the image maintains its aspect ratio
     position: 'absolute', // Absolute position to make it float on top
     top: -150, // Adjust this based on your layout or design (distance from the top)

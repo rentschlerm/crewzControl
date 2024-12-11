@@ -29,51 +29,43 @@ const SignIn: React.FC = () => {
   const [email, setEmail] = useState<string>();
   const [password, setPassword] = useState<string>();
   const [deviceInfo, setDeviceInfo] = useState<{
-    softwareVersion: string | number | boolean; id: string; type: string; model: string; version: string 
-} | null>(null);
+    softwareVersion: string | number | boolean;
+    id: string;
+    type: string;
+    model: string;
+    version: string;
+  } | null>(null);
   const [location, setLocation] = useState<{ longitude: string; latitude: string; accuracy: string } | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isInvalid, setIsInvalid] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false); // Add loading state
 
-  // Fetch device info on component mount
+  // Fetch device info and location on component mount
   useEffect(() => {
     const fetchDeviceInfoAndLocation = async () => {
-      // Fetch device info (assume getDeviceInfo is implemented elsewhere)
       const info = await getDeviceInfo();
       setDeviceInfo(info);
 
       // Request location permissions
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          console.log('Location permission not granted. Using mock location.');
-          // Use mock location if permission is not granted
-          setLocation({
-            longitude: '123.456',
-            latitude: '78.910',
-            accuracy: '5',
-          });
-          return;
-        }
-
-        // Get current location
-        const currentLocation = await Location.getCurrentPositionAsync({});
-        setLocation({
-          longitude: currentLocation.coords.longitude.toString(),
-          latitude: currentLocation.coords.latitude.toString(),
-          accuracy: currentLocation.coords.accuracy.toString(),
-        });
-      } catch (error) {
-        console.error('Error fetching location:', error);
-        Alert.alert('Error', 'Unable to retrieve location.');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permissions are required to sign in.');
+        return;
       }
+
+      // Get location
+      const locationData = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setLocation({
+        longitude: locationData.coords.longitude.toString(),
+        latitude: locationData.coords.latitude.toString(),
+        accuracy: locationData.coords.accuracy?.toString() || 'N/A',
+      });
     };
 
     fetchDeviceInfoAndLocation();
   }, []);
-  const handleback = async () => {router.push('/Project');}
+
   const handleLogin = async () => {
     if (!deviceInfo || !location) {
       Alert.alert('Device or location information is missing');
@@ -87,19 +79,16 @@ const SignIn: React.FC = () => {
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
     const keyString = `${deviceInfo.id}${formattedDate}`;
     const key = CryptoJS.SHA1(keyString).toString();
-    console.log(`Keystring Before Hashing: ${keyString}`);
-    console.log(`Hashed: ${key}`);
 
     const validEmail = email ?? ''; // If email is undefined, use an empty string
     const validPassword = password ?? ''; // If password is undefined, use an empty string
 
     const url = `https://crewzcontrol.com/dev/CCService/AuthorizeEmployee.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&DeviceType=${encodeURIComponent(deviceInfo.type)}&DeviceModel=${encodeURIComponent(deviceInfo.model)}&DeviceVersion=${encodeURIComponent(deviceInfo.version)}&SoftwareVersion=${encodeURIComponent(deviceInfo.softwareVersion)}&Date=${formattedDate}&Key=${key}&UserName=${encodeURIComponent(validEmail)}&Password=${encodeURIComponent(validPassword)}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN&GeoAccuracy=${location.accuracy}&TestFlag=1`;
-    console.log(`${url}`);
 
     try {
       const response = await fetch(url);
       const data = await response.text();
-      
+
       const parser = new XMLParser();
       const result = parser.parse(data);
       const resultInfo = result.ResultInfo;
@@ -133,6 +122,7 @@ const SignIn: React.FC = () => {
       setIsLoading(false); // Hide loading indicator
     }
   };
+
   return (
     <ImageBackground source={require('../assets/images/background.png')} style={styles.background}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -141,8 +131,7 @@ const SignIn: React.FC = () => {
             <Image source={require('../assets/images/crewzControlIcon.png')} style={LogoStyles.logo} resizeMode="contain" />
             
             {isLoading ? (
-              // Loading indicator screen
-              <ActivityIndicator size="large" color="#ffffff" style={[styles.loading,  { transform: [{ scale: 2 }] }]} />
+              <ActivityIndicator size="large" color="#ffffff" style={[styles.loading, { transform: [{ scale: 2 }] }]} />
             ) : (
               isInvalid ? (
                 <View style={styles.errorContainer}>
@@ -176,14 +165,12 @@ const SignIn: React.FC = () => {
                     </TouchableOpacity>
                   </View>
                   <View style={styles.checkboxContainer}>
-                    <View style={styles.checkboxWrapper}>
                     <Checkbox
                       status={isChecked ? 'checked' : 'unchecked'}
                       onPress={() => setIsChecked(!isChecked)}
                       color="#007BFF"
                       uncheckedColor="#666"
                     />
-                    </View>
                     <Text style={styles.checkboxLabel}>
                       I agree to the{' '}
                       <Text style={styles.linkText} onPress={() => Linking.openURL('https://crewzcontrol.com/CrewzControlEndUserLicenseAgreement.htm')}>
@@ -200,13 +187,6 @@ const SignIn: React.FC = () => {
                     disabled={!isChecked}
                   >
                     <Text style={styles.buttonText}>Sign-in</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.button, !isChecked && styles.disabledButton]}
-                    onPress={handleback}
-                    disabled={!isChecked}
-                  >
-                    <Text style={styles.buttonText}>Quotes</Text>
                   </TouchableOpacity>
                 </View>
               )

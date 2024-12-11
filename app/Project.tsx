@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   ImageBackground,
   Image,
   KeyboardAvoidingView,
-  Platform,  // Added import for Platform
+  Platform,
+  Alert,
 } from 'react-native';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
 import { useRouter } from 'expo-router'; // Import useRouter
 import LogoStyles from '../components/LogoStyles';
-
+import { getDeviceInfo } from '../components/DeviceUtils';
+import { XMLParser } from 'fast-xml-parser';
+import CryptoJS from 'crypto-js';
 
 // JobListItem component
 interface JobListItemProps {
@@ -24,28 +27,50 @@ interface JobListItemProps {
 
 const JobListItem: React.FC<JobListItemProps> = ({ job, onPress }) => (
   <TouchableOpacity onPress={() => onPress(job)} style={styles.jobRow}>
-  {/* First row for Quote and Customer Name */}
-  <View style={styles.firstRow}>
-    <Text style={styles.column1}>{job.quoteName}</Text>
-    <Text style={styles.column2}>{job.customerName}</Text>
-    <Text style={styles.column2}>{'-'}</Text>
-  </View>
-  
-  {/* Second row for Address and City */}
-  <View style={styles.secondRow}>
-    <Text style={styles.column3}>{job.address}</Text>
-    <Text style={styles.column4}>{job.city}</Text>
-    <Text style={styles.column4}>{job.amount}</Text>
-  </View>
-</TouchableOpacity>
+    {/* First row for Quote and Customer Name */}
+    <View style={styles.firstRow}>
+      <Text style={styles.column1}>{job.quoteName || '-'}</Text>
+      <Text style={styles.column2}>{job.customerName || '-'}</Text>
+      <Text style={styles.column2}>{job.status || '-'}</Text>
+    </View>
+
+    {/* Second row for Address, City, and Amount */}
+    <View style={styles.secondRow}>
+      <Text style={styles.column3}>{job.address || '-'}</Text>
+      <Text style={styles.column4}>{job.city || '-'}</Text>
+      <Text style={styles.column4}>${job.amount ? Number(job.amount).toLocaleString() : '-'}</Text>
+    </View>
+  </TouchableOpacity>
 );
 
 // Project component
 const Project: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const jobsContext = useContext(JobsContext); // Safely get context
+  const {authorizationCode} = useContext(JobsContext);
   const router = useRouter(); // Initialize the router
+  const [deviceInfo, setDeviceInfo] = useState<{
+    softwareVersion: string | number | boolean; id: string; type: string; model: string; version: string 
+} | null>(null);
+const [location, setLocation] = useState<{ longitude: string; latitude: string; accuracy: string } | null>(null);
 
+  useEffect(() => {
+    const fetchDeviceInfo = async () => {
+      const info = await getDeviceInfo();
+      setDeviceInfo(info);
+
+      
+      // Set mock location values for testing
+      setLocation({
+        longitude: '123.456',
+        latitude: '78.910',
+        accuracy: '5',
+      });
+    };
+
+    fetchDeviceInfo();
+  }, []);
+  
   if (!jobsContext) {
     return <Text>Error: JobsContext not available</Text>;
   }
@@ -54,78 +79,165 @@ const Project: React.FC = () => {
 
   // Show a loading state while jobs are being loaded
   if (!jobsReady) {
-    return <Text>Loading jobs...</Text>; // Use a loader component if necessary
+    return (
+      <View style={styles.container}>
+        <Text style={styles.loadingText}>Loading quotes...</Text>
+      </View>
+    );
   }
 
-  const handleSearch = () => {
+  // Handle the case where no jobs are available
+  if (jobs.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.noQuotesText}>No quotes available</Text>
+      </View>
+    );
+  }
+
+  const fetchQuoteDetails = async (jobId: number) => {
+    if (!deviceInfo || !location) {
+      Alert.alert('Device or location information is missing');
+      return null;
+    }
+  
+    const crewzControlVersion = '1'; // Hard-coded as per specification
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    const keyString = `${deviceInfo.id}${formattedDate}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+  
+    const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${jobId}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+    console.log(`${url}`);
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        return result.ResultInfo.Selections?.Quote;
+      } else {
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching quote details:', error);
+      Alert.alert('Error', 'An error occurred while fetching quote details.');
+      return null;
+    }
+  };
+
+  const fetchQuoteList = async () => {
+    if (!deviceInfo || !location) {
+      Alert.alert('Device or location information is missing');
+      return null;
+    }
+  
+    const crewzControlVersion = '1'; // Hard-coded as per specification
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    const keyString = `${deviceInfo.id}${formattedDate}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+  
+    const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
+    console.log(`${url}`);
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        return result.ResultInfo.Selections?.Quote;
+      } else {
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching quote details:', error);
+      Alert.alert('Error', 'An error occurred while fetching quote details.');
+      return null;
+    }
+  };
+
+  const handleSearch = async () => {
     const filteredJobs = jobs.filter((job) =>
       (job.quoteName && job.quoteName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (job.customerName && job.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (job.address && job.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (job.city && job.city.toLowerCase().includes(searchTerm.toLowerCase()))
+      (job.city && job.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (job.status && job.status.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  
+    const enrichedJobs = await Promise.all(
+      filteredJobs.map(async (job) => {
+        const details = await fetchQuoteList();
+        return { ...job, details };
+      })
     );
   
     router.push({
       pathname: '/SearchResults',
-      params: { searchTerm, jobs: JSON.stringify(filteredJobs) },
+      params: { searchTerm, jobs: JSON.stringify(enrichedJobs) },
     });
   };
+  
 
-
-  const handleJobPress = (job: Job) => {
-    // Navigate to ProjectUpdate screen with job data serialized as JSON
+  const handleJobPress = async (job: Job) => {
+  const quoteDetails = await fetchQuoteDetails(job.id);
+  if (quoteDetails) {
     router.push({
       pathname: '/ProjectUpdate',
-      params: { job: JSON.stringify(job) }, // Pass job as a JSON string
+      params: { job: JSON.stringify(quoteDetails) },
     });
-  };
+  }
+};
+  
 
   return (
     <KeyboardAvoidingView
-      style={styles.container} // Added KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} // Adjusts behavior based on platform
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ImageBackground
         source={require('../assets/images/background.png')}
         style={styles.background}
       >
-        {/* Logo Image */}
         <Image
           source={require('../assets/images/crewzControlIcon.png')}
           style={LogoStyles.logo}
           resizeMode="contain"
         />
 
-        {/* Main Div (Wrapper for Close to and Recent Sections) */}
         <View style={styles.mainDiv}>
-          {/* Close to Section */}
           <View style={styles.sectionDiv}>
             <Text style={styles.sectionTitle}>Close to:</Text>
             <FlatList
-              data={jobs.slice(0, 1)}  // Display only the first job
+              data={jobs.slice(0, 1)} // Display only the first job
               renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
               keyExtractor={(item) => item.id.toString()}
             />
           </View>
 
-          {/* Recent Section */}
           <View style={styles.sectionDiv}>
             <Text style={styles.sectionTitle}>Recent:</Text>
             <FlatList
-              data={jobs.slice(0, 4)}  // Display only the first 4 jobs
+              data={jobs.slice(1, 4)} // Display only the first 4 jobs
               renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
               keyExtractor={(item) => item.id.toString()}
             />
           </View>
 
-          {/* Search Section */}
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
               placeholder="Enter quote customer name"
               value={searchTerm}
               onChangeText={setSearchTerm}
-              onFocus={() => { setSearchTerm(searchTerm); }} // Keep the search term on focus
+              onFocus={() => setSearchTerm(searchTerm)}
             />
             <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
               <Text style={styles.searchButtonText}>Search</Text>
@@ -152,6 +264,16 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginBottom: 20, // Spacing for the sections
     marginTop: 140
+  },
+  loadingText: {
+    fontSize: 18,
+    color: 'gray',
+  },
+  noQuotesText: {
+    fontSize: 18,
+    color: 'red',
+    textAlign: 'center',
+    padding: 20,
   },
   sectionDiv: {
     marginBottom: 20, // Space between each section
