@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import { JobsContext } from '../components/JobContext'; // Import the context
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SecurityCodeScreen: React.FC = () => {
   const router = useRouter();
@@ -52,6 +53,7 @@ const SecurityCodeScreen: React.FC = () => {
 
         if (resultCode === 'Success') {
           const authorizationCode = resultInfo.Auth; // Extract the Auth code
+          await AsyncStorage.setItem('authorizationCode', authorizationCode); // Save the authorizationCode to AsyncStorage
           setAuthorizationCode(authorizationCode); // Update the context
           Alert.alert('Authorization Successful!', 'You are now logged in.');
           router.push('/Project');

@@ -2,7 +2,7 @@
   "expo": {
     "name": "CrewzControl",
     "slug": "crewzControl",
-    "version": "1.0.9",
+    "version": "2.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -13,6 +13,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cerenimbus.crewzcontrol",
@@ -32,6 +33,7 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
       ]
+      
     },
     "web": {
       "bundler": "metro",
@@ -41,7 +43,13 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-location"
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

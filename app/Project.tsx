@@ -18,6 +18,7 @@ import LogoStyles from '../components/LogoStyles';
 import { getDeviceInfo } from '../components/DeviceUtils';
 import { XMLParser } from 'fast-xml-parser';
 import CryptoJS from 'crypto-js';
+import useLocation from '@/hooks/useLocation';
 
 // JobListItem component
 interface JobListItemProps {
@@ -52,23 +53,16 @@ const Project: React.FC = () => {
   const [deviceInfo, setDeviceInfo] = useState<{
     softwareVersion: string | number | boolean; id: string; type: string; model: string; version: string 
 } | null>(null);
-const [location, setLocation] = useState<{ longitude: string; latitude: string; accuracy: string } | null>(null);
+  const { location, fetchLocation } = useLocation(); // Use the custom hook
 
   useEffect(() => {
     const fetchDeviceInfo = async () => {
       const info = await getDeviceInfo();
       setDeviceInfo(info);
-
-      
-      // Set mock location values for testing
-      setLocation({
-        longitude: '123.456',
-        latitude: '78.910',
-        accuracy: '5',
-      });
     };
 
     fetchDeviceInfo();
+    fetchLocation();
   }, []);
   
   if (!jobsContext) {
@@ -97,14 +91,14 @@ const [location, setLocation] = useState<{ longitude: string; latitude: string; 
 
   const fetchQuoteDetails = async (jobId: number) => {
     if (!deviceInfo || !location) {
-      Alert.alert('Device or location information is missing');
+      Alert.alert('Device or location information is loading');
       return null;
     }
   
     const crewzControlVersion = '1'; // Hard-coded as per specification
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
-    const keyString = `${deviceInfo.id}${formattedDate}`;
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
     const key = CryptoJS.SHA1(keyString).toString();
   
     const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${jobId}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
@@ -115,7 +109,7 @@ const [location, setLocation] = useState<{ longitude: string; latitude: string; 
       const data = await response.text();
       const parser = new XMLParser();
       const result = parser.parse(data);
-  
+  console.log('GetQuote Data: ', data);
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
@@ -131,7 +125,7 @@ const [location, setLocation] = useState<{ longitude: string; latitude: string; 
 
   const fetchQuoteList = async () => {
     if (!deviceInfo || !location) {
-      Alert.alert('Device or location information is missing');
+      Alert.alert('Device or location information is loading');
       return null;
     }
   

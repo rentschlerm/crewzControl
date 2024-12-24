@@ -2,6 +2,7 @@ import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import { getDeviceInfo } from '../components/DeviceUtils';
+import useLocation from '../hooks/useLocation';
 
 // Define the Job type
 export interface Job {
@@ -67,6 +68,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [authorizationCode, setAuthorizationCode] = useState<string | null>(null); // Add this
   const [jobsFetched, setJobsFetched] = useState<boolean>(false); // Track if jobs are already fetched
+  const { location, fetchLocation } = useLocation();
 
   // Fetch device info and initialize it in context
   useEffect(() => {
@@ -76,27 +78,27 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initializeDeviceInfo();
+    fetchLocation();
   }, []);
 
   
     const fetchJobs = async () => {
-      if (!deviceInfo || !authorizationCode || jobsFetched) return; // Exit if jobs are already fetched or data is missing
+      if (!deviceInfo || !authorizationCode || jobsFetched || !location) return; // Exit if jobs are already fetched or data is missing
 
       try {
         const crewzControlVersion = '10';
-        const longitude = '123.456';
-        const latitude = '78.910';
+     
 
         // Get current date in the required format
         const currentDate = new Date();
-        const formattedDate = `${currentDate.getMonth() + 1}/${currentDate.getDate()}/${currentDate.getFullYear()}-${currentDate.getHours()}:${currentDate.getMinutes()}`;
-
+        const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    
         // Generate the key for the request
-        const keyString = `${deviceInfo.id}${formattedDate}`;
-        // const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+        // const keyString = `${deviceInfo.id}${formattedDate}`;
+        const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
         const key = CryptoJS.SHA1(keyString).toString();
-
-        const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${longitude}&Latitude=${latitude}&Language=EN`;
+        console.log(`Authorization Code: ${authorizationCode}`)
+        const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
         console.log(`Request URL: ${url}`);
 
         const response = await fetch(url);

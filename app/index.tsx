@@ -22,7 +22,7 @@ import { getDeviceInfo } from '../components/DeviceUtils';
 import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import LogoStyles from '../components/LogoStyles';
-import * as Location from 'expo-location';
+import useLocation from '../hooks/useLocation'; // Import the custom hook
 
 const SignIn: React.FC = () => {
   const router = useRouter();
@@ -35,35 +35,21 @@ const SignIn: React.FC = () => {
     model: string;
     version: string;
   } | null>(null);
-  const [location, setLocation] = useState<{ longitude: string; latitude: string; accuracy: string } | null>(null);
+  const { location, fetchLocation } = useLocation(); // Use the custom hook
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isInvalid, setIsInvalid] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false); // Add loading state
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Fetch device info and location on component mount
   useEffect(() => {
-    const fetchDeviceInfoAndLocation = async () => {
+    const fetchDeviceInfo = async () => {
       const info = await getDeviceInfo();
       setDeviceInfo(info);
-
-      // Request location permissions
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permissions are required to sign in.');
-        return;
-      }
-
-      // Get location
-      const locationData = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setLocation({
-        longitude: locationData.coords.longitude.toString(),
-        latitude: locationData.coords.latitude.toString(),
-        accuracy: locationData.coords.accuracy?.toString() || 'N/A',
-      });
     };
 
-    fetchDeviceInfoAndLocation();
+    fetchDeviceInfo();
+    fetchLocation(); // Fetch location using the custom hook
   }, []);
 
   const handleLogin = async () => {
@@ -72,7 +58,7 @@ const SignIn: React.FC = () => {
       return;
     }
 
-    setIsLoading(true); // Show loading indicator
+    setIsLoading(true);
 
     const crewzControlVersion = '10';
     const currentDate = new Date();
@@ -80,11 +66,11 @@ const SignIn: React.FC = () => {
     const keyString = `${deviceInfo.id}${formattedDate}`;
     const key = CryptoJS.SHA1(keyString).toString();
 
-    const validEmail = email ?? ''; // If email is undefined, use an empty string
-    const validPassword = password ?? ''; // If password is undefined, use an empty string
+    const validEmail = email ?? ''; // Use an empty string if email is undefined
+    const validPassword = password ?? ''; // Use an empty string if password is undefined
 
     const url = `https://crewzcontrol.com/dev/CCService/AuthorizeEmployee.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&DeviceType=${encodeURIComponent(deviceInfo.type)}&DeviceModel=${encodeURIComponent(deviceInfo.model)}&DeviceVersion=${encodeURIComponent(deviceInfo.version)}&SoftwareVersion=${encodeURIComponent(deviceInfo.softwareVersion)}&Date=${formattedDate}&Key=${key}&UserName=${encodeURIComponent(validEmail)}&Password=${encodeURIComponent(validPassword)}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN&GeoAccuracy=${location.accuracy}&TestFlag=1`;
-
+    console.log(url);
     try {
       const response = await fetch(url);
       const data = await response.text();
@@ -92,7 +78,7 @@ const SignIn: React.FC = () => {
       const parser = new XMLParser();
       const result = parser.parse(data);
       const resultInfo = result.ResultInfo;
-
+      
       if (resultInfo) {
         const resultCode = resultInfo.Result;
         const message = resultInfo.Message;
@@ -119,7 +105,7 @@ const SignIn: React.FC = () => {
       Alert.alert('Login Failed', 'An error occurred during login');
       setIsInvalid(true);
     } finally {
-      setIsLoading(false); // Hide loading indicator
+      setIsLoading(false);
     }
   };
 

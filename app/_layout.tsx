@@ -11,6 +11,9 @@ export default function RootLayout() {
         <Stack.Screen name="ProjectUpdate" options={{ headerShown: false }}/>
         <Stack.Screen name="SearchResults" options={{ headerShown: false }}/>
         <Stack.Screen name="AlternativeSelection" options={{ headerShown: false }}/>
+        <Stack.Screen name="AddResourceGroup" options={{ headerShown: false }}/>
+        <Stack.Screen name="AddEquipmentsGroup" options={{ headerShown: false }}/>
+        <Stack.Screen name="AddSkillsGroup" options={{ headerShown: false }}/>
       </Stack>
     </JobsProvider>
   );

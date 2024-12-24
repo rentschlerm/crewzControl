@@ -23,7 +23,6 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   label,
   value = '',
   onChange,
-  placeholder = 'Select',
   readOnly = false,
   labelStyle,
 }) => {
@@ -180,7 +179,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           style={[styles.input, readOnly && styles.readOnly]}
           onPress={toggleDatePicker}
         >
-          <Text>{value || placeholder}</Text>
+          <Text>{value}</Text>
         </TouchableOpacity>
       </View>
       {showPicker && (
