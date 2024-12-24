@@ -11,7 +11,7 @@ export const fetchResourcePackageList = async () => {
     ];
   };
   
-  export const updateResourceGroup = async (action: any, list: any) => {
+  export const updateResourceGroup = async (action: string, list: string) => {
     // Simulated API call: UpdateResourceGroup
     console.log(`API Call -> Action: ${action}, List: ${list}`);
   };
