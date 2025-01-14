@@ -55,7 +55,6 @@ const SecurityCodeScreen: React.FC = () => {
           const authorizationCode = resultInfo.Auth; // Extract the Auth code
           await AsyncStorage.setItem('authorizationCode', authorizationCode); // Save the authorizationCode to AsyncStorage
           setAuthorizationCode(authorizationCode); // Update the context
-          Alert.alert('Authorization Successful!', 'You are now logged in.');
           router.push('/Project');
         } else {
           Alert.alert('Authorization Failed', message || 'An unknown error occurred');

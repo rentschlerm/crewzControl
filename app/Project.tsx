@@ -143,7 +143,7 @@ const Project: React.FC = () => {
       const data = await response.text();
       const parser = new XMLParser();
       const result = parser.parse(data);
-  
+      console.log('GetQuoteList Data: ', data);
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
@@ -158,26 +158,57 @@ const Project: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    const filteredJobs = jobs.filter((job) =>
-      (job.quoteName && job.quoteName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (job.customerName && job.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (job.address && job.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (job.city && job.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (job.status && job.status.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    if (!deviceInfo || !location) {
+      Alert.alert('Device or location information is loading');
+      return null;
+    }
   
-    const enrichedJobs = await Promise.all(
-      filteredJobs.map(async (job) => {
-        const details = await fetchQuoteList();
-        return { ...job, details };
-      })
-    );
+    // setLoading(true);
   
-    router.push({
-      pathname: '/SearchResults',
-      params: { searchTerm, jobs: JSON.stringify(enrichedJobs) },
-    });
+    try {
+      const crewzControlVersion = '1'; // Hard-coded as per specification
+      const currentDate = new Date();
+      const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+      const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+      const key = CryptoJS.SHA1(keyString).toString();
+  
+      const search = encodeURIComponent(searchTerm);
+      const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&Search=${search}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
+      console.log(`${url}`);
+  
+      const response = await fetch(url);
+      const data = await response.text();
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+      console.log('Search Data: ', data);
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        const enrichedJobs = result.ResultInfo.Selections?.Quote.map((quote: { Name: any; Address: any; City: any; Amount: any; Status: any; Hours: any; Serial: any; }) => ({
+          quoteName: quote.Name,
+          address: quote.Address,
+          city: quote.City,
+          amount: quote.Amount,
+          status: quote.Status,
+          hours: quote.Hours,
+          id: quote.Serial, // Serial as unique ID
+        }));
+  
+        // Navigate to SearchResults screen with results
+        router.push({
+          pathname: '/SearchResults',
+          params: { searchTerm, jobs: JSON.stringify(enrichedJobs) },
+        });
+      } else {
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch search results.');
+      }
+    } catch (error) {
+      console.error('Error performing search:', error);
+      Alert.alert('Error', 'An error occurred while searching. Please try again.');
+    } finally {
+      // setLoading(false);
+    }
   };
+  
   
 
   const handleJobPress = async (job: Job) => {
@@ -213,6 +244,7 @@ const Project: React.FC = () => {
               data={jobs.slice(0, 1)} // Display only the first job
               renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
               keyExtractor={(item) => item.id.toString()}
+              // keyExtractor={(item, index) => `${item.id}-${index}`}
             />
           </View>
 
@@ -222,6 +254,7 @@ const Project: React.FC = () => {
               data={jobs.slice(1, 4)} // Display only the first 4 jobs
               renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
               keyExtractor={(item) => item.id.toString()}
+              // keyExtractor={(item, index) => `${item.id}-${index}`}
             />
           </View>
 

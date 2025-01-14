@@ -151,12 +151,14 @@ const SignIn: React.FC = () => {
                     </TouchableOpacity>
                   </View>
                   <View style={styles.checkboxContainer}>
+                     <View style={styles.checkboxWrapper}>
                     <Checkbox
                       status={isChecked ? 'checked' : 'unchecked'}
                       onPress={() => setIsChecked(!isChecked)}
                       color="#007BFF"
                       uncheckedColor="#666"
                     />
+                    </View>
                     <Text style={styles.checkboxLabel}>
                       I agree to the{' '}
                       <Text style={styles.linkText} onPress={() => Linking.openURL('https://crewzcontrol.com/CrewzControlEndUserLicenseAgreement.htm')}>

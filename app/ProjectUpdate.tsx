@@ -22,6 +22,8 @@ import { FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome'; 
 import useLocation from '@/hooks/useLocation';
 import { useFocusEffect } from '@react-navigation/native';
+import { Dimensions } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 
 interface WorkPackageAlternate {
   AlternateName: string;
@@ -61,10 +63,13 @@ const ProjectUpdate: React.FC = () => {
 
   const jobObj: Job = typeof job === 'string' ? JSON.parse(job) : job;
   const { updateJob, authorizationCode } = useContext(JobsContext)!;
+  const { width: deviceWidth } = Dimensions.get('window');
 
   const [customerName, setName] = useState(jobObj?.Name);
   const [address, setAddress] = useState(jobObj?.Address);
   const [city, setCity] = useState(jobObj?.City);
+  const [quoteHours, setQuoteHours] = useState("0.00");
+  
   const [urgency, setUrgency] = useState('');
   const [urgencyOpen, setUrgencyOpen] = useState(false);
   const [skills, setSkills] = useState<any[]>([]);
@@ -77,7 +82,7 @@ const ProjectUpdate: React.FC = () => {
     version: string;
   } | null>(null);
 
-  const { location, fetchLocation } = useLocation(); // Use the custom hook
+  const { location, fetchLocation } = useLocation(); // custom hook
 
 
   const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.mustCompleteDate);
@@ -90,6 +95,16 @@ const ProjectUpdate: React.FC = () => {
   const [selectedSkill, setSelectedSkill] = useState<{ name: string; serial: string } | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<{ name: string; serial: string } | null>(null);
   const [selectedWorkPackage, setSelectedWorkPackage] = useState<string | null>(null);
+
+  const generateHours = () => {
+    const items = [];
+    for (let i = 0; i <= 80; i += 0.25) {
+      items.push(
+        <Picker.Item key={i} label={i.toFixed(2)} value={i.toString()} />
+      );
+    }
+    return items;
+  };
 
   useEffect(() => {
     const fetchDeviceInfo = async () => {
@@ -135,62 +150,50 @@ const ProjectUpdate: React.FC = () => {
     }
   })();
 
-  const handleSave = async () => {
+  const handleSave = async (updated: string, type: string) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
       Alert.alert('Device, location, or quote serial information is missing');
       return;
     }
-    
+  
     const crewzControlVersion = '1';
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
       currentDate.getDate()
-    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(
-      currentDate.getHours()
-    ).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
   
     const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
     const key = CryptoJS.SHA1(keyString).toString();
   
-    const serial = jobObj.Serial;  // Use jobObj.Serial here
+    const serial = jobObj.Serial;
   
-    const url = 
-    
-    // `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
-    //   deviceInfo.id
-    // )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${serial}&Longitude=${
-    //   location.longitude
-    // }&Latitude=${location.latitude}`;
-  
-
-    `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
+    const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
-    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${serial}&Priority=${urgency}&MustCompleteBy=${mustCompleteDate || ''}&NiceToHaveBy=${
-      niceToHaveDate || ''
-    }&BlackoutDate=${blackoutDate || ''}&AvailableDate=${availableDate || ''}&Longitude=${
-      location.longitude
-    }&Latitude=${location.latitude}`;
-
-
-    console.log(`${url}`);
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${urgency}&MustCompleteBy=${
+      type === 'MustCompleteBy' ? updated : mustCompleteDate
+    }&NiceToHaveBy=${
+      type === 'NiceToHaveBy' ? updated : niceToHaveDate
+    }&BlackoutDate=${
+      type === 'BlackoutDate' ? updated : blackoutDate
+    }&AvailableDate=${
+      type === 'AvailableDate' ? updated : availableDate
+    }&Hours=${ type === 'Hours' ? updated: quoteHours || ''}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+  
+    console.log('Request URL:', url);
   
     try {
       const response = await fetch(url);
       const data = await response.text();
-      console.log(data);
+      console.log('API Response:', data);
   
       const parser = new XMLParser();
       const result = parser.parse(data);
   
       if (result.ResultInfo?.Result === 'Success') {
-         // Update date fields from response
-         setMustCompleteDate(result?.Quote?.MustCompleteBy || mustCompleteDate);
-         setNiceToHaveDate(result?.Quote?.NiceToHaveBy || niceToHaveDate);
-         setBlackoutDate(result?.Quote?.BlackoutDate || blackoutDate);
-         setAvailableDate(result?.Quote?.AvailableDate || availableDate);
-
         Alert.alert('Success', 'Quote updated successfully.');
-        router.back();
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
       }
@@ -199,6 +202,7 @@ const ProjectUpdate: React.FC = () => {
       Alert.alert('Error', 'An error occurred while updating the quote.');
     }
   };
+  
   
   const handleRemoveSkill = async (skillSerial: string | undefined) => {
     if (!deviceInfo || !location || !authorizationCode || !skillSerial || !jobObj.Serial) {
@@ -304,7 +308,7 @@ const ProjectUpdate: React.FC = () => {
     
     const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
     const key = CryptoJS.SHA1(keyString).toString();
-    const crewzControlVersion = '1'; // Hardcoded version as per your specification
+    const crewzControlVersion = '1'; // Hardcoded version as per the specification
   
     const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteResourceGroup.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
@@ -361,9 +365,7 @@ const ProjectUpdate: React.FC = () => {
 
         const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
           deviceInfo.id
-        )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${
-          jobObj.Serial
-        }&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+        )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
 
         try {
           const response = await fetch(url);
@@ -373,6 +375,9 @@ const ProjectUpdate: React.FC = () => {
 
           if (result.ResultInfo?.Result === 'Success') {
             const quote = result.ResultInfo.Selections?.Quote || {};
+
+            console.log("Quote Hours: ", quote?.Hour);
+            setQuoteHours(quote.Hour ? quote.Hour.toString() : "0.00");
             setMustCompleteDate(quote.MustCompleteBy || '');
             setNiceToHaveDate(quote.NiceToHaveBy || '');
             setBlackoutDate(quote.BlackoutDate || '');
@@ -392,10 +397,11 @@ const ProjectUpdate: React.FC = () => {
   );
 
   const handleCancel = () => {
-    Alert.alert('Exit Without Saving?', 'Are you sure you want to exit without saving?', [
-      { text: 'No', style: 'cancel' },
-      { text: 'Yes', onPress: () => router.back() },
-    ]);
+    // Alert.alert('Exit Without Saving?', 'Are you sure you want to exit without saving?', [
+    //   { text: 'No', style: 'cancel' },
+    //   { text: 'Yes', onPress: () =>  },
+    // ]);
+    router.back()
   };
   
   return (
@@ -409,10 +415,10 @@ const ProjectUpdate: React.FC = () => {
         resizeMode="contain"
       />
       <FlatList
-        data={[1]} // Use this as a wrapper for your static content
+        data={[1]} // wrapper for the static content
         keyExtractor={(item, index) => index.toString()}
         renderItem={() => (
-          <View style={styles.mainDiv}>
+          <View style={[styles.mainDiv,  { width: deviceWidth }]}>
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity onPress={() => router.back()}>
@@ -435,6 +441,30 @@ const ProjectUpdate: React.FC = () => {
                 <Text style={styles.label}>City:</Text>
                 <Text style={styles.textValue}>{city || 'N/A'}</Text>
               </View>
+              {/* Roll Picker */}
+              <Text style={styles.label}>Hours:</Text>
+                <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
+                  {/* <Picker
+                    selectedValue={hours || quoteHours}
+                    onValueChange={(itemValue) => setHours(itemValue)}
+                    style={[styles.picker]}
+                  >
+                    {generateHours()}
+                  </Picker> */}
+                  <Picker
+                    selectedValue={quoteHours}
+                    onValueChange={(newValue) => {
+                      console.log("Selected Hour: ", newValue);
+                      setQuoteHours(newValue);
+                      handleSave(newValue, "Hours");
+                    }}
+                    style={[styles.picker]}
+                  >
+                    {generateHours()}
+                  </Picker>
+                </View>
+             
+
               <View style={styles.row}>
                 <Text style={styles.label}>Priority:</Text>
                 <View style={[styles.dropdownWrapper, { zIndex: 1000 }]}>
@@ -451,7 +481,6 @@ const ProjectUpdate: React.FC = () => {
                     style={[styles.dropdownStyle, { width: 220, marginLeft: -55, marginBottom: 20 }]}
                     dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex: 1000 }]}
                     modalProps={{
-                      animationType: 'fade',
                       transparent: false, 
                     }}
                     zIndex={1000}
@@ -467,6 +496,7 @@ const ProjectUpdate: React.FC = () => {
                   onChange={(date) => {
                     console.log('MustCompleteBy Updated:', date);
                     setMustCompleteDate(date); // Updates the state
+                    handleSave(date, 'MustCompleteBy');
                   }}
                 />
                 <CustomDatePicker
@@ -476,6 +506,7 @@ const ProjectUpdate: React.FC = () => {
                   onChange={(date) => {
                     console.log('NiceToHaveBy Updated:', date);
                     setNiceToHaveDate(date); // Updates the state
+                    handleSave(date, 'NiceToHaveBy');
                   }}
                 />
                 <CustomDatePicker
@@ -485,6 +516,7 @@ const ProjectUpdate: React.FC = () => {
                   onChange={(date) => {
                     console.log('BlackoutDate Updated:', date);
                     setBlackoutDate(date); // Updates the state
+                    handleSave(date, 'BlackoutDate');
                   }}
                 />
                 <CustomDatePicker
@@ -494,6 +526,7 @@ const ProjectUpdate: React.FC = () => {
                   onChange={(date) => {
                     console.log('AvailableDate Updated:', date);
                     setAvailableDate(date); // Updates the state
+                    handleSave(date, 'AvailableDate');
                   }}
                 />
               </View>
@@ -716,7 +749,7 @@ const ProjectUpdate: React.FC = () => {
 
                   {/* Equipments Section */}
                   <View style={styles.resourceContainer}>
-                    <Text style={styles.sectionTitle}>Equipments</Text>
+                    <Text style={styles.sectionTitle}>Equipment</Text>
                     <TouchableOpacity
                         style={styles.alternateButton}
                         onPress={() =>
@@ -822,11 +855,11 @@ const ProjectUpdate: React.FC = () => {
           {/* Footer (Buttons) */}
           <View style={styles.footer}>
             <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>Back</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+            {/* <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
               <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
       )}
@@ -856,7 +889,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  
+  pickerWrapper: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 5,
+  overflow: 'hidden',
+  marginLeft: 10,
+},
+pickerContainer: {
+  borderWidth: 1,
+  borderColor: "#ccc",
+  borderRadius: 5,
+  marginBottom: 20,
+  marginLeft: 120,
+  overflow: "hidden",
+  width: "60%", // Ensure consistent width
+},
+picker: {
+  height: 50,
+  width: "100%",
+},
+selectedHours: {
+  fontSize: 16,
+  marginTop: 10,
+  color: "gray",
+},
   buttonGroup: {
     flexDirection: 'row',
     gap: 10, // Add space between buttons

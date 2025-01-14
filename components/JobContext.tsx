@@ -6,10 +6,11 @@ import useLocation from '../hooks/useLocation';
 
 // Define the Job type
 export interface Job {
+  Hour: string;
   Equipments: any;
   Skills: any;
   WorkPackageName: string,
-  WorkPackages?: string;
+  WorkPackages?: string;  
   Quantity?: string;
   Services?: string;
   QuoteDetailName?: string;
