@@ -192,7 +192,7 @@ const Project: React.FC = () => {
           hours: quote.Hours,
           id: quote.Serial, // Serial as unique ID
         }));
-  
+        
         // Navigate to SearchResults screen with results
         router.push({
           pathname: '/SearchResults',

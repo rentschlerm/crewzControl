@@ -167,7 +167,8 @@ const AddResourceGroup: React.FC = () => {
       const result = parser.parse(data);
 
       if (result.ResultInfo?.Result === "Success") {
-        Alert.alert("Success", "Resource groups updated successfully.");
+        // JCM 01/15/2025: Commented the alert to remove the updated popup as it's not necessary
+        //Alert.alert("Success", "Resource groups updated successfully.");
         router.push('/Project');
       } else {
         Alert.alert("Error", result.ResultInfo?.Message || "Failed to update resource groups.");

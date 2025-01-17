@@ -54,6 +54,7 @@ const SecurityCodeScreen: React.FC = () => {
         if (resultCode === 'Success') {
           const authorizationCode = resultInfo.Auth; // Extract the Auth code
           await AsyncStorage.setItem('authorizationCode', authorizationCode); // Save the authorizationCode to AsyncStorage
+          await AsyncStorage.setItem('location', location); // Save the authorizationCode to AsyncStorage
           setAuthorizationCode(authorizationCode); // Update the context
           router.push('/Project');
         } else {
