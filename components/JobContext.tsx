@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define the Job type
 export interface Job {
+  Serial: any;
   Hour: string;
   Equipments: any;
   Skills: any;
@@ -115,6 +116,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       try {
         const crewzControlVersion = '10';
      
+
         // Get current date in the required format
         const currentDate = new Date();
         const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
