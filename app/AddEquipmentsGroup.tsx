@@ -151,7 +151,7 @@ const AddEquipmentsGroup: React.FC = () => {
       const updateResult = updateParser.parse(updateData);
   
       if (updateResult.ResultInfo?.Result === "Success") {
-        console.log("Skills updated successfully. Fetching updated quote data...");
+        console.log("Equipment updated successfully. Fetching updated quote data...");
   
         // Fetch updated quote details
         const fetchUrl = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
