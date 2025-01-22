@@ -242,7 +242,10 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
   
       if (result.ResultInfo?.Result === 'Success') {
+
+        // JCM 01/15/2025: Commented the alert to remove the updated popup as it's not necessary
         // Alert.alert('Success', 'Quote updated successfully.');
+
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
       }
@@ -506,6 +509,7 @@ const ProjectUpdate: React.FC = () => {
                 <Text style={styles.textValue}>{city || 'N/A'}</Text>
               </View>
               {/* Roll Picker */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
               <Text style={styles.label}>Hours:</Text>
                 <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
                   
@@ -521,6 +525,7 @@ const ProjectUpdate: React.FC = () => {
                   >
                     {generateHours()}
                   </Picker>
+                </View>
                 </View>
              
 
@@ -849,6 +854,14 @@ const styles = StyleSheet.create({
   resourceContainer: {
     flexDirection: 'row', // Ensures items are laid out horizontally
     alignItems: 'center', // Vertically align the text and button
+
+    //JCM 01/15/2025: Added the lines below for justifying the + button to the right
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingTop: 5,
+    paddingRight: 10,
+    paddingBottom: 5
+    
     // justifyContent: 'space-between', // Optional: Space them out if needed
   }, 
   compactPicker: {
@@ -894,14 +907,14 @@ pickerContainer: {
   borderWidth: 1,
   borderColor: "#ccc",
   borderRadius: 5,
-  marginBottom: 20,
-  marginLeft: 120,
+  marginLeft: 10,
+  marginTop: 5,
   overflow: "hidden",
-  width: "60%", // Ensure consistent width
+  width: "70%", // Ensure consistent width
 },
 picker: {
   height: 50,
-  width: "100%",
+  width: "100%"
 },
 selectedHours: {
   fontSize: 16,
