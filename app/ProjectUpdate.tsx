@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   Alert,
   ImageBackground,
   Image,
-  ScrollView,
   Modal,
 } from 'react-native';
 import { JobsContext, Job } from '../components/JobContext';
@@ -55,19 +54,18 @@ interface Service {
 
 const ProjectUpdate: React.FC = () => {
   const router = useRouter();
-  const { job } = useLocalSearchParams();
+  const { job, quoteSerial } = useLocalSearchParams();
 
-  if (!job) {
-    return <Text>Error: No job data found</Text>;
-  }
 
   const jobObj: Job = typeof job === 'string' ? JSON.parse(job) : job;
   const { updateJob, authorizationCode } = useContext(JobsContext)!;
   const { width: deviceWidth } = Dimensions.get('window');
-
+  const [jobData, setJobData] = useState<Job | null>(null);
+  
   const [customerName, setName] = useState(jobObj?.Name);
   const [address, setAddress] = useState(jobObj?.Address);
   const [city, setCity] = useState(jobObj?.City);
+  const [serial, setserial] = useState(jobObj?.serial);
   const [quoteHours, setQuoteHours] = useState("0.00");
   
   const [urgency, setUrgency] = useState('');
@@ -94,8 +92,59 @@ const ProjectUpdate: React.FC = () => {
   const [isEquipmentModalVisible, setEquipmentModalVisible] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<{ name: string; serial: string } | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<{ name: string; serial: string } | null>(null);
-  const [selectedWorkPackage, setSelectedWorkPackage] = useState<string | null>(null);
+  const [selectedWorkPackage, setSelectedWorkPackage] = useState<{ name: string; serial: string } | null>(null);
+  const [isScreenFocused, setIsScreenFocused] = useState(false);
 
+  // const fetchQuoteDetails = async () => {
+  //   if (!deviceInfo || !location || !authorizationCode || !(job || quoteSerial)) {
+  //     Alert.alert('Error', 'Missing required data to fetch quote details.');
+  //     return;
+  //   }
+
+  //   const currentDate = new Date();
+  //   const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+  //     currentDate.getDate()
+  //   ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(
+  //     currentDate.getHours()
+  //   ).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+  //   const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+  //   const key = CryptoJS.SHA1(keyString).toString();
+
+  //   // const serial = job?.Serial || quoteSerial;
+
+  //   const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
+  //     deviceInfo.id
+  //   )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=13070&CrewzControlVersion=1&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+
+  //   console.log("Fetching Quote on Focus: ", url);
+
+  //   try {
+  //     const response = await fetch(url);
+  //     const data = await response.text();
+  //     const parser = new XMLParser();
+  //     const result = parser.parse(data);
+
+  //     if (result.ResultInfo?.Result === 'Success') {
+  //       const quote = result.ResultInfo.Selections?.Quote || {};
+  //       console.log("Fetched Quote Data: ", quote);
+
+  //       setJobData(quote);
+  //       setQuoteHours(quote.Hour ? quote.Hour.toString() : "0.00");
+  //       setMustCompleteDate(quote.MustCompleteBy || '');
+  //       setNiceToHaveDate(quote.NiceToHaveBy || '');
+  //       setBlackoutDate(quote.BlackoutDate || '');
+  //       setAvailableDate(quote.AvailableDate || '');
+  //       setUrgency(quote.Priority || 'Normal');
+  //     } else {
+  //       Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error fetching quote details:', error);
+  //     Alert.alert('Error', 'An error occurred while fetching quote details.');
+  //   }
+  // };
+
+  
   const generateHours = () => {
     const items = [];
     for (let i = 0; i <= 80; i += 0.25) {
@@ -193,8 +242,10 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
   
       if (result.ResultInfo?.Result === 'Success') {
+
         // JCM 01/15/2025: Commented the alert to remove the updated popup as it's not necessary
-        //Alert.alert('Success', 'Quote updated successfully.');
+        // Alert.alert('Success', 'Quote updated successfully.');
+
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
       }
@@ -231,7 +282,7 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
   
       if (result.ResultInfo?.Result === 'Success') {
-        Alert.alert('Success', 'Skill removed successfully.');
+        // Alert.alert('Success', 'Skill removed successfully.');
         setSkillModalVisible(false);
         setSelectedSkill(null);
       } else {
@@ -270,7 +321,7 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
   
       if (result.ResultInfo?.Result === 'Success') {
-        Alert.alert('Success', 'Equipment removed successfully.');
+        // Alert.alert('Success', 'Equipment removed successfully.');
         setEquipmentModalVisible(false);
         setSelectedEquipment(null);
       } else {
@@ -284,18 +335,18 @@ const ProjectUpdate: React.FC = () => {
   
   
 
-  const handleRemovePress = (workPackageName: string | undefined) => {
-    setSelectedWorkPackage(workPackageName || 'Unnamed Work Package');
-    setModalVisible(true);
-  };
+  // const handleRemovePress = (workPackageName: string | undefined) => {
+  //   setSelectedWorkPackage(workPackageName || 'Unnamed Work Package');
+  //   setModalVisible(true);
+  // };
 
   const handleCancelResource = () => {
     setModalVisible(false);
     setSelectedWorkPackage(null);
   };
 
-  const handleProceed = async () => {
-    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
+  const handleProceed = async (ResourceGroupSerial: string | undefined) => {
+    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial ||!ResourceGroupSerial) {
       Alert.alert('Error', 'Device, location, authorization code, or quote serial information is missing.');
       return;
     }
@@ -314,7 +365,7 @@ const ProjectUpdate: React.FC = () => {
     const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteResourceGroup.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
     )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=remove&List=${
-      selectedWorkPackage
+      ResourceGroupSerial
     }&Quote=${jobObj.Serial}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
   
     console.log('Request URL2:', url);
@@ -327,10 +378,10 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
   
       if (result.ResultInfo?.Result === 'Success') {
-        Alert.alert(
-          'Resource Removed',
-          `${selectedWorkPackage || 'Unnamed Work Package'} has been removed successfully.`
-        );
+        // Alert.alert(
+        //   'Resource Removed',
+        //   `${selectedWorkPackage.name || 'Unnamed Work Package'} has been removed successfully.`
+        // );
         setSelectedWorkPackage(null);
         setModalVisible(false);
         
@@ -345,13 +396,14 @@ const ProjectUpdate: React.FC = () => {
   
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
+      let didCallAPI = false;
+  
       const fetchQuoteDetails = async () => {
-        if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
-          
-          return;
+        if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial || quoteSerial || didCallAPI) {
+          return; // Exit early if prerequisites are not ready or API was already called
         }
-
+  
         const currentDate = new Date();
         const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
           currentDate.getDate()
@@ -359,43 +411,52 @@ const ProjectUpdate: React.FC = () => {
           2,
           '0'
         )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
-
         const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
         const key = CryptoJS.SHA1(keyString).toString();
         const crewzControlVersion = '1';
-
+        // const serial = jobObj.Serial || quoteSerial
         const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
           deviceInfo.id
         )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
-
+  
+        console.log('Fetching Quote on Focus: ', url);
+  
         try {
           const response = await fetch(url);
           const data = await response.text();
           const parser = new XMLParser();
           const result = parser.parse(data);
-
+  
           if (result.ResultInfo?.Result === 'Success') {
             const quote = result.ResultInfo.Selections?.Quote || {};
-
-            console.log("Quote Hours: ", quote?.Hour);
-            setQuoteHours(quote.Hour ? quote.Hour.toString() : "0.00");
+  
+            console.log('Fetched Quote Data: ', quote);
+  
+            setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
             setMustCompleteDate(quote.MustCompleteBy || '');
             setNiceToHaveDate(quote.NiceToHaveBy || '');
             setBlackoutDate(quote.BlackoutDate || '');
             setAvailableDate(quote.AvailableDate || '');
-            setUrgency(quote.Priority || 'Normal'); // Set the Priority
+            setUrgency(quote.Priority || 'Normal');
           } else {
             Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
           }
         } catch (error) {
           console.error('Error fetching quote details:', error);
           Alert.alert('Error', 'An error occurred while fetching quote details.');
+        } finally {
+          didCallAPI = true; // Ensure we do not call the API again during this focus
         }
       };
-
+  
       fetchQuoteDetails();
-    }, [deviceInfo, location, authorizationCode, jobObj.Serial])
+  
+      return () => {
+        didCallAPI = false; // Reset flag on component unmount or focus change
+      };
+    }, [deviceInfo, location, authorizationCode, jobObj.Serial, quoteSerial])
   );
+  
 
   const handleCancel = () => {
     // Alert.alert('Exit Without Saving?', 'Are you sure you want to exit without saving?', [
@@ -404,6 +465,11 @@ const ProjectUpdate: React.FC = () => {
     // ]);
     router.back()
   };
+ 
+  
+  if (!job) {
+    return <Text>Error: No job data found</Text>;
+  }
   
   return (
     <ImageBackground
@@ -446,13 +512,7 @@ const ProjectUpdate: React.FC = () => {
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
               <Text style={styles.label}>Hours:</Text>
                 <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
-                  {/* <Picker
-                    selectedValue={hours || quoteHours}
-                    onValueChange={(itemValue) => setHours(itemValue)}
-                    style={[styles.picker]}
-                  >
-                    {generateHours()}
-                  </Picker> */}
+                  
                   <Picker
                     selectedValue={quoteHours}
                     onValueChange={(newValue) => {
@@ -460,7 +520,8 @@ const ProjectUpdate: React.FC = () => {
                       setQuoteHours(newValue);
                       handleSave(newValue, "Hours");
                     }}
-                    style={[styles.picker]}
+                    style={styles.compactPicker}
+                    itemStyle={styles.pickerItem}
                   >
                     {generateHours()}
                   </Picker>
@@ -538,7 +599,7 @@ const ProjectUpdate: React.FC = () => {
               <Text style={styles.sectionTitle}>Services</Text>
               {services.map((service, index) => {
                 const workPackages = normalizeWorkPackages(service.WorkPackages);
-  
+
                 return (
                   <View key={index} style={styles.serviceContainer}>
                     <Text style={styles.serviceTitle}>
@@ -551,213 +612,119 @@ const ProjectUpdate: React.FC = () => {
                         ? service.QuoteDetailNote['#text']
                         : service.QuoteDetailNote || 'N/A'}
                     </Text>
-  
-                    {/* Work Packages */}
-                    <View style={styles.resourceContainer}>
-                      <Text style={styles.sectionTitle}>Resource Groups</Text>
-                      <TouchableOpacity
-                        style={styles.alternateButton}
-                        onPress={() =>
-                          router.push({
-                            pathname: '/AddResourceGroup',
-                            params: { quoteSerial: jobObj.Serial },
-                          })
-                        }
-                        
-                      >
-                        <Text>
-                          <Icon name="plus" size={16} color="#fff" /> {/* Smaller plus icon */}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-  
+
                     {/* Loop through Work Packages */}
                     {workPackages.map((wp, wpIndex) => {
                       const workPackageList = Array.isArray(wp.WorkPackage)
                         ? wp.WorkPackage
                         : [wp.WorkPackage]; // Normalize to array
-  
+
                       return workPackageList.map((workPackage, index) => {
                         const alternates = normalizeToArray(
                           workPackage?.WorkPackageAlternates?.WorkPackageAlternate || []
                         );
-  
+
                         return (
                           <View key={`${wpIndex}-${index}`} style={styles.workPackageContainer}>
                             <View style={styles.headerRow}>
                               <Text style={styles.workPackageTitle}>
                                 {workPackage?.WorkPackageName || 'Undefined Work Package'}
                               </Text>
-  
+
                               {/* Button Container */}
                               <View style={styles.buttonGroup}>
-                              {/* Alternatives Button */}
-                              {alternates.length > 0 && (
+                                {/* Alternatives Button */}
+                                {alternates.length > 0 && (
+                                  <TouchableOpacity
+                                    style={styles.alternateButton}
+                                    onPress={() =>
+                                      router.push({
+                                        pathname: '/AlternativeSelection',
+                                        params: {
+                                          workPackageName: workPackage?.WorkPackageName,
+                                          workPackageAlternates: JSON.stringify(alternates),
+                                        },
+                                      })
+                                    }
+                                  >
+                                    <Image
+                                      source={require('@/assets/images/list-icon.png')}
+                                      style={styles.icon}
+                                    />
+                                  </TouchableOpacity>
+                                )}
+
+                                {/* Remove Button */}
                                 <TouchableOpacity
-                                  style={styles.alternateButton}
-                                  onPress={() =>
-                                    router.push({
-                                      pathname: '/AlternativeSelection',
-                                      params: {
-                                        workPackageName: workPackage?.WorkPackageName,
-                                        workPackageAlternates: JSON.stringify(alternates),
-                                      },
-                                    })
-                                  }
+                                  style={styles.removeButton}
+                                  onPress={() => {
+                                    setSelectedWorkPackage({
+                                      name: workPackage.WorkPackageName,
+                                      serial: workPackage.WorkPckageSerial,
+                                    });
+                                    setModalVisible(true);
+                                  }}
                                 >
-                                  <Image
-                                    source={require('@/assets/images/list-icon.png')}
-                                    style={styles.icon}
-                                  />
-                                </TouchableOpacity>
-                              )}
-  
-                              {/* Remove Button */}
-                              <TouchableOpacity
-                                style={styles.removeButton}
-                                onPress={() => handleRemovePress(workPackage?.WorkPackageName)}
-                              >
-                                <Text>
-                                  <Icon name="minus" size={24} color="#fff" />
-                                </Text>
-                              </TouchableOpacity>
-                              {/* Modal */}
-                            <Modal
-                              transparent
-                              animationType="fade"
-                              visible={isModalVisible}
-                              onRequestClose={handleCancelResource} // Close the modal on back press (Android)
-                            >
-                              <View style={styles.modalOverlay}>
-                                <View style={styles.modalContent}>
-                                  {/* Header */}
-                                  <Text style={styles.modalHeader}>Remove Group</Text>
-
-                                  {/* Body */}
-                                  <Text style={styles.modalBody}>
-                                    Are you sure you want to remove {selectedWorkPackage} from this quote?
+                                  <Text>
+                                    <Icon name="minus" size={24} color="#fff" />
                                   </Text>
+                                </TouchableOpacity>
+                                {/* Modal */}
+                                <Modal
+                                  transparent
+                                  animationType="fade"
+                                  visible={isModalVisible}
+                                  onRequestClose={handleCancelResource} // Close the modal on back press (Android)
+                                >
+                                  <View style={styles.modalOverlay}>
+                                    <View style={styles.modalContent}>
+                                      {/* Header */}
+                                      <Text style={styles.modalHeader}>Remove Resource Group</Text>
 
-                                  {/* Buttons */}
-                                  <View style={styles.footer}>
-                                    <TouchableOpacity style={styles.cancelButton} onPress={handleCancelResource}>
-                                      <Text style={styles.cancelButtonText}>Cancel</Text>
-                                    </TouchableOpacity>
+                                      {/* Body */}
+                                      <Text style={styles.modalBody}>
+                                        Are you sure you want to remove {selectedWorkPackage?.name} from this quote?
+                                      </Text>
 
-                                    <TouchableOpacity style={styles.saveButton} onPress={handleProceed}>
-                                      <Text style={styles.saveButtonText}>Proceed</Text>
-                                    </TouchableOpacity>
+                                      {/* Buttons */}
+                                      <View style={styles.footer}>
+                                        <TouchableOpacity
+                                          style={styles.cancelButton}
+                                          onPress={() => setModalVisible(false)}
+                                        >
+                                          <Text style={styles.cancelButtonText}>Cancel</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                          style={styles.saveButton}
+                                          onPress={() => {
+                                            handleProceed(selectedWorkPackage?.serial);
+                                            router.push('/Project');
+                                          }}
+                                        >
+                                          <Text style={styles.saveButtonText}>Proceed</Text>
+                                        </TouchableOpacity>
+                                      </View>
+                                    </View>
                                   </View>
-                                </View>
+                                </Modal>
                               </View>
-                            </Modal>
                             </View>
-                          </View>
                           </View>
                         );
                       });
                     })}
-                   {/* Skills Section */}
-                  <View style={styles.resourceContainer}>
-                    <Text style={styles.sectionTitle}>Skills</Text>
-                    <TouchableOpacity
-                      style={styles.alternateButton}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/AddSkillsGroup',
-                          params: { quoteSerial: jobObj.Serial },
-                        })
-                      }
-                    >
-                      <Text>
-                        <Icon name="plus" size={16} color="#fff" /> {/* Smaller plus icon */}
-                      </Text>
-                    </TouchableOpacity>
                   </View>
-                  {skills.length > 0 ? (
-                    skills.map((skill, skillIndex) => (
-                      <View key={skillIndex} style={styles.workPackageContainer}>
-                    <View style={styles.rowContainer}>
-                      {/* Skill Name */}
-                      <Text style={styles.workPackageTitle}>{skill.SkillName}</Text>
-
-                      {/* Button Container */}
-                      <View style={styles.buttonGroup}>
-                        {/* Alternatives Button */}
-                        <TouchableOpacity
-                          style={styles.alternateButton}
-                          onPress={() =>
-                            router.push({
-                              pathname: '/AlternativeSelection',
-                              params: {
-                                workPackageName: skill.SkillName,
-                              },
-                            })
-                          }
-                        >
-                          <Image
-                            source={require('@/assets/images/list-icon.png')}
-                            style={styles.icon}
-                          />
-                        </TouchableOpacity>
-
-                        {/* Remove Button */}
-                        <TouchableOpacity
-                          style={styles.removeButton}
-                          onPress={() => {
-                            setSelectedSkill({ name: skill.SkillName, serial: skill.SkillSerial });
-                            setSkillModalVisible(true);
-                          }}
-                        >
-                          <Text>
-                            <Icon name="minus" size={24} color="#fff" />
-                          </Text>
-                        </TouchableOpacity>
-                        <Modal
-                          transparent
-                          animationType="fade"
-                          visible={isSkillModalVisible}
-                          onRequestClose={() => setSkillModalVisible(false)}
-                        >
-                          <View style={styles.modalOverlay}>
-                            <View style={styles.modalContent}>
-                              <Text style={styles.modalHeader}>Remove Skill</Text>
-                              <Text style={styles.modalBody}>
-                                Are you sure you want to remove {selectedSkill?.name || 'this skill'} from this quote?
-                              </Text>
-                              <View style={styles.footer}>
-                                <TouchableOpacity style={styles.cancelButton} onPress={() => setSkillModalVisible(false)}>
-                                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  style={styles.saveButton}
-                                  onPress={() => {
-                                    handleRemoveSkill(selectedSkill?.serial);
-                                    router.push('/Project');
-                                  }}
-                                >
-                                  <Text style={styles.saveButtonText}>Proceed</Text>
-                                </TouchableOpacity>
-                              </View>
-                            </View>
-                          </View>
-                        </Modal>
-                      </View>
-                    </View>
-                  </View>
-                    ))
-                  ) : (
-                    <Text style={styles.emptyText}>No skills available.</Text>
-                  )}
-
-                  {/* Equipments Section */}
-                  <View style={styles.resourceContainer}>
-                    <Text style={styles.sectionTitle}>Equipment</Text>
-                    <TouchableOpacity
-                        style={styles.alternateButton}
+                );
+              })}
+                {/* Work Packages */}
+                    <View style={styles.sectionContainer}>
+                    <View style={styles.headerRow}>
+                      <Text style={styles.sectionTitle}>Resource Groups</Text>
+                      <TouchableOpacity
+                        style={styles.iconButton}
                         onPress={() =>
                           router.push({
-                            pathname: '/AddEquipmentsGroup',
+                            pathname: '/AddResourceGroup',
                             params: { quoteSerial: jobObj.Serial },
                           })
                         }
@@ -766,43 +733,81 @@ const ProjectUpdate: React.FC = () => {
                           <Icon name="plus" size={16} color="#fff" /> {/* Smaller plus icon */}
                         </Text>
                       </TouchableOpacity>
-                  </View>
-                  {equipments.length > 0 ? (
-                    equipments.map((equipment, equipmentIndex) => (
-                      <View key={equipmentIndex} style={styles.workPackageContainer}>
-                        <View style={styles.headerRow}>
-                          {/* Equipment Name */}
-                          <Text style={styles.workPackageTitle}>{equipment.EquipmentName}</Text>
-
-
-                          {/* Button Container */}
-                      <View style={styles.buttonGroup}>
-                          {/* Alternatives Button */}
-                          {equipments.length > 0 && (
-                            <TouchableOpacity
-                              style={styles.alternateButton}
-                              onPress={() =>
-                                router.push({
-                                  pathname: '/AlternativeSelection',
-                                  params: {
-                                    workPackageName: equipment.EquipmentName,
-                                    // workPackageAlternates: JSON.stringify(alternates),
-                                  },
-                                })
-                              }
-                            >
-                              <Image
-                                source={require('@/assets/images/list-icon.png')}
-                                style={styles.icon}
-                              />
-                            </TouchableOpacity>
-                          )}
-
-                          {/* Remove Button */}
+                    </View>
+                    </View>
+              {/* Skills Section */}
+              <View style={styles.sectionContainer}>
+                <View style={styles.headerRow}>
+                <Text style={styles.sectionTitle}>Skills</Text>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/AddSkillsGroup',
+                      params: { quoteSerial: jobObj.Serial },
+                    })
+                  }
+                >
+                  <Text><Icon name="plus" size={16} color="#fff" /> {/* Icon only */}</Text>
+                </TouchableOpacity>
+              </View>
+                {skills.length > 0 ? (
+                  skills.map((skill, skillIndex) => (
+                    <View key={skillIndex} style={styles.workPackageContainer}>
+                      <View style={styles.rowContainer}>
+                        <Text style={styles.workPackageTitle}>{skill.SkillName}</Text>
+                        <View style={styles.buttonGroup}>
                           <TouchableOpacity
                             style={styles.removeButton}
                             onPress={() => {
-                              setSelectedEquipment({ name: equipment.EquipmentName, serial: equipment.EquipmentSerial });
+                              setSelectedSkill({ name: skill.SkillName, serial: skill.SkillSerial });
+                              setSkillModalVisible(true);
+                            }}
+                          >
+                            <Text>
+                              <Icon name="minus" size={24} color="#fff" />
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>No skills available.</Text>
+                )}
+              
+
+              {/* Equipment Section */}
+              <View style={styles.sectionContainer}>
+              <View style={styles.headerRow}>
+                <Text style={styles.sectionTitle}>Equipment</Text>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/AddEquipmentsGroup',
+                      params: { quoteSerial: jobObj.Serial },
+                    })
+                  }
+                >
+                  <Text>
+                    <Icon name="plus" size={16} color="#fff" /> {/* Smaller plus icon */}
+                  </Text>
+                </TouchableOpacity>
+                </View>
+                {equipments.length > 0 ? (
+                  equipments.map((equipment, equipmentIndex) => (
+                    <View key={equipmentIndex} style={styles.workPackageContainer}>
+                      <View style={styles.headerRow}>
+                        <Text style={styles.workPackageTitle}>{equipment.EquipmentName}</Text>
+                        <View style={styles.buttonGroup}>
+                          <TouchableOpacity
+                            style={styles.removeButton}
+                            onPress={() => {
+                              setSelectedEquipment({
+                                name: equipment.EquipmentName,
+                                serial: equipment.EquipmentSerial,
+                              });
                               setEquipmentModalVisible(true);
                             }}
                           >
@@ -810,50 +815,16 @@ const ProjectUpdate: React.FC = () => {
                               <Icon name="minus" size={24} color="#fff" />
                             </Text>
                           </TouchableOpacity>
-                          <Modal
-                            transparent
-                            animationType="fade"
-                            visible={isEquipmentModalVisible}
-                            onRequestClose={() => setEquipmentModalVisible(false)}
-                          >
-                            <View style={styles.modalOverlay}>
-                              <View style={styles.modalContent}>
-                                <Text style={styles.modalHeader}>Remove Equipment</Text>
-                                <Text style={styles.modalBody}>
-                                  Are you sure you want to remove {selectedEquipment?.name || 'this equipment'} from this quote?
-                                </Text>
-                                <View style={styles.footer}>
-                                  <TouchableOpacity
-                                    style={styles.cancelButton}
-                                    onPress={() => setEquipmentModalVisible(false)}
-                                  >
-                                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    style={styles.saveButton}
-                                    onPress={() => {
-                                      handleRemoveEquipment(selectedEquipment?.serial);
-                                      router.push('/Project');
-                                    }}
-                                  >
-                                    <Text style={styles.saveButtonText}>Proceed</Text>
-                                  </TouchableOpacity>
-                                </View>
-                              </View>
-                            </View>
-                          </Modal>
-
-                          </View>
-                          </View>
-                          </View>
-                    ))
-                  ) : (
-                    <Text style={styles.emptyText}>No equipment available.</Text>
-                  )}
-                </View>
-              );
-            })}
-          </View>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>No equipment available.</Text>
+                )}
+              </View>
+              </View>
+              </View>
 
           {/* Footer (Buttons) */}
           <View style={styles.footer}>
@@ -892,6 +863,31 @@ const styles = StyleSheet.create({
     paddingBottom: 5
     
     // justifyContent: 'space-between', // Optional: Space them out if needed
+  }, 
+  compactPicker: {
+    width: "100%", // Full width of the container
+  },
+  pickerItem: {
+    fontSize: 16, // Adjust font size for readability
+    textAlign: "center", // Center align the items
+  },
+  sectionContainer: {
+    marginVertical: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  iconButton: {
+    backgroundColor: '#20D5FF',
+    borderRadius: 20, // Circular button
+    padding: 10, // Padding for the icon
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rowContainer: {
     flexDirection: 'row',
@@ -941,7 +937,7 @@ selectedHours: {
   alternateButton: {
     padding: 8,
     backgroundColor: '#20D5FF',
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1187,10 +1183,10 @@ selectedHours: {
     padding: 0,
     // borderRadius: 15,
   },
-  picker: {
-    width: '68%',
-    borderRadius: 15,
-  },
+  // picker: {
+  //   width: '68%',
+  //   borderRadius: 15,
+  // },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -1246,3 +1242,7 @@ selectedHours: {
 });
 
 export default ProjectUpdate;
+function setIsScreenFocused(arg0: boolean) {
+  throw new Error('Function not implemented.');
+}
+

@@ -127,7 +127,7 @@ const AddEquipmentsGroup: React.FC = () => {
       Alert.alert("Error", "Device info, location, or authorization code is missing.");
       return;
     }
-
+  
     const crewzControlVersion = "1";
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, "0")}/${String(
@@ -137,28 +137,51 @@ const AddEquipmentsGroup: React.FC = () => {
     ).padStart(2, "0")}:${String(currentDate.getMinutes()).padStart(2, "0")}`;
     const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
     const key = CryptoJS.SHA1(keyString).toString();
-
+  
     const selectedIds = Array.from(selectedPackages).join(",");
-    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteEquipment.php?DeviceID=${encodeURIComponent(
+    const updateUrl = `https://CrewzControl.com/dev/CCService/UpdateQuoteEquipment.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
-    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=add&List=${selectedIds}&Quote=${quoteSerial}`;
-    console.log("Update Skill Groups URL:", url);
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=add&List=${selectedIds || ''}&Quote=${quoteSerial}`;
+    console.log("Update Equipment Groups URL:", updateUrl);
+  
     try {
-      const response = await fetch(url);
-      const data = await response.text();
-      const parser = new XMLParser();
-      const result = parser.parse(data);
-      console.log(data);
-      if (result.ResultInfo?.Result === "Success") {
-        // JCM 01/15/2025: Commented the alert to remove the updated popup as it's not necessary
+
+      const updateResponse = await fetch(updateUrl);
+      const updateData = await updateResponse.text();
+      const updateParser = new XMLParser();
+      const updateResult = updateParser.parse(updateData);
+  
+      if (updateResult.ResultInfo?.Result === "Success") {
+         // JCM 01/15/2025: Commented the alert to remove the updated popup as it's not necessary
         //Alert.alert("Success", "Resource group updated successfully.");
-        router.push('/Project');
+        console.log("Skills updated successfully. Fetching updated quote data...");
+  
+        // Fetch updated quote details
+        const fetchUrl = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
+          deviceInfo.id
+        )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${quoteSerial}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+        const fetchResponse = await fetch(fetchUrl);
+        const fetchData = await fetchResponse.text();
+        const fetchParser = new XMLParser();
+        const fetchResult = fetchParser.parse(fetchData);
+  
+        if (fetchResult.ResultInfo?.Result === "Success") {
+          console.log("Fetched updated quote data:", fetchResult.ResultInfo.Selections.Quote);
+  
+          router.push({
+            pathname: "/ProjectUpdate",
+            params: { job: JSON.stringify(fetchResult.ResultInfo.Selections.Quote) },
+          });
+        } else {
+          Alert.alert("Error", fetchResult.ResultInfo?.Message || "Failed to fetch updated quote details.");
+        }
+
       } else {
-        Alert.alert("Error", result.ResultInfo?.Message || "Failed to update resource groups.");
+        Alert.alert("Error", updateResult.ResultInfo?.Message || "Failed to update Skills.");
       }
     } catch (error) {
-      console.error("Error updating resource groups:", error);
-      Alert.alert("Error", "An error occurred while updating resource groups.");
+      console.error("Error updating Skills:", error);
+      Alert.alert("Error", "An error occurred while updating Skills.");
     }
   };
 

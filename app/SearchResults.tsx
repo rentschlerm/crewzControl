@@ -188,8 +188,8 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: "#ffff",
-    marginTop: 150,
-    borderRadius: 20,
+    // marginTop: 150,
+    // borderRadius: 20,
     overflow: 'hidden',
   },
 
