@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   StyleSheet,
   Text,
@@ -24,6 +24,10 @@ import { XMLParser } from 'fast-xml-parser';
 import LogoStyles from '../components/LogoStyles';
 import useLocation from '../hooks/useLocation'; // Import the custom hook
 
+// JCM 01/17/2025: Import AsyncStorage to be used for user redirection
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { JobsContext } from '../components/JobContext';
+
 const SignIn: React.FC = () => {
   const router = useRouter();
   const [email, setEmail] = useState<string>();
@@ -41,12 +45,47 @@ const SignIn: React.FC = () => {
   const [isChecked, setIsChecked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  const { setAuthorizationCode } = useContext(JobsContext); // Get the function to update authorizationCode
+
   // Fetch device info and location on component mount
   useEffect(() => {
     const fetchDeviceInfo = async () => {
       const info = await getDeviceInfo();
       setDeviceInfo(info);
     };
+
+    // JCM 01/18/2025: Added a checking when an app is loaded. If there's an authorizationCode, redirected the user to the /Project screen directly.
+    const checkAuthorizationCode = async () => {
+      try {
+        const authorizationCode = await AsyncStorage.getItem('authorizationCode');
+        // console.log('AuthorizationCode:', authorizationCode);
+        if (authorizationCode) {
+          // Redirect to Project screen if authorizationCode exists
+          setAuthorizationCode(authorizationCode); 
+          router.push('/Project');
+        } else {
+          setIsLoading(false); 
+        }
+      } catch (error) {
+        console.error('Error checking AsyncStorage:', error);
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthorizationCode();
+
+    // JCM 01/18/2025: Function to delete data from AsyncStorage
+    // const deleteItem = async (key: string) => {
+    //   try {
+    //     await AsyncStorage.removeItem(key);
+    //     console.log(`${key} has been removed from AsyncStorage`);
+    //   } catch (error) {
+    //     console.error(`Error removing ${key} from AsyncStorage:`, error);
+    //   }
+    // };
+    
+    // // Usage
+    // deleteItem('authorizationCode');
 
     fetchDeviceInfo();
     fetchLocation(); // Fetch location using the custom hook

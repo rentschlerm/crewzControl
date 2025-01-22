@@ -4,6 +4,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { getDeviceInfo } from '../components/DeviceUtils';
 import useLocation from '../hooks/useLocation';
 
+// JCM 01/17/2025: Import AsyncStorage to be used for getting the user's location if null once Project screen is redirected automatically (if has autorizationCode already)
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 // Define the Job type
 export interface Job {
   Hour: string;
@@ -86,12 +89,32 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   
     const fetchJobs = async () => {
-      if (!deviceInfo || !authorizationCode || jobsFetched || !location) return; // Exit if jobs are already fetched or data is missing
+      // JCM 01/18/2025: Removed the !location condition as it was created separately
+      if (!deviceInfo || !authorizationCode || jobsFetched) return; // Exit if jobs are already fetched or data is missing
+
+      // JCM 01/18/2025: Make variables for location's longitude and latitude to be used for the API URL
+      let longitude = location?.longitude;
+      let latitude = location?.latitude;
+
+      // JCM 01/18/2025: If location is null (fetchLocation returns null), retrieve it from AsyncStorage
+      if (!longitude || !latitude) {
+        const storedLocation = await AsyncStorage.getItem('location');
+        if (storedLocation) {
+          const parsedLocation = JSON.parse(storedLocation);
+          longitude = parsedLocation.longitude;
+          latitude = parsedLocation.latitude;
+        }
+      }
+
+      //  JCM 01/18/2025: Ensure longitude and latitude are available
+      if (!longitude || !latitude) {
+        console.log('Location data is missing. Unable to fetch jobs.');
+        return;
+      }
 
       try {
         const crewzControlVersion = '10';
      
-
         // Get current date in the required format
         const currentDate = new Date();
         const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
@@ -101,7 +124,9 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
         const key = CryptoJS.SHA1(keyString).toString();
         console.log(`Authorization Code: ${authorizationCode}`)
-        const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
+        
+        //  JCM 01/18/2025: Updated the URL value for Longitude and Latitude from location.longitude and location.latitude to longittude and latitude
+        const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${longitude}&Latitude=${latitude}&Language=EN`;
         console.log(`Request URL: ${url}`);
 
         const response = await fetch(url);
@@ -124,7 +149,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             customerName: quote.Name || '-',
             address: quote.Address || '-',
             city: quote.City || '-',
-            amount: quote.Amount || '-',
+            // JCM 01/15/2025: Replace - with 0 on quote amount. When quote.Amount is equal to 0, it should display 0 not - to avoid $NaN issue on the UI
+            amount: quote.Amount || '0',
             status: quote.Status || '-',
             serial: parseInt(quote.Serial, 10) || -1, // Map `Serial`
             Name: quote.Name || '-',
@@ -136,6 +162,11 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             WorkPackages: quote.WorkPackages || '-',
             WorkPackageName: quote.WorkPackageName || '-',
           }));
+
+          // Log `amount` for each job
+          // fetchedJobs.forEach((job) => {
+          //   console.log(`Job Amount: ${job.amount}`);
+          // });
 
           setJobs(fetchedJobs);
           setJobsReady(true);

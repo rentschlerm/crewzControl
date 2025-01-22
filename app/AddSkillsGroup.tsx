@@ -146,12 +146,15 @@ const AddSkillsGroup: React.FC = () => {
     console.log("Update Skill Groups URL:", updateUrl);
   
     try {
+
       const updateResponse = await fetch(updateUrl);
       const updateData = await updateResponse.text();
       const updateParser = new XMLParser();
       const updateResult = updateParser.parse(updateData);
   
       if (updateResult.ResultInfo?.Result === "Success") {
+        // JCM 01/15/2025: Commented the alert to remove the updated popup as it's not necessary
+        //Alert.alert("Success", "Skills updated successfully.");
         console.log("Skills updated successfully. Fetching updated quote data...");
   
         // Fetch updated quote details
@@ -173,6 +176,7 @@ const AddSkillsGroup: React.FC = () => {
         } else {
           Alert.alert("Error", fetchResult.ResultInfo?.Message || "Failed to fetch updated quote details.");
         }
+
       } else {
         Alert.alert("Error", updateResult.ResultInfo?.Message || "Failed to update Skills.");
       }
