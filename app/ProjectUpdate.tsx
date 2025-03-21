@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ImageBackground,
   Image,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { JobsContext, Job } from '../components/JobContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -23,6 +24,8 @@ import useLocation from '@/hooks/useLocation';
 import { useFocusEffect } from '@react-navigation/native';
 import { Dimensions } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { Calendar } from 'react-native-calendars'; 
+import DateTimePicker from '../components/DateTimePicker';
 
 interface WorkPackageAlternate {
   AlternateName: string;
@@ -31,6 +34,13 @@ interface WorkPackageAlternate {
   AlternateHour: number;
   AlternateSerial: number;
 }
+interface QuoteWorkPackageAlternate {
+  QuoteAlternateName: string;
+  QuoteAlternatePriority: number;
+  QuoteAlternateStatus: number;
+  QuoteAlternateHour: number;
+  QuoteAlternateSerial: number;
+}
 
 interface WorkPackage {
   WorkPackage: any;
@@ -38,6 +48,13 @@ interface WorkPackage {
   WorkPackageName: string;
   WorkPackageSerial: number;
   WorkPackageAlternates: WorkPackageAlternate[] | WorkPackageAlternate;
+}
+interface QuoteWorkPackage {
+  QuoteWorkPackage: any;
+  QuoteWorkPackages: any;
+  QuoteWorkPackageName: string;
+  QuoteWorkPackageSerial: number;
+  QuoteWorkPackageAlternates: QuoteWorkPackageAlternate[] | QuoteWorkPackageAlternate;
 }
 
 interface QuoteDetailNote {
@@ -70,6 +87,7 @@ const ProjectUpdate: React.FC = () => {
   
   const [urgency, setUrgency] = useState('');
   const [urgencyOpen, setUrgencyOpen] = useState(false);
+  const [quoteWorkPackages, setQuoteWorkPackages] = useState<any[]>([]);
   const [skills, setSkills] = useState<any[]>([]);
   const [equipments, setEquipments] = useState<any[]>([]);
   const [deviceInfo, setDeviceInfo] = useState<{
@@ -85,7 +103,13 @@ const ProjectUpdate: React.FC = () => {
 
   const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.mustCompleteDate);
   const [niceToHaveDate, setNiceToHaveDate] = useState(jobObj?.niceToHaveDate);
-  const [blackoutDate, setBlackoutDate] = useState(jobObj?.blackoutDate);
+  const [blackoutDate, setBlackoutDate] = useState<string | undefined>(jobObj?.blackoutDate);
+  const [notBefore, setNotBefore] = useState(jobObj?.notbefore);
+  
+  const [blackoutDates, setBlackoutDates] = useState<string[]>([]);
+  
+  
+  
   const [availableDate, setAvailableDate] = useState(jobObj?.availableDate);
   const [isModalVisible, setModalVisible] = useState(false);
   const [isSkillModalVisible, setSkillModalVisible] = useState(false);
@@ -93,58 +117,28 @@ const ProjectUpdate: React.FC = () => {
   const [selectedSkill, setSelectedSkill] = useState<{ name: string; serial: string } | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<{ name: string; serial: string } | null>(null);
   const [selectedWorkPackage, setSelectedWorkPackage] = useState<{ name: string; serial: string } | null>(null);
+
   const [isScreenFocused, setIsScreenFocused] = useState(false);
+  const [selected, setSelected] = useState('');
+  const [isCalendarVisible, setCalendarVisible] = useState(false);
+  const [isLoadingServices, setIsLoadingServices] = useState(true);
+  const [isPickerVisible, setIsPickerVisible] = useState(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+ 
+  useEffect(() => {
+    if (jobObj?.blackoutDate) {
+      const blackoutDatesArray = jobObj.blackoutDate.split(',').map(date => date.trim());
+      setBlackoutDates(blackoutDatesArray);
+    }
+  }, [jobObj?.blackoutDate]);
 
-  // const fetchQuoteDetails = async () => {
-  //   if (!deviceInfo || !location || !authorizationCode || !(job || quoteSerial)) {
-  //     Alert.alert('Error', 'Missing required data to fetch quote details.');
-  //     return;
-  //   }
+  const formattedMarkedDates = blackoutDates.reduce((acc, date) => {
+    if (date) {
+      acc[date] = { selected: true, marked: true };
+    }
+    return acc;
+  }, {} as Record<string, { selected: boolean; marked: boolean }>);
 
-  //   const currentDate = new Date();
-  //   const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
-  //     currentDate.getDate()
-  //   ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(
-  //     currentDate.getHours()
-  //   ).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
-  //   const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
-  //   const key = CryptoJS.SHA1(keyString).toString();
-
-  //   // const serial = job?.Serial || quoteSerial;
-
-  //   const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
-  //     deviceInfo.id
-  //   )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=13070&CrewzControlVersion=1&Longitude=${location.longitude}&Latitude=${location.latitude}`;
-
-  //   console.log("Fetching Quote on Focus: ", url);
-
-  //   try {
-  //     const response = await fetch(url);
-  //     const data = await response.text();
-  //     const parser = new XMLParser();
-  //     const result = parser.parse(data);
-
-  //     if (result.ResultInfo?.Result === 'Success') {
-  //       const quote = result.ResultInfo.Selections?.Quote || {};
-  //       console.log("Fetched Quote Data: ", quote);
-
-  //       setJobData(quote);
-  //       setQuoteHours(quote.Hour ? quote.Hour.toString() : "0.00");
-  //       setMustCompleteDate(quote.MustCompleteBy || '');
-  //       setNiceToHaveDate(quote.NiceToHaveBy || '');
-  //       setBlackoutDate(quote.BlackoutDate || '');
-  //       setAvailableDate(quote.AvailableDate || '');
-  //       setUrgency(quote.Priority || 'Normal');
-  //     } else {
-  //       Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
-  //     }
-  //   } catch (error) {
-  //     console.error('Error fetching quote details:', error);
-  //     Alert.alert('Error', 'An error occurred while fetching quote details.');
-  //   }
-  // };
-
-  
   const generateHours = () => {
     const items = [];
     for (let i = 0; i <= 80; i += 0.25) {
@@ -166,8 +160,10 @@ const ProjectUpdate: React.FC = () => {
     // Parse Skills and Equipments
     const parsedSkills = jobObj?.Skills ? normalizeToArray(jobObj.Skills.Skill) : [];
     const parsedEquipments = jobObj?.Equipments ? normalizeToArray(jobObj.Equipments.Equipment) : [];
+    const parsedQuoteWorkPackages = jobObj?.QuoteWorkPackages ? normalizeToArray(jobObj.QuoteWorkPackages.QuoteWorkPackage) : []; 
     setSkills(parsedSkills);
     setEquipments(parsedEquipments);
+    setQuoteWorkPackages(parsedQuoteWorkPackages);
   }, []);
 
   const normalizeToArray = <T,>(data: T | T[] | undefined): T[] => {
@@ -187,11 +183,23 @@ const ProjectUpdate: React.FC = () => {
     }
   };
 
+  const normalizeQuoteWorkPackages = (
+    quoteWorkPackages: QuoteWorkPackage | QuoteWorkPackage[] | undefined
+  ): QuoteWorkPackage[] => {
+    try {
+      if (!quoteWorkPackages) return [];
+      return Array.isArray(quoteWorkPackages) ? quoteWorkPackages : [quoteWorkPackages];
+    } catch (error) {
+      console.error('Error parsing Work Packages:', error);
+      return [];
+    }
+  };
+
   const services: Service[] = (() => {
     try {
       const parsedServices =
         typeof jobObj.Services === 'string' ? JSON.parse(jobObj.Services) : jobObj.Services;
-        console.log(parsedServices)
+        console.log('Services: ',parsedServices)
       return normalizeToArray(parsedServices?.Service);
     } catch (error) {
       console.error('Error parsing Services:', error);
@@ -199,7 +207,7 @@ const ProjectUpdate: React.FC = () => {
     }
   })();
 
-  const handleSave = async (updated: string, type: string) => {
+  const handleSave = async (updated: string | string[], type: string) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
       Alert.alert('Device, location, or quote serial information is missing');
       return;
@@ -219,17 +227,29 @@ const ProjectUpdate: React.FC = () => {
   
     const serial = jobObj.Serial;
   
+    const validBlackoutDates = blackoutDates.filter(date => date.trim() !== ""); // Remove empty values
+    const formattedBlackoutDates = validBlackoutDates.length > 0 
+      ? validBlackoutDates.join(",") 
+      : "";
+
+    // 🔹 Preserve existing blackout dates and append new ones
+    let updatedBlackoutDates = blackoutDates;
+    if (type === 'BlackoutDate') {
+      updatedBlackoutDates = Array.isArray(updated) ? [...blackoutDates, ...updated] : [...blackoutDates, updated];
+    }
+  
+    // 🔹 Ensure no duplicate blackout dates
+    const uniqueBlackoutDates = [...new Set(updatedBlackoutDates)].join(',');
+  
     const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
     )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${urgency}&MustCompleteBy=${
       type === 'MustCompleteBy' ? updated : mustCompleteDate
     }&NiceToHaveBy=${
       type === 'NiceToHaveBy' ? updated : niceToHaveDate
-    }&BlackoutDate=${
-      type === 'BlackoutDate' ? updated : blackoutDate
-    }&AvailableDate=${
-      type === 'AvailableDate' ? updated : availableDate
-    }&Hours=${ type === 'Hours' ? updated: quoteHours || ''}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+    }&BlackoutDate=${uniqueBlackoutDates || ''}&NotBefore=${
+      type === 'NotBefore' ? updated : notBefore
+    }&Hours=${ type === 'Hours' ? updated : quoteHours || ''}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
   
     console.log('Request URL:', url);
   
@@ -242,21 +262,66 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
   
       if (result.ResultInfo?.Result === 'Success') {
-
-        // JCM 01/15/2025: Commented the alert to remove the updated popup as it's not necessary
-        // Alert.alert('Success', 'Quote updated successfully.');
-
+        console.log('✅ Quote updated successfully.');
+        console.log('✅ Dates Array: ', uniqueBlackoutDates);
+        setBlackoutDates(updatedBlackoutDates); // Update state after successful API response
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
       }
     } catch (error) {
-      console.error('Error updating quote:', error);
+      console.error('❌ Error updating quote:', error);
       Alert.alert('Error', 'An error occurred while updating the quote.');
     }
   };
   
   
-  const handleRemoveSkill = async (skillSerial: string | undefined) => {
+  
+  const handleRemoveQuoteWorkPackage = async (quoteWorkPackageSerial: number) => {
+    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
+      Alert.alert('Error', 'Device info, location, authorization code, or quote serial is missing.');
+      return;
+    }
+  
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+    const crewzControlVersion = '1';
+  
+    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteResourceGroup.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=remove&List=${quoteWorkPackageSerial}&Quote=${jobObj.Serial}`;
+  
+    console.log('Remove Quote Work Package URL:', url);
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        // Alert.alert('Success', 'Quote Work Package removed successfully.');
+        setQuoteWorkPackages((prev) =>
+          prev.filter((qwp) => qwp.QuoteWorkPackageSerial !== quoteWorkPackageSerial)
+        );
+        fetchQuoteDetails();
+      } else {
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove Quote Work Package.');
+      }
+    } catch (error) {
+      console.error('Error removing Quote Work Package:', error);
+      Alert.alert('Error', 'An error occurred while removing Quote Work Package.');
+    }
+  };
+  
+
+  const handleRemoveSkill = async (skillSerial: number ) => {
     if (!deviceInfo || !location || !authorizationCode || !skillSerial || !jobObj.Serial) {
       Alert.alert('Error', 'Device info, location, authorization code, or quote serial is missing.');
       return;
@@ -283,8 +348,12 @@ const ProjectUpdate: React.FC = () => {
   
       if (result.ResultInfo?.Result === 'Success') {
         // Alert.alert('Success', 'Skill removed successfully.');
-        setSkillModalVisible(false);
-        setSelectedSkill(null);
+        // setSkillModalVisible(false);
+        // setSelectedSkill(null);
+        setSkills((prev) =>
+        prev.filter((Skill) => Skill.skillSerial !== skillSerial)
+      );
+        fetchQuoteDetails();
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove skill.');
       }
@@ -295,7 +364,7 @@ const ProjectUpdate: React.FC = () => {
   };
   
   
-  const handleRemoveEquipment = async (equipmentSerial: string | undefined) => {
+  const handleRemoveEquipment = async (equipmentSerial: number) => {
     if (!deviceInfo || !location || !authorizationCode || !equipmentSerial || !jobObj.Serial) {
       Alert.alert('Error', 'Device info, location, authorization code, or quote serial is missing.');
       return;
@@ -322,8 +391,11 @@ const ProjectUpdate: React.FC = () => {
   
       if (result.ResultInfo?.Result === 'Success') {
         // Alert.alert('Success', 'Equipment removed successfully.');
-        setEquipmentModalVisible(false);
-        setSelectedEquipment(null);
+        // setEquipmentModalVisible(false);
+        setEquipments((prev) =>
+          prev.filter((equipment) => equipment.equipmentSerial !== equipmentSerial)
+        );
+        fetchQuoteDetails();
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove equipment.');
       }
@@ -384,13 +456,173 @@ const ProjectUpdate: React.FC = () => {
         // );
         setSelectedWorkPackage(null);
         setModalVisible(false);
-        
+        fetchQuoteDetails();
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove the resource.');
       }
     } catch (error) {
       console.error('Error removing resource:', error);
       Alert.alert('Error', 'An error occurred while removing the resource.');
+    }
+  };
+  
+  const fetchQuoteDetails = async () => {
+    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial || quoteSerial ) {
+      return; // Exit early if prerequisites are not ready or API was already called
+    }
+
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+    const crewzControlVersion = '1';
+    // const serial = jobObj.Serial || quoteSerial
+    const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+
+    console.log('Fetching Quote on Focus: ', url);
+
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+
+      if (result.ResultInfo?.Result === 'Success') {
+        const quote = result.ResultInfo.Selections?.Quote || {};
+
+        console.log('Fetched Quote Data: ', quote);
+
+        setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
+        setMustCompleteDate(quote.MustCompleteBy || '');
+        setNiceToHaveDate(quote.NiceToHaveBy || '');
+        setBlackoutDate(quote.BlackoutDate || '');
+        setAvailableDate(quote.AvailableDate || '');
+        setUrgency(quote.Priority || 'Normal');
+      } else {
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+      }
+    } catch (error) {
+      console.error('Error fetching quote details:', error);
+      Alert.alert('Error', 'An error occurred while fetching quote details.');
+    }
+  };
+
+  const handleUpdateSkill = async (skillSerial: number, newCount: number) => {
+    if (!deviceInfo || !location || !jobObj.Serial) {
+      Alert.alert('Missing Information', 'Device, location, or quote serial is missing');
+      return;
+    }
+  
+    const action = newCount > 0 ? "update" : "remove"; //  Use 'update' or 'remove'
+    const crewzControlVersion = '1';
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+  
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+  
+    const serial = jobObj.Serial;
+  
+    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteSkill.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=${action}&List=${skillSerial}&Quote=${serial}&Count=${newCount}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+  
+    console.log('Request URL:', url);
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      console.log('API Response:', data);
+  
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        console.log('✅ Skill updated successfully');
+        //  Update state for the UI
+        setSkills(prevSkills =>
+          prevSkills.map(skill =>
+            skill.SkillSerial === skillSerial
+              ? { ...skill, SkillCount: newCount }
+              : skill
+          ).filter(skill => skill.SkillCount > 0) //  Remove if quantity is 0
+        );
+      } else {
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the skill.');
+      }
+    } catch (error) {
+      console.error('❌ Error updating skill:', error);
+      Alert.alert('Error', 'An error occurred while updating the skill.');
+    }
+  };
+
+
+  const handleUpdateEquipment = async (equipmentSerial: number, newCount: number) => {
+    if (!deviceInfo || !location || !jobObj.Serial) {
+      Alert.alert('Missing Information', 'Device, location, or quote serial is missing');
+      return;
+    }
+  
+    const action = newCount > 0 ? "update" : "remove"; //  Use 'update' or 'remove'
+    const crewzControlVersion = '1';
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+  
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+  
+    const serial = jobObj.Serial;
+  
+    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteEquipment.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=${action}&List=${equipmentSerial}&Quote=${serial}&Count=${newCount}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+  
+    console.log('Request URL:', url);
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      console.log('API Response:', data);
+  
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        console.log('✅ Equipment updated successfully');
+        fetchQuoteDetails();
+        // Update state for the UI
+        setEquipments(prevEquipments =>
+          prevEquipments.map(equipment =>
+            equipment.EquipmentSerial === equipmentSerial
+              ? { ...equipment, EquipmentCount: newCount }
+              : equipment
+          ).filter(equipment => equipment.EquipmentCount > 0) //  Remove if quantity is 0
+          
+        );
+        
+      } else {
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the equipment.');
+      }
+    } catch (error) {
+      console.error('❌ Error updating equipment:', error);
+      Alert.alert('Error', 'An error occurred while updating the equipment.');
     }
   };
   
@@ -436,7 +668,7 @@ const ProjectUpdate: React.FC = () => {
             setMustCompleteDate(quote.MustCompleteBy || '');
             setNiceToHaveDate(quote.NiceToHaveBy || '');
             setBlackoutDate(quote.BlackoutDate || '');
-            setAvailableDate(quote.AvailableDate || '');
+            setNotBefore(quote.NotBefore || '');
             setUrgency(quote.Priority || 'Normal');
           } else {
             Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
@@ -509,16 +741,29 @@ const ProjectUpdate: React.FC = () => {
                 <Text style={styles.textValue}>{city || 'N/A'}</Text>
               </View>
               {/* Roll Picker */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              <Text style={styles.label}>Hours:</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <Text style={styles.label}>Hours:</Text>
                 <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
-                  
                   <Picker
                     selectedValue={quoteHours}
                     onValueChange={(newValue) => {
                       console.log("Selected Hour: ", newValue);
                       setQuoteHours(newValue);
                       handleSave(newValue, "Hours");
+                      
+                      // Clear existing timeout
+                      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                      
+                      // Close after 1.2s delay
+                      timeoutRef.current = setTimeout(() => {
+                        setIsPickerVisible(false); // Hide picker
+                      }, 1200);
+                    }}
+                    onResponderEnd={() => { // For touch release
+                      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                      timeoutRef.current = setTimeout(() => {
+                        setIsPickerVisible(false);
+                      }, 1200);
                     }}
                     style={styles.compactPicker}
                     itemStyle={styles.pickerItem}
@@ -527,6 +772,8 @@ const ProjectUpdate: React.FC = () => {
                   </Picker>
                 </View>
                 </View>
+            
+              
              
 
               <View style={styles.row}>
@@ -553,14 +800,14 @@ const ProjectUpdate: React.FC = () => {
 
               </View>
               <View style={styles.dateSection}>
-                <CustomDatePicker
-                  label="Must Be Complete By:"
-                  value={mustCompleteDate || ''} // Value from the state
+              <CustomDatePicker
+                  label="Do Not Schedule Before:"
+                  value={notBefore || ''} // Value from the state
                   labelStyle={{ textAlign: 'right', fontSize: 16 }}
                   onChange={(date) => {
-                    console.log('MustCompleteBy Updated:', date);
-                    setMustCompleteDate(date); // Updates the state
-                    handleSave(date, 'MustCompleteBy');
+                    console.log('Not Before Updated:', date);
+                    setNotBefore(date); // Updates the state
+                    handleSave(date, 'NotBefore');
                   }}
                 />
                 <CustomDatePicker
@@ -574,16 +821,80 @@ const ProjectUpdate: React.FC = () => {
                   }}
                 />
                 <CustomDatePicker
-                  label="Blackout Date:"
-                  value={blackoutDate || ''} // Value from the state
+                  label="Must Be Complete By:"
+                  value={mustCompleteDate || ''} // Value from the state
                   labelStyle={{ textAlign: 'right', fontSize: 16 }}
                   onChange={(date) => {
-                    console.log('BlackoutDate Updated:', date);
-                    setBlackoutDate(date); // Updates the state
-                    handleSave(date, 'BlackoutDate');
+                    console.log('MustCompleteBy Updated:', date);
+                    setMustCompleteDate(date); // Updates the state
+                    handleSave(date, 'MustCompleteBy');
                   }}
                 />
-                <CustomDatePicker
+                
+
+                     
+                    
+                      {/* <CustomDatePicker
+                        label="Blackout Date:"
+                        value={blackoutDate || ''} // Value from the state
+                        labelStyle={{ textAlign: 'right', fontSize: 16 }}
+                        onChange={(date) => {
+                          console.log('BlackoutDate Updated:', date);
+                          setBlackoutDate(date); // Updates the state
+                          handleSave(date, 'BlackoutDate');
+                        }}
+                      /> */}
+                          {/* {blackoutDates.map((date, index) => (
+                            // <DateTimePicker
+                            //   key={`blackout-${index}`}
+                            //   label={`Blackout Date ${index + 1}`}
+                            //   selectedDates={[date]}
+                            //   date={date}
+                            //   onChange={(newDate) => handleBlackoutDateChange(index, newDate)}
+                            //   onRemove={index > 0 ? () => handleRemoveBlackoutDate(index) : undefined}
+                            // />
+                            
+                          ))} */}
+                            <DateTimePicker
+                              label="Blackout Date(s): "
+                              initialDates={blackoutDate} // 🔹 Persist blackout dates from API
+                              onChange={(updatedDates) => {
+                                const cleanedDates = updatedDates.filter(date => /^\d{2}\/\d{2}\/\d{4}$/.test(date)); // ✅ Filter valid dates
+                                
+                                handleSave(cleanedDates.join(','), 'BlackoutDate'); // Send to API
+                              }}
+                            />
+
+                          {/* <TouchableOpacity style={styles.viewButton} onPress={handleViewDates}>
+                            <Text style={styles.viewButtonText}>View Dates</Text>
+                          </TouchableOpacity> */}
+
+                          <Modal transparent animationType="slide" visible={isCalendarVisible}>
+                            <View style={styles.modalContainer}>
+                              <Calendar
+                                minDate={new Date().toISOString().split('T')[0]} // Disable past dates
+                                markedDates={blackoutDates.reduce<Record<string, { selected: boolean; marked: boolean }>>(
+                                  (acc, date) => {
+                                    if (date) {
+                                      acc[date.split('/').reverse().join('-')] = { selected: true, marked: true };
+                                    }
+                                    return acc;
+                                  },
+                                  {} // Initial value as an empty object
+                                )}
+                              />
+                              <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setCalendarVisible(false)}
+                              >
+                                <Text style={styles.closeButtonText}>Close</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </Modal>
+
+                          {/*// RHCM Removed Available Date as instructed
+                             // Will keep this here for now in case Kirby wants it back*/}
+                {/* <CustomDatePicker
                   label="Available Date:"
                   value={availableDate || ''} // Value from the state
                   labelStyle={{ textAlign: 'right', fontSize: 16 }}
@@ -592,14 +903,15 @@ const ProjectUpdate: React.FC = () => {
                     setAvailableDate(date); // Updates the state
                     handleSave(date, 'AvailableDate');
                   }}
-                />
+                /> */}
+                
               </View>
   
               {/* Services Section */}
               <Text style={styles.sectionTitle}>Services</Text>
               {services.map((service, index) => {
                 const workPackages = normalizeWorkPackages(service.WorkPackages);
-
+                
                 return (
                   <View key={index} style={styles.serviceContainer}>
                     <Text style={styles.serviceTitle}>
@@ -734,6 +1046,28 @@ const ProjectUpdate: React.FC = () => {
                         </Text>
                       </TouchableOpacity>
                     </View>
+
+                    {quoteWorkPackages.length > 0 ? (
+                      quoteWorkPackages.map((qwp, index) => (
+                        <View key={index} style={styles.workPackageContainer}>
+                          <View style={styles.headerRow}>
+                            <Text style={styles.workPackageTitle}>
+                              {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
+                            </Text>
+                            <TouchableOpacity
+                              style={styles.removeButton}
+                              onPress={() => handleRemoveQuoteWorkPackage(qwp.QuoteWorkPackageSerial)}
+                            >
+                              <Text>
+                                <Icon name="minus" size={24} color="#fff" />
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.emptyText}>No Quote Work Packages available.</Text>
+                    )}
                     </View>
               {/* Skills Section */}
               <View style={styles.sectionContainer}>
@@ -741,15 +1075,27 @@ const ProjectUpdate: React.FC = () => {
                 <Text style={styles.sectionTitle}>Skills</Text>
                 <TouchableOpacity
                   style={styles.iconButton}
-                  onPress={() =>
+                  onPress={() => {
                     router.push({
                       pathname: '/AddSkillsGroup',
                       params: { quoteSerial: jobObj.Serial },
-                    })
-                  }
+                    });
+
+                    // 🔹 Update existing skill's count to 1 if it's already in the list
+                    setSkills(prevSkills =>
+                      prevSkills.map(skill =>
+                        skill.SkillSerial === quoteSerial
+                          ? { ...skill, SkillCount: 1 } // ✅ Set count to 1 when selected
+                          : skill
+                      )
+                    );
+                  }}
                 >
-                  <Text><Icon name="plus" size={16} color="#fff" /> {/* Icon only */}</Text>
+                  <Text>
+                    <Icon name="plus" size={16} color="#fff" /> {/* Icon only */}
+                  </Text>
                 </TouchableOpacity>
+
               </View>
                 {skills.length > 0 ? (
                   skills.map((skill, skillIndex) => (
@@ -757,18 +1103,29 @@ const ProjectUpdate: React.FC = () => {
                       <View style={styles.rowContainer}>
                         <Text style={styles.workPackageTitle}>{skill.SkillName}</Text>
                         <View style={styles.buttonGroup}>
-                          <TouchableOpacity
-                            style={styles.removeButton}
-                            onPress={() => {
-                              setSelectedSkill({ name: skill.SkillName, serial: skill.SkillSerial });
-                              setSkillModalVisible(true);
-                            }}
-                          >
-                            <Text>
-                              <Icon name="minus" size={24} color="#fff" />
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
+                        {/* 🔻 Decrease Quantity or Remove Skill */}
+                        <TouchableOpacity
+                          style={styles.removeSkillsButton}
+                          onPress={() => handleUpdateSkill(skill.SkillSerial, skill.SkillCount - 1)}
+                        >
+                          <Text>
+                            <Icon name="minus" size={24} color="#fff" />
+                          </Text>
+                        </TouchableOpacity>
+
+                        {/* 🔹 Quantity Display */}
+                        <Text style={styles.skillsQuantityLabel}>{skill.SkillCount}</Text>
+
+                        {/* 🔺 Increase Quantity */}
+                        <TouchableOpacity
+                          style={styles.addSkillsButton}
+                          onPress={() => handleUpdateSkill(skill.SkillSerial, skill.SkillCount + 1)}
+                        >
+                          <Text>
+                            <Icon name="plus" size={16} color="#fff" /> {/* Icon only */}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                       </View>
                     </View>
                   ))
@@ -778,7 +1135,7 @@ const ProjectUpdate: React.FC = () => {
               
 
               {/* Equipment Section */}
-              <View style={styles.sectionContainer}>
+              
               <View style={styles.headerRow}>
                 <Text style={styles.sectionTitle}>Equipment</Text>
                 <TouchableOpacity
@@ -801,20 +1158,28 @@ const ProjectUpdate: React.FC = () => {
                       <View style={styles.headerRow}>
                         <Text style={styles.workPackageTitle}>{equipment.EquipmentName}</Text>
                         <View style={styles.buttonGroup}>
-                          <TouchableOpacity
-                            style={styles.removeButton}
-                            onPress={() => {
-                              setSelectedEquipment({
-                                name: equipment.EquipmentName,
-                                serial: equipment.EquipmentSerial,
-                              });
-                              setEquipmentModalVisible(true);
-                            }}
-                          >
-                            <Text>
-                              <Icon name="minus" size={24} color="#fff" />
-                            </Text>
-                          </TouchableOpacity>
+                          {/* 🔻 Decrease Quantity or Remove Skill */}
+                        <TouchableOpacity
+                          style={styles.removeSkillsButton}
+                          onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount - 1)}
+                        >
+                          <Text>
+                            <Icon name="minus" size={24} color="#fff" />
+                          </Text>
+                        </TouchableOpacity>
+
+                        {/* 🔹 Quantity Display */}
+                        <Text style={styles.skillsQuantityLabel}>{equipment.EquipmentCount}</Text>
+
+                        {/* 🔺 Increase Quantity */}
+                        <TouchableOpacity
+                          style={styles.addEquipmentButton}
+                          onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount + 1)}
+                        >
+                          <Text>
+                            <Icon name="plus" size={16} color="#fff" /> {/* Icon only */}
+                          </Text>
+                        </TouchableOpacity>
                         </View>
                       </View>
                     </View>
@@ -822,7 +1187,7 @@ const ProjectUpdate: React.FC = () => {
                 ) : (
                   <Text style={styles.emptyText}>No equipment available.</Text>
                 )}
-              </View>
+              
               </View>
               </View>
 
@@ -840,7 +1205,6 @@ const ProjectUpdate: React.FC = () => {
     />
   </ImageBackground>
 );
-  
 };
 const styles = StyleSheet.create({
   background: {
@@ -851,6 +1215,15 @@ const styles = StyleSheet.create({
   // plus:{
   //   alignItems: 'flex-start',
   // },
+  container: { padding: 20, marginTop: -60, },
+  viewButton: {
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    borderRadius: 5,
+  },
+  viewButtonText: { color: 'black', fontWeight: 'bold' },
   resourceContainer: {
     flexDirection: 'row', // Ensures items are laid out horizontally
     alignItems: 'center', // Vertically align the text and button
@@ -882,12 +1255,48 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
+  dateFieldContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  addButton: {
+    marginLeft: 10,
+    backgroundColor: '#20D5FF',
+    borderRadius: 20,
+    padding: 10,
+  },
+  addButtonText: { color: 'white', fontSize: 18 },
+  viewDatesButton: {
+    marginTop: 20,
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#20D5FF',
+    borderRadius: 5,
+  },
+  viewDatesButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
+  },
+  closeButton: {
+    marginTop: 10,
+    alignSelf: 'center',
+    backgroundColor: 'red',
+    padding: 10,
+    borderRadius: 5,
+  },
+  closeButtonText: { color: 'white', fontSize: 16 },
   iconButton: {
     backgroundColor: '#20D5FF',
     borderRadius: 20, // Circular button
     padding: 10, // Padding for the icon
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 10,
   },
   rowContainer: {
     flexDirection: 'row',
@@ -933,7 +1342,18 @@ selectedHours: {
     lineHeight: 20, // Add space between lines for better readability
     flexWrap: 'wrap', // Ensure text wraps properly
   },
-  
+  skillsQuantityLabel: {
+    // flex: 1, // Take up available space for wrapping
+    fontSize: 20,
+    color: '#000',
+    marginRight: 10, // Add space between text and buttons
+    marginLeft: 10,
+    marginTop: 10,
+    lineHeight: 20, // Add space between lines for better readability
+    flexWrap: 'wrap', // Ensure text wraps properly
+    alignItems: 'center',
+    
+  },
   alternateButton: {
     padding: 8,
     backgroundColor: '#20D5FF',
@@ -949,7 +1369,30 @@ selectedHours: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+  removeSkillsButton: {
+    padding: 8,
+    backgroundColor: '#20D5FF',
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -10
+  },
+  addSkillsButton: {
+    padding: 8,
+    backgroundColor: '#20D5FF',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -10
+  },
+  addEquipmentButton: {
+    padding: 8,
+    backgroundColor: '#20D5FF',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 2
+  },
   icon: {
     width: 20,
     height: 20,
@@ -1192,6 +1635,13 @@ selectedHours: {
     fontWeight: 'bold',
     marginTop: 5,
     marginRight: 2,
+  },
+  sectionTitleDates: {
+    marginRight: 8, // Space between label and input
+    fontSize: 14,
+    fontWeight: 'bold',
+    justifyContent: 'space-between',
+    flex: 1,
   },
   buttonRow: {
     flexDirection: 'row',

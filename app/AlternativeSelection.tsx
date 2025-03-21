@@ -106,7 +106,7 @@ const AlternativeSelection: React.FC = () => {
                   {/* Check if hours are rendered correctly */}
                   <View style={styles.hoursField}>
                     <TextInput
-                      style={styles.hoursText} // Apply your custom styling
+                      style={styles.hoursText}
                       value={alt.hours} // Bind the `alt.hours` state
                       onChangeText={(text) => handleHoursChange(text, alt)} // Handle text changes
                       editable={true} // Enable editing

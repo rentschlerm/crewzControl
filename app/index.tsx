@@ -92,8 +92,12 @@ const SignIn: React.FC = () => {
   }, []);
 
   const handleLogin = async () => {
-    if (!deviceInfo || !location) {
-      Alert.alert('Device or location information is missing');
+    if (!deviceInfo) {
+      Alert.alert('Device information is loading');
+      return;
+    }
+    if (!location){
+      Alert.alert('Please allow CrewzControl to access your location.');
       return;
     }
 
@@ -107,7 +111,7 @@ const SignIn: React.FC = () => {
 
     const validEmail = email ?? ''; // Use an empty string if email is undefined
     const validPassword = password ?? ''; // Use an empty string if password is undefined
-
+                        
     const url = `https://crewzcontrol.com/dev/CCService/AuthorizeEmployee.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&DeviceType=${encodeURIComponent(deviceInfo.type)}&DeviceModel=${encodeURIComponent(deviceInfo.model)}&DeviceVersion=${encodeURIComponent(deviceInfo.version)}&SoftwareVersion=${encodeURIComponent(deviceInfo.softwareVersion)}&Date=${formattedDate}&Key=${key}&UserName=${encodeURIComponent(validEmail)}&Password=${encodeURIComponent(validPassword)}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN&GeoAccuracy=${location.accuracy}&TestFlag=1`;
     console.log(url);
     try {

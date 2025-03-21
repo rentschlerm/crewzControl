@@ -9,6 +9,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define the Job type
 export interface Job {
+  notbefore?: string;
+  QuoteWorkPackages: any;
   Serial: any;
   Hour: string;
   Equipments: any;
@@ -73,7 +75,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobsReady, setJobsReady] = useState<boolean>(false);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
-  const [authorizationCode, setAuthorizationCode] = useState<string | null>(null); // Add this
+  const [authorizationCode, setAuthorizationCode] = useState<string | null>(null); 
   const [jobsFetched, setJobsFetched] = useState<boolean>(false); // Track if jobs are already fetched
   const { location, fetchLocation } = useLocation();
 
@@ -108,10 +110,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       }
 
       //  JCM 01/18/2025: Ensure longitude and latitude are available
-      if (!longitude || !latitude) {
-        console.log('Location data is missing. Unable to fetch jobs.');
-        return;
-      }
+      // if (!longitude || !latitude) {
+      //   console.log('Location data is missing. Unable to fetch jobs.');
+      //   return;
+      // }
 
       try {
         const crewzControlVersion = '10';
@@ -163,6 +165,11 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             Quantity: quote.Quantity || '-',
             WorkPackages: quote.WorkPackages || '-',
             WorkPackageName: quote.WorkPackageName || '-',
+            QuoteWorkPackageName: quote.QuoteWorkPackageName || '-',
+            QuoteWorkPackage: quote.QuoteWorkPackage || '-',
+            QuoteWorkPackages: quote.QuoteWorkPackages || '-',
+            QuoteWorkPackageSerial: quote.QuoteWorkPackageSerial || '-',
+            QuoteWorkPackageAlternates: quote.QuoteWorkPackageAlternates || '-',
           }));
 
           // Log `amount` for each job
