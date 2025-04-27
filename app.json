@@ -2,7 +2,7 @@
   "expo": {
     "name": "CrewzControl",
     "slug": "crewzcontrol",
-    "version": "2.0.3",
+    "version": "2.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.cerenimbus.crewzcontrol",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location for providing location-based features.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location at all times."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location at all times.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
