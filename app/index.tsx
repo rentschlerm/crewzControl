@@ -96,10 +96,29 @@ const SignIn: React.FC = () => {
       Alert.alert('Device information is loading');
       return;
     }
-    if (!location){
-      Alert.alert('Please allow CrewzControl to access your location.');
-      return;
-    }
+    // JCM 04/30/2025: Updated the location condition. It will first check if the hook has returned location data such as longitude, latitude and accuracy. If the location hook has returned null, then it will check the AsyncStorage if it has location data. If AsyncStorage has no location data, it will then trigger the error alert "Please allow CrewzControl to access your location.", else, it will assign values to the location variables to be used for the API URL.
+    // ================================================================ 
+    // if (!location){
+    //     Alert.alert('Please allow CrewzControl to access your location.');
+    //     return;
+    // }
+     let longitude = location?.longitude;
+     let latitude = location?.latitude;
+     let accuracy = location?.accuracy;
+
+     if (!longitude || !latitude || !accuracy) {
+       const storedLocation = await AsyncStorage.getItem('location');
+       if (storedLocation) {
+         const parsedLocation = JSON.parse(storedLocation);
+         longitude = parsedLocation.longitude;
+         latitude = parsedLocation.latitude;
+         accuracy = parsedLocation.accuracy;
+       } else {
+         Alert.alert('Please allow CrewzControl to access your location.');
+         return;
+       }
+     }
+    // ================================================================ 
 
     setIsLoading(true);
 
@@ -112,7 +131,7 @@ const SignIn: React.FC = () => {
     const validEmail = email ?? ''; // Use an empty string if email is undefined
     const validPassword = password ?? ''; // Use an empty string if password is undefined
                         
-    const url = `https://crewzcontrol.com/dev/CCService/AuthorizeEmployee.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&DeviceType=${encodeURIComponent(deviceInfo.type)}&DeviceModel=${encodeURIComponent(deviceInfo.model)}&DeviceVersion=${encodeURIComponent(deviceInfo.version)}&SoftwareVersion=${encodeURIComponent(deviceInfo.softwareVersion)}&Date=${formattedDate}&Key=${key}&UserName=${encodeURIComponent(validEmail)}&Password=${encodeURIComponent(validPassword)}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN&GeoAccuracy=${location.accuracy}&TestFlag=1`;
+    const url = `https://crewzcontrol.com/dev/CCService/AuthorizeEmployee.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&DeviceType=${encodeURIComponent(deviceInfo.type)}&DeviceModel=${encodeURIComponent(deviceInfo.model)}&DeviceVersion=${encodeURIComponent(deviceInfo.version)}&SoftwareVersion=${encodeURIComponent(deviceInfo.softwareVersion)}&Date=${formattedDate}&Key=${key}&UserName=${encodeURIComponent(validEmail)}&Password=${encodeURIComponent(validPassword)}&CrewzControlVersion=${crewzControlVersion}&Longitude=${longitude}&Latitude=${latitude}&Language=EN&GeoAccuracy=${accuracy}&TestFlag=1`;
     console.log(url);
     try {
       const response = await fetch(url);

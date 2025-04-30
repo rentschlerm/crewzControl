@@ -27,6 +27,24 @@ const SecurityCodeScreen: React.FC = () => {
     const parsedDeviceInfo = JSON.parse(deviceInfo);
     const parsedLocation = JSON.parse(location);
 
+    // JCM 04/30/2025: Updated the location condition. It will first check if the hook has returned location data such as longitude and latitude. If the location hook has returned null, then it will check the AsyncStorage if it has location data. If AsyncStorage has no location data, it will then trigger the error alert "Please allow CrewzControl to access your location.", else, it will assign values to the location variables to be used for the API URL.
+    // ================================================================ 
+    let longitude = parsedLocation?.longitude;
+    let latitude = parsedLocation?.latitude;
+
+    if (!longitude || !latitude) {
+      const storedLocation = await AsyncStorage.getItem('location');
+      if (storedLocation) {
+        const parsedLocation = JSON.parse(storedLocation);
+        longitude = parsedLocation.longitude;
+        latitude = parsedLocation.latitude;
+      } else {
+        Alert.alert('Please allow CrewzControl to access your location.');
+        return;
+      }
+    }
+   // ================================================================ 
+
     setIsLoading(true);
 
     try {
@@ -37,7 +55,7 @@ const SecurityCodeScreen: React.FC = () => {
 
       const url = `https://crewzcontrol.com/dev/CCService/AuthorizeDeviceID.php?DeviceID=${encodeURIComponent(
         parsedDeviceInfo.id
-      )}&Date=${formattedDate}&Key=${key}&CrewzControlVersion=10&SecurityCode=${securityCode}&Longitude=${parsedLocation.longitude}&Latitude=${parsedLocation.latitude}`;
+      )}&Date=${formattedDate}&Key=${key}&CrewzControlVersion=10&SecurityCode=${securityCode}&Longitude=${longitude}&Latitude=${latitude}`;
       console.log(`${url}`);
       const response = await fetch(url);
       const data = await response.text();
