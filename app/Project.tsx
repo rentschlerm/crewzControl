@@ -205,8 +205,10 @@ const Project: React.FC = () => {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch search results.');
       }
     } catch (error) {
-      console.error('Error performing search:', error);
-      Alert.alert('Error', 'An error occurred while searching. Please try again.');
+      // JCM 03/21/2025: Corrected the error message when no quotes is found on the list based on the provided term.
+      //console.error('Error performing search:', error);
+      // Alert.alert('Error', 'An error occurred while searching. Please try again.');
+      Alert.alert('', 'No matching quotes found.');
     } finally {
       // setLoading(false);
     }
