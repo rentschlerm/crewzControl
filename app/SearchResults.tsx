@@ -130,6 +130,7 @@ useEffect(() => {
   };
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
     <ImageBackground
       source={require('../assets/images/background.png')}
       style={styles.background}
@@ -164,6 +165,7 @@ useEffect(() => {
         <Text style={styles.buttonText}>Try Again</Text>
       </TouchableOpacity>
     </ImageBackground>
+    </SafeAreaView>
   );
 };
 

@@ -9,6 +9,8 @@ import {
   Image,
   Modal,
   ActivityIndicator,
+  SafeAreaView,
+  TextInput,
 } from 'react-native';
 import { JobsContext, Job } from '../components/JobContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -82,6 +84,7 @@ const ProjectUpdate: React.FC = () => {
   const [customerName, setName] = useState(jobObj?.Name);
   const [address, setAddress] = useState(jobObj?.Address);
   const [city, setCity] = useState(jobObj?.City);
+  const [quoteNum, setQuoteNum] = useState(jobObj?.QuoteNum);
   const [serial, setserial] = useState(jobObj?.serial);
   const [quoteHours, setQuoteHours] = useState("0.00");
   
@@ -195,17 +198,39 @@ const ProjectUpdate: React.FC = () => {
     }
   };
 
+  // const services: Service[] = (() => {
+  //   try {
+  //     const parsedServices =
+  //       typeof jobObj.Services === 'string' ? JSON.parse(jobObj.Services) : jobObj.Services;
+  //       console.log('Services: ',parsedServices)
+  //     return normalizeToArray(parsedServices?.Service);
+  //   } catch (error) {
+  //     console.error('Error parsing Services:', error);
+  //     return [];
+  //   }
+  // })();
+
   const services: Service[] = (() => {
     try {
-      const parsedServices =
-        typeof jobObj.Services === 'string' ? JSON.parse(jobObj.Services) : jobObj.Services;
-        console.log('Services: ',parsedServices)
+      const rawServices = jobObj?.Services;
+  
+      if (!rawServices || (typeof rawServices === 'string' && rawServices.trim() === '')) {
+        return []; // Handle undefined, null, or empty string
+      }
+  
+      const parsedServices = typeof rawServices === 'string'
+        ? JSON.parse(rawServices)
+        : rawServices;
+  
+      console.log('Parsed Services:', parsedServices);
+  
       return normalizeToArray(parsedServices?.Service);
     } catch (error) {
-      console.error('Error parsing Services:', error);
+      console.error('Error parsing Services:', error, jobObj?.Services);
       return [];
     }
   })();
+  
 
   const handleSave = async (updated: string | string[], type: string) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
@@ -458,11 +483,11 @@ const ProjectUpdate: React.FC = () => {
         setModalVisible(false);
         fetchQuoteDetails();
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove the resource.');
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove the Equipment.');
       }
     } catch (error) {
-      console.error('Error removing resource:', error);
-      Alert.alert('Error', 'An error occurred while removing the resource.');
+      console.error('Error removing Equipment:', error);
+      Alert.alert('Error', 'An error occurred while removing the Equipment.');
     }
   };
   
@@ -704,6 +729,7 @@ const ProjectUpdate: React.FC = () => {
   }
   
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
     <ImageBackground
       source={require('../assets/images/background.png')}
       style={styles.background}
@@ -720,7 +746,7 @@ const ProjectUpdate: React.FC = () => {
           <View style={[styles.mainDiv,  { width: deviceWidth }]}>
             {/* Header */}
             <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()}>
+              <TouchableOpacity onPress={() => router.push('/Project')}>
                 <Text style={styles.backText}>Back</Text>
               </TouchableOpacity>
               <Text style={styles.title}>Quote Update</Text>
@@ -740,8 +766,87 @@ const ProjectUpdate: React.FC = () => {
                 <Text style={styles.label}>City:</Text>
                 <Text style={styles.textValue}>{city || 'N/A'}</Text>
               </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Quote#:</Text>
+                <Text style={styles.textValue}>{quoteNum || 'N/A'}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+   <Text 
+    style={[
+      styles.label, 
+      { color: parseFloat(quoteHours) === 0 ? 'red' : 'black' } // label color condition
+    ]}
+  >
+    Hours:
+  </Text>
+  <TextInput
+    value={quoteHours}
+    onChangeText={(text) => {
+      // Always store as raw string for input
+      setQuoteHours(text);
+    }}
+    onBlur={() => {
+      const inputValue = parseFloat(quoteHours);
+      if (!isNaN(inputValue)) {
+        // Round to the nearest 0.25 (quarter hour)
+        const rounded = Math.round(inputValue * 4) / 4;
+        const formatted = rounded.toFixed(2); // keeps two decimal places
+
+        setQuoteHours(formatted);
+        handleSave(formatted, "Hours");
+      }
+    }}
+    placeholder="Enter hours"
+    keyboardType="decimal-pad"
+    style={[
+      styles.pickerContainer,
+      {
+        padding: 5,
+        marginRight: 35,
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 5,
+        width: 220,
+        color: parseFloat(quoteHours) === 0 ? 'red' : 'black'
+      },
+    ]}
+  />
+</View>
+
+
+              {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+  <Text style={styles.label}>Hours:</Text>
+  <TextInput
+    value={quoteHours}
+    onChangeText={(text) => {
+      // Always store as raw string for input
+      setQuoteHours(text);
+    }}
+    onBlur={() => {
+      const inputValue = parseFloat(quoteHours);
+      if (!isNaN(inputValue)) {
+        const hours = Math.floor(inputValue);
+        const decimalPart = inputValue % 1;
+        const minutesRaw = Math.round(decimalPart * 100); // interpret .45 as 45 mins
+    
+        const rounded = minutesRaw >= 30 ? hours + 1 : hours;
+    
+        const finalValue = rounded.toString();
+        setQuoteHours(finalValue);
+        handleSave(finalValue, "Hours");
+      }
+    }}
+    placeholder="Enter hours"
+    keyboardType="decimal-pad"
+    style={[
+      styles.pickerContainer,
+      { padding: 10, borderColor: '#ccc', borderWidth: 1, borderRadius: 5 },
+    ]}
+  />
+</View> */}
+
               {/* Roll Picker */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                 <Text style={styles.label}>Hours:</Text>
                 <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
                   <Picker
@@ -771,32 +876,33 @@ const ProjectUpdate: React.FC = () => {
                     {generateHours()}
                   </Picker>
                 </View>
-                </View>
+                </View> */}
             
               
              
 
-              <View style={styles.row}>
-                <Text style={styles.label}>Priority:</Text>
-                <View style={[styles.dropdownWrapper, { zIndex: 1000 }]}>
-                  <DropDownPicker
-                    open={urgencyOpen}
-                    value={urgency}
-                    items={[
-                      { label: 'Emergency', value: 'Emergency' },
-                      { label: 'Urgent', value: 'Urgent' },
-                      { label: 'Normal', value: 'Normal' },
-                    ]}
-                    setOpen={setUrgencyOpen}
-                    setValue={setUrgency}
-                    style={[styles.dropdownStyle, { width: 220, marginLeft: -55, marginBottom: 20 }]}
-                    dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex: 1000 }]}
-                    modalProps={{
-                      transparent: false, 
-                    }}
-                    zIndex={1000}
-                  />
-                </View>
+              <View style={[styles.row, { zIndex: 1000 }]}>
+                  <Text style={styles.label}>Priority:</Text>
+                  <View style={styles.dropdownWrapper}>
+                    <DropDownPicker
+                      open={urgencyOpen}
+                      value={urgency}
+                      items={[
+                        { label: 'Emergency', value: 'Emergency' },
+                        { label: 'Urgent', value: 'Urgent' },
+                        { label: 'Normal', value: 'Normal' },
+                      ]}
+                      setOpen={setUrgencyOpen}
+                      setValue={setUrgency}
+                      style={[styles.dropdownStyle, { width: 220, marginLeft: -60, marginBottom: 20 }]}
+                      dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex: 1000 }]}
+                      // listMode="MODAL"
+                      // modalProps={{
+                      //   transparent: false, 
+                      // }}
+                      zIndex={1000}
+                    />
+                  </View>
 
               </View>
               <View style={styles.dateSection}>
@@ -908,12 +1014,13 @@ const ProjectUpdate: React.FC = () => {
               </View>
   
               {/* Services Section */}
-              <Text style={styles.sectionTitle}>Services</Text>
+              
               {services.map((service, index) => {
                 const workPackages = normalizeWorkPackages(service.WorkPackages);
                 
                 return (
                   <View key={index} style={styles.serviceContainer}>
+                    <Text style={styles.sectionTitle}>Services</Text>
                     <Text style={styles.serviceTitle}>
                       {service.QuoteDetailName || 'Unnamed Service'}
                     </Text>
@@ -991,7 +1098,7 @@ const ProjectUpdate: React.FC = () => {
                                   <View style={styles.modalOverlay}>
                                     <View style={styles.modalContent}>
                                       {/* Header */}
-                                      <Text style={styles.modalHeader}>Remove Resource Group</Text>
+                                      <Text style={styles.modalHeader}>Remove Equipment Group</Text>
 
                                       {/* Body */}
                                       <Text style={styles.modalBody}>
@@ -1031,7 +1138,7 @@ const ProjectUpdate: React.FC = () => {
                 {/* Work Packages */}
                     <View style={styles.sectionContainer}>
                     <View style={styles.headerRow}>
-                      <Text style={styles.sectionTitle}>Resource Groups</Text>
+                      <Text style={styles.sectionTitle}>Equipment</Text>
                       <TouchableOpacity
                         style={styles.iconButton}
                         onPress={() =>
@@ -1048,23 +1155,53 @@ const ProjectUpdate: React.FC = () => {
                     </View>
 
                     {quoteWorkPackages.length > 0 ? (
-                      quoteWorkPackages.map((qwp, index) => (
+                      quoteWorkPackages.map((qwp, index) => {
+                        const alternates = normalizeToArray(
+                          qwp.QuoteWorkPackageAlternates?.QuoteWorkPackageAlternate || []
+                        );
+                      return (
                         <View key={index} style={styles.workPackageContainer}>
                           <View style={styles.headerRow}>
                             <Text style={styles.workPackageTitle}>
                               {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
                             </Text>
+                            {/* Button Group */}
+                          <View style={styles.buttonGroup}>
+                            {/* Alternates Button */}
+                            {alternates.length > 0 && (
+                              <TouchableOpacity
+                                style={styles.alternateButton}
+                                onPress={() =>
+                                  router.push({
+                                    pathname: '/AlternativeSelection',
+                                    params: {
+                                      workPackageName: qwp.QuoteWorkPackageName,
+                                      workPackageAlternates: JSON.stringify(alternates),
+                                    },
+                                  })
+                                }
+                              >
+                                <Image
+                                  source={require('@/assets/images/list-icon.png')}
+                                  style={styles.icon}
+                                />
+                              </TouchableOpacity>
+                            )}
+                            {/* Remove Button */}
                             <TouchableOpacity
                               style={styles.removeButton}
                               onPress={() => handleRemoveQuoteWorkPackage(qwp.QuoteWorkPackageSerial)}
                             >
-                              <Text>
+                                <Text>
                                 <Icon name="minus" size={24} color="#fff" />
                               </Text>
                             </TouchableOpacity>
                           </View>
                         </View>
-                      ))
+                      </View>
+                    );
+
+        })
                     ) : (
                       <Text style={styles.emptyText}>No Quote Work Packages available.</Text>
                     )}
@@ -1134,7 +1271,7 @@ const ProjectUpdate: React.FC = () => {
                 )}
               
 
-              {/* Equipment Section */}
+              {/*// Equipment Section
               
               <View style={styles.headerRow}>
                 <Text style={styles.sectionTitle}>Equipment</Text>
@@ -1148,7 +1285,7 @@ const ProjectUpdate: React.FC = () => {
                   }
                 >
                   <Text>
-                    <Icon name="plus" size={16} color="#fff" /> {/* Smaller plus icon */}
+                    <Icon name="plus" size={16} color="#fff" /> //Smaller plus icon
                   </Text>
                 </TouchableOpacity>
                 </View>
@@ -1158,7 +1295,7 @@ const ProjectUpdate: React.FC = () => {
                       <View style={styles.headerRow}>
                         <Text style={styles.workPackageTitle}>{equipment.EquipmentName}</Text>
                         <View style={styles.buttonGroup}>
-                          {/* 🔻 Decrease Quantity or Remove Skill */}
+                          //🔻 Decrease Quantity or Remove Skill
                         <TouchableOpacity
                           style={styles.removeSkillsButton}
                           onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount - 1)}
@@ -1168,16 +1305,16 @@ const ProjectUpdate: React.FC = () => {
                           </Text>
                         </TouchableOpacity>
 
-                        {/* 🔹 Quantity Display */}
+                        //🔹 Quantity Display
                         <Text style={styles.skillsQuantityLabel}>{equipment.EquipmentCount}</Text>
 
-                        {/* 🔺 Increase Quantity */}
+                        //🔺 Increase Quantity
                         <TouchableOpacity
                           style={styles.addEquipmentButton}
                           onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount + 1)}
                         >
                           <Text>
-                            <Icon name="plus" size={16} color="#fff" /> {/* Icon only */}
+                            <Icon name="plus" size={16} color="#fff" />// Icon only
                           </Text>
                         </TouchableOpacity>
                         </View>
@@ -1186,7 +1323,7 @@ const ProjectUpdate: React.FC = () => {
                   ))
                 ) : (
                   <Text style={styles.emptyText}>No equipment available.</Text>
-                )}
+                )} */}
               
               </View>
               </View>
@@ -1204,6 +1341,7 @@ const ProjectUpdate: React.FC = () => {
       )}
     />
   </ImageBackground>
+  </SafeAreaView>
 );
 };
 const styles = StyleSheet.create({
@@ -1536,7 +1674,7 @@ selectedHours: {
     color: '#555',
     marginLeft: 10,
   },
-  serviceTitle: { fontWeight: 'bold', marginBottom: 5 },
+  serviceTitle: {  marginBottom: 5 },
   workPackagesSection: { marginTop: 10 },
   workPackageContainer: { marginBottom: 10, padding: 10, backgroundColor: '#e9e9e9', borderRadius: 5 },
   alternateContainer: { marginTop: 5, paddingLeft: 10 },

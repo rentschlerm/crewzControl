@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,33 +8,85 @@ import {
   ScrollView,
   Image,
   ImageBackground,
+  Alert,
 } from 'react-native';
 import { Checkbox } from 'react-native-paper'; // Using react-native-paper for checkboxes
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import LogoStyles from '../components/LogoStyles';
+import CryptoJS, { SHA1 } from 'crypto-js';
+import useLocation from '@/hooks/useLocation';
+import { getDeviceInfo } from '../components/DeviceUtils';
+import { JobsContext } from '@/components/JobContext';
+import { XMLParser } from 'fast-xml-parser';
 
 interface Alternative {
   AlternateHour: string;
   name: string;
   hours: string;
   checked?: boolean;
+  // alternateStatus: string;
 }
 
 const AlternativeSelection: React.FC = () => {
   const router = useRouter();
+  const { updateJob, authorizationCode } = useContext(JobsContext)!;
+  const [deviceInfo, setDeviceInfo] = useState<{
+      softwareVersion: string | number | boolean;
+      id: string;
+      type: string;
+      model: string;
+      version: string;
+    } | null>(null);
+  
+    const { location, fetchLocation } = useLocation();
   const { workPackageName, workPackageAlternates } = useLocalSearchParams();
 
   // Parse alternates if passed via route params
-  const parsedAlternates = workPackageAlternates
-    ? JSON.parse(Array.isArray(workPackageAlternates) ? workPackageAlternates.join('') : workPackageAlternates)
-    : [];
+  // const parsedAlternates = workPackageAlternates
+  //   ? JSON.parse(Array.isArray(workPackageAlternates) ? workPackageAlternates.join('') : workPackageAlternates)
+  //   : [];
 
-  const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => ({
-    name: alt.AlternateName || 'Unnamed Alternate',
-    hours: alt.AlternateHour ? alt.AlternateHour.toString() : '',  // Make sure hours is a string
-    checked: false,
-  }));
+  // const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => ({
+  //   name: alt.AlternateName || 'Unnamed Alternate',
+  //   hours: alt.AlternateHour ? alt.AlternateHour.toString() : '',  // Make sure hours is a string
+  //   checked: alt.AlternateStatus === '1',
+  // }));
+  const parsedAlternates = workPackageAlternates
+  ? JSON.parse(Array.isArray(workPackageAlternates) ? workPackageAlternates.join('') : workPackageAlternates)
+  : [];
+  const { quoteWorkPackageAlternates } = useLocalSearchParams();
+
+  const parsedQuoteAlternates = quoteWorkPackageAlternates
+    ? JSON.parse(
+        Array.isArray(quoteWorkPackageAlternates)
+          ? quoteWorkPackageAlternates.join('')
+          : quoteWorkPackageAlternates
+      )
+    : [];
+  
+
+// Match alternates by serial and merge extra info like WPAlternateName
+const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
+  const quoteAlt = parsedQuoteAlternates.find((qa: any) => qa.AlternateSerial === alt.AlternateSerial);
+
+  return {
+    name: alt.AlternateName || alt.WPAlternateName || 'Unnamed Alternative',
+    hours: alt.AlternateHour ? alt.AlternateHour.toString() : '',
+    checked: alt.AlternateStatus === '1' || alt.WPAlternateStatus === '1',
+  };
+});
+
   const [alternatives, setAlternatives] = useState<Alternative[]>(alternativesData);
+  
+    useEffect(() => {
+      const fetchDeviceInfo = async () => {
+        const info = await getDeviceInfo();
+        setDeviceInfo(info);
+        fetchLocation();
+      };
+      fetchDeviceInfo();
+    
+  }, []);
   // console.log('Initial Alternatives State:', alternatives);
   useEffect(() => {
     
@@ -45,12 +97,87 @@ const AlternativeSelection: React.FC = () => {
     updatedAlternatives[index].checked = !updatedAlternatives[index].checked;
     setAlternatives(updatedAlternatives);
   };
-
-  const handleSave = () => {
-    const selectedAlternatives = alternatives.filter((item) => item.checked);
-    console.log('Selected Alternatives:', selectedAlternatives);
-    router.back();
+  //RHCM 5/08/2025
+  //Commented out the previous save function
+  //--------------------------------------Start of------------------------------------------------
+  // const handleSave = () => {
+  //   const selectedAlternatives = alternatives.filter((item) => item.checked);
+  //   console.log('Selected Alternatives:', selectedAlternatives);
+  //   router.back();
+  // };
+  //---------------------------------------End of-------------------------------------------------
+  // RHCM 5/08/2025
+  //Added API call to the UpdateResourceOption endpoint
+  //---------------------------------------Start of-----------------------------------------------
+  const handleSave = async () => {
+    try {
+      if (!alternatives || !parsedAlternates || !authorizationCode || !deviceInfo || !location) {
+        Alert.alert('Missing required data: alternatives, parsedAlternates, or authorizationCode');
+        return;
+      }
+      // else if (!location){
+      //   Alert.alert('Missing location');
+      //   return;
+      // }
+  
+      // 🔹 Format selected alternatives
+      const selectedAlternatives = alternatives.map((item, index) => ({
+        serial: parsedAlternates[index]?.AlternateSerial || '',
+        checked: item.checked ? '1' : '0',
+      }));
+  
+      const listParam = selectedAlternatives
+        .filter(item => item.serial) // Remove empty serials
+        .map(item => `${item.serial}-${item.checked}`)
+        .join(',');
+  
+      if (!listParam) {
+        Alert.alert('No valid alternatives selected.');
+        return;
+      }
+  
+      // 🔹 Device info and version
+      const deviceId = deviceInfo.id || 'defaultDeviceId';
+      const crewzControlVersion = '1';
+  
+      // 🔹 Format date
+      const now = new Date();
+      const formattedDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}-${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  
+      // 🔹 Generate secure key
+      const keyString = `${deviceId}${formattedDate}${authorizationCode}`;
+      const key = CryptoJS.SHA1(keyString).toString();
+  
+      // 🔹 Build request URL
+      const url = `https://CrewzControl.com/dev/CCService/UpdateResourceOption.php?DeviceID=${encodeURIComponent(
+        deviceId
+      )}&Date=${encodeURIComponent(formattedDate)}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&List=${listParam}`;
+  
+      console.log('Request URL:', url);
+  
+      // 🔹 Make API request
+      const response = await fetch(url);
+      const resultText = await response.text();
+  
+      console.log('API Response:', resultText);
+  
+      const parser = new XMLParser();
+      const result = parser.parse(resultText);
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        console.log('✅ Resource options updated successfully.');
+        router.back(); // navigate back on success
+      } else {
+        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update resource options.');
+      }
+    } catch (error) {
+      console.error('❌ Save failed:', error);
+      Alert.alert('Error', 'An unexpected error occurred while saving.');
+    }
   };
+  //-------------------------------------End of---------------------------------------------------
+
+
   const handleHoursChange = (text: string, alt: { hours: string }) => {
     const updatedHours = text.replace(/[^0-9]/g, ''); // Allow only numeric values
     alt.hours = updatedHours; // Update the value in the `alt` object

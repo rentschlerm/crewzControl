@@ -11,6 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TouchableWithoutFeedback,
+  ScrollView,
+  Keyboard,
 } from 'react-native';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
 import { useRouter } from 'expo-router'; // Import useRouter
@@ -30,8 +33,8 @@ const JobListItem: React.FC<JobListItemProps> = ({ job, onPress }) => (
   <TouchableOpacity onPress={() => onPress(job)} style={styles.jobRow}>
     {/* First row for Quote and Customer Name */}
     <View style={styles.firstRow}>
-      <Text style={styles.column1}>{job.quoteName || '-'}</Text>
-      <Text style={styles.column2}>{job.customerName || '-'}</Text>
+      <Text style={styles.column1}>{job.customerName || '-'}</Text>
+      <Text style={styles.column2}>{job.serial +'-'+ job.QuoteNum || '-'}</Text>
       <Text style={styles.column2}>{job.status || '-'}</Text>
     </View>
 
@@ -220,60 +223,165 @@ const Project: React.FC = () => {
     });
   }
 };
-  
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ImageBackground
-        source={require('../assets/images/background.png')}
-        style={styles.background}
+return (
+  <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} // Adjust based on your header height
+  >
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
       >
-        <Image
-          source={require('../assets/images/crewzControlIcon.png')}
-          style={LogoStyles.logo}
-          resizeMode="contain"
-        />
+        <ImageBackground
+          source={require('../assets/images/background.png')}
+          style={styles.background}
+        >
+          <Image
+            source={require('../assets/images/crewzControlIcon.png')}
+            style={LogoStyles.logo}
+            resizeMode="contain"
+          />
 
-        <View style={styles.mainDiv}>
-          <View style={styles.sectionDiv}>
-            <Text style={styles.sectionTitle}>Close to:</Text>
-            <FlatList
-              data={jobs.slice(0, 1)} // Display only the first job
-              renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
-              keyExtractor={(item) => item.id.toString()}
-              // keyExtractor={(item, index) => `${item.id}-${index}`}
-            />
-          </View>
+          <View style={styles.mainDiv}>
+            <View style={styles.sectionDiv}>
+              <Text style={styles.sectionTitle}>Close to:</Text>
+              <JobListItem job={jobs[0]} onPress={handleJobPress} />
+            </View>
 
-          <View style={styles.sectionDiv}>
-            <Text style={styles.sectionTitle}>Recent:</Text>
-            <FlatList
-              data={jobs.slice(1, 4)} // Display only the first 4 jobs
-              renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
-              keyExtractor={(item) => item.id.toString()}
-              // keyExtractor={(item, index) => `${item.id}-${index}`}
-            />
-          </View>
+            <View style={styles.sectionDiv}>
+              <Text style={styles.sectionTitle}>Recent:</Text>
+              {jobs.slice(1, 4).map((item) => (
+                <JobListItem key={item.id.toString()} job={item} onPress={handleJobPress} />
+              ))}
+            </View>
 
-          <View style={styles.searchContainer}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Enter quote customer name"
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-              onFocus={() => setSearchTerm(searchTerm)}
-            />
-            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-              <Text style={styles.searchButtonText}>Search</Text>
-            </TouchableOpacity>
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Enter quote customer name"
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+              />
+              <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+                <Text style={styles.searchButtonText}>Search</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ImageBackground>
-    </KeyboardAvoidingView>
-  );
+        </ImageBackground>
+      </ScrollView>
+    </TouchableWithoutFeedback>
+  </KeyboardAvoidingView>
+);
+
+// const renderContent = () => (
+//   <ImageBackground
+//     source={require('../assets/images/background.png')}
+//     style={styles.background}
+//   >
+//     <Image
+//       source={require('../assets/images/crewzControlIcon.png')}
+//       style={LogoStyles.logo}
+//       resizeMode="contain"
+//     />
+
+//     <View style={styles.mainDiv}>
+//       <View style={styles.sectionDiv}>
+//         <Text style={styles.sectionTitle}>Close to:</Text>
+//         <JobListItem job={jobs[0]} onPress={handleJobPress} />
+//       </View>
+
+//       <View style={styles.sectionDiv}>
+//         <Text style={styles.sectionTitle}>Recent:</Text>
+//         {jobs.slice(1, 4).map((item) => (
+//           <JobListItem key={item.id.toString()} job={item} onPress={handleJobPress} />
+//         ))}
+//       </View>
+
+//       <View style={styles.searchContainer}>
+//         <TextInput
+//           style={styles.searchInput}
+//           placeholder="Enter quote customer name"
+//           value={searchTerm}
+//           onChangeText={setSearchTerm}
+//         />
+//         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+//           <Text style={styles.searchButtonText}>Search</Text>
+//         </TouchableOpacity>
+//       </View>
+//     </View>
+//   </ImageBackground>
+// );
+
+// return (
+//   <KeyboardAvoidingView
+//     style={{ flex: 1 }}
+//     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+//   >
+//     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+//       <View style={{ flex: 1 }}>
+//         {renderContent()}
+//       </View>
+//     </TouchableWithoutFeedback>
+//   </KeyboardAvoidingView>
+// );
+
+  
+// return (
+//   <KeyboardAvoidingView
+//     style={{ flex: 1 }}
+//     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+//   >
+//     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+//       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+//         <ImageBackground
+//           source={require('../assets/images/background.png')}
+//           style={styles.background}
+//         >
+//           <Image
+//             source={require('../assets/images/crewzControlIcon.png')}
+//             style={LogoStyles.logo}
+//             resizeMode="contain"
+//           />
+
+//           <View style={styles.mainDiv}>
+//             <View style={styles.sectionDiv}>
+//               <Text style={styles.sectionTitle}>Close to:</Text>
+//               <FlatList
+//                 data={jobs.slice(0, 1)}
+//                 renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
+//                 keyExtractor={(item) => item.id.toString()}
+//               />
+//             </View>
+
+//             <View style={styles.sectionDiv}>
+//               <Text style={styles.sectionTitle}>Recent:</Text>
+//               <FlatList
+//                 data={jobs.slice(1, 4)}
+//                 renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
+//                 keyExtractor={(item) => item.id.toString()}
+//               />
+//             </View>
+
+//             <View style={styles.searchContainer}>
+//               <TextInput
+//                 style={styles.searchInput}
+//                 placeholder="Enter quote customer name"
+//                 value={searchTerm}
+//                 onChangeText={setSearchTerm}
+//                 onFocus={() => setSearchTerm(searchTerm)} // optional
+//               />
+//               <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+//                 <Text style={styles.searchButtonText}>Search</Text>
+//               </TouchableOpacity>
+//             </View>
+//           </View>
+//         </ImageBackground>
+//       </ScrollView>
+//     </TouchableWithoutFeedback>
+//   </KeyboardAvoidingView>
+// );
 };
 
 // Styles
@@ -313,8 +421,10 @@ const styles = StyleSheet.create({
   jobRow: {
     
     justifyContent: 'space-between',
+     paddingVertical: 10,
     padding: 15,
     backgroundColor: '#fff',
+     borderBottomWidth: 1,
     borderRadius: 8,
     marginBottom: 10,
     shadowColor: '#000',
@@ -325,6 +435,7 @@ const styles = StyleSheet.create({
   firstRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 5,
     // marginBottom: 0, // Add space between the rows
   },
   secondRow: {
@@ -332,20 +443,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   column1: {
-    flex: 1,
+    flex: 2,
+    flexWrap: 'wrap',
     color: 'grey',
+    marginRight: 5,
   },
   column2: {
-    flex: 1,
+    flex: 1.2,
+    textAlign: 'right',
     color: 'grey',
   },
   column3: {
     flex: 1,
     color: 'grey',
+    textAlign: 'left',
   },
   column4: {
     flex: 1,
     color: 'grey',
+    textAlign: 'right',
   },
   searchContainer: {
     flexDirection: 'row',

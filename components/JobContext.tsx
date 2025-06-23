@@ -12,6 +12,7 @@ export interface Job {
   notbefore?: string;
   QuoteWorkPackages: any;
   Serial: any;
+  QuoteNum: any;
   Hour: string;
   Equipments: any;
   Skills: any;
@@ -150,6 +151,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
           const fetchedJobs = normalizedQuotes.map((quote: any) => ({
             id: parseInt(quote.Serial, 10) ,
             quoteName: quote.QName || '-',
+            QuoteNum: quote.QuoteNum || '_',
             customerName: quote.Name || '-',
             address: quote.Address || '-',
             city: quote.City || '-',
@@ -170,6 +172,11 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             QuoteWorkPackages: quote.QuoteWorkPackages || '-',
             QuoteWorkPackageSerial: quote.QuoteWorkPackageSerial || '-',
             QuoteWorkPackageAlternates: quote.QuoteWorkPackageAlternates || '-',
+
+            Serial: quote.Serial || '-',     
+            Hour: quote.Hour || '0',         
+            Equipments: quote.Equipments || '-', 
+            Skills: quote.Skills || '-',   
           }));
 
           // Log `amount` for each job

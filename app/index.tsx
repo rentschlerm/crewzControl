@@ -97,7 +97,7 @@ const SignIn: React.FC = () => {
       return;
     }
     if (!location){
-      Alert.alert('Please allow CrewzControl to access your location.');
+      Alert.alert('CrewzControl is still fetching your location...');
       return;
     }
 
@@ -125,9 +125,10 @@ const SignIn: React.FC = () => {
       if (resultInfo) {
         const resultCode = resultInfo.Result;
         const message = resultInfo.Message;
+        const name = resultInfo.Name;
 
         if (resultCode === 'Success') {
-          Alert.alert(`Welcome, ${email}!. A security code has been sent to your email.`);
+          Alert.alert(`Welcome, ${name}!`, message);
           setIsInvalid(false);
           router.push({
             pathname: '/SecurityCodeScreen',

@@ -108,7 +108,9 @@ const styles = StyleSheet.create({
   showCalendarButton: {
     backgroundColor: '#20D5FF',
     padding: 10,
-    borderRadius: 5,
+    paddingRight: 16,
+    marginRight: 6,
+    borderRadius: 15,
     alignItems: 'center',
   },
   row: {

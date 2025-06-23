@@ -78,7 +78,7 @@ const AddResourceGroup: React.FC = () => {
   
         const url = `https://CrewzControl.com/dev/CCService/GetResourceGroupList.php?DeviceID=${encodeURIComponent(
           deviceInfo.id
-        )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
+        )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN&Quote=${quoteSerial}`;
   
         console.log("Fetch Resource Groups URL:", url);
         const response = await fetch(url);
@@ -93,12 +93,12 @@ const AddResourceGroup: React.FC = () => {
               ? result.ResultInfo.Selections.ResourceGroup.map((group: any) => {
                   if (!group || !group.Serial || !group.Name) {
                     // Skip invalid entries
-                    console.warn("Invalid ResourceGroup entry:", group);
+                    console.warn("Invalid Equipment Group entry:", group);
                     return null;
                   }
                   return {
                     id: parseInt(group.Serial, 10) || -1,
-                    name: group.Name || "Unnamed Resource Group",
+                    name: group.Name || "Unnamed Equipment Group",
                   };
                 }).filter(Boolean) // Remove null entries
               : [
@@ -106,17 +106,17 @@ const AddResourceGroup: React.FC = () => {
                   result.ResultInfo.Selections?.ResourceGroup?.Name
                     ? {
                         id: parseInt(result.ResultInfo.Selections.ResourceGroup.Serial, 10) || -1,
-                        name: result.ResultInfo.Selections.ResourceGroup.Name || "Unnamed Resource Group",
+                        name: result.ResultInfo.Selections.ResourceGroup.Name || "Unnamed Equipment Group",
                       }
                     : null,
                 ].filter(Boolean); // Handle single entry or invalid data
           setResourcePackages(groups);
         } else {
-          Alert.alert("Error", result.ResultInfo?.Message || "Failed to fetch resource groups.");
+          Alert.alert("Error", result.ResultInfo?.Message || "Failed to fetch Equipment groups.");
         }
       } catch (error) {
-        console.error("Error fetching resource groups:", error);
-        Alert.alert("Error", "An error occurred while fetching resource groups.");
+        console.error("Error fetching Equipment groups:", error);
+        Alert.alert("Error", "An error occurred while fetching Equipment groups.");
       } finally {
         setLoading(false); // Stop loading
       }
@@ -157,7 +157,7 @@ const AddResourceGroup: React.FC = () => {
     const updateUrl = `https://CrewzControl.com/dev/CCService/UpdateQuoteResourceGroup.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
     )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=add&List=${selectedIds || ''}&Quote=${quoteSerial}`;
-    console.log("Update Resource Groups URL:", updateUrl);
+    console.log("Update Equipment Groups URL:", updateUrl);
   
     try {
 
@@ -222,7 +222,7 @@ const AddResourceGroup: React.FC = () => {
             <TouchableOpacity onPress={() => router.back()}>
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>  Add Resource Group</Text>
+            <Text style={styles.title}>  Add Equipment Group</Text>
           </View>
   
           {/* Conditional Loading */}
@@ -258,7 +258,7 @@ const AddResourceGroup: React.FC = () => {
                 )}
                 ListEmptyComponent={() => (
                   <Text style={styles.emptyText}>
-                    Loading resource groups.
+                    Loading equipment groups.
                   </Text>
                 )}
               />
