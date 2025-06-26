@@ -10,22 +10,24 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { JobsContext } from '@/components/JobContext';
+import { JobsContext, Job } from '@/components/JobContext';
 import { XMLParser } from 'fast-xml-parser';
 import useLocation from '@/hooks/useLocation';
 import CryptoJS from 'crypto-js';
 import { getDeviceInfo } from '@/components/DeviceUtils';
 // Job type definition (adjust based on your actual job structure)
-interface Job {
-  id: number;
-  quoteName: string;
-  customerName: string;
-  address: string;
-  city: string;
-  amount: string;
-  status: string;
-  details?: any; // Additional details from the API, if available
-}
+// interface Job {
+//   id: number;
+//   quoteName: string;
+//   customerName: string;
+//   address: string;
+//   city: string;
+//   amount: string;
+//   status: string;
+//   details?: any; // Additional details from the API, if available
+//   serial: number;
+//   QuoteNum: string;
+// }
 
 // JobListItem component
 interface JobListItemProps {
@@ -37,17 +39,17 @@ const JobListItem: React.FC<JobListItemProps> = ({ job, onPress }) => (
   <TouchableOpacity onPress={() => onPress(job)} style={styles.jobRow}>
     {/* First row for Quote and Customer Name */}
     <View style={styles.firstRow}>
-      <Text style={styles.column1}>{job.quoteName || '-'}</Text>
-      <Text style={styles.column2}>{job.customerName || '-'}</Text>
-      <Text style={styles.column2}>{job.status || '-'}</Text>
-    </View>
-
-    {/* Second row for Address, City, and Amount */}
-    <View style={styles.secondRow}>
-      <Text style={styles.column3}>{job.address || '-'}</Text>
-      <Text style={styles.column4}>{job.city || '-'}</Text>
-      <Text style={styles.column4}>${job.amount ? Number(job.amount).toLocaleString() : '-'}</Text>
-    </View>
+         <Text style={styles.column1}>{job.quoteName || '-'}</Text>
+         <Text style={styles.column2}>{job.serial +'-'+ job.QuoteNum || '-'}</Text>
+         <Text style={styles.column2}>{job.status || '-'}</Text>
+       </View>
+   
+       {/* Second row for Address, City, and Amount */}
+       <View style={styles.secondRow}>
+         <Text style={styles.column3}>{job.address || '-'}</Text>
+         <Text style={styles.column4}>{job.city || '-'}</Text>
+         <Text style={styles.column4}>${job.amount ? Number(job.amount).toLocaleString() : '-'}</Text>
+       </View>
   </TouchableOpacity>
 );
 
@@ -110,7 +112,7 @@ useEffect(() => {
       }
     } catch (error) {
       console.error('Error fetching quote details:', error);
-      Alert.alert('Error', 'An error occurred while fetching quote details.');
+      // Alert.alert('Error', 'An error occurred while fetching quote details.');
       return null;
     }
   };
@@ -125,7 +127,7 @@ useEffect(() => {
         params: { job: JSON.stringify(quoteDetails) },
       });
     } else {
-      Alert.alert('No additional details', 'This job has no extra details available.');
+      // Alert.alert('No additional details', 'This job has no extra details available.');
     }
   };
 

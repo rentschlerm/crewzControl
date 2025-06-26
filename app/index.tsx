@@ -14,6 +14,7 @@ import {
   Linking,
   KeyboardAvoidingView,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Checkbox } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -156,77 +157,78 @@ const SignIn: React.FC = () => {
   return (
     <ImageBackground source={require('../assets/images/background.png')} style={styles.background}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView style={styles.container} behavior="padding">
-          <View style={styles.container}>
-            <Image source={require('../assets/images/crewzControlIcon.png')} style={LogoStyles.logo} resizeMode="contain" />
-            
-            {isLoading ? (
-              <ActivityIndicator size="large" color="#ffffff" style={[styles.loading, { transform: [{ scale: 2 }] }]} />
-            ) : (
-              isInvalid ? (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>Invalid Sign-in. Please Try Again.</Text>
-                  <TouchableOpacity style={styles.button} onPress={() => setIsInvalid(false)}>
-                    <Text style={styles.buttonText}>Back to Login</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.loginContainer}>
-                  <Text style={styles.title}>Sign-in</Text>
-                  <TextInput
-                    style={styles.email}
-                    placeholder="Username"
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    autoFocus={true}
-                  />
-                  <View style={styles.passwordContainer}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Password"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                    />
-                    <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
-                      <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="#007BFF" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.checkboxContainer}>
-                     <View style={styles.checkboxWrapper}>
-                    <Checkbox
-                      status={isChecked ? 'checked' : 'unchecked'}
-                      onPress={() => setIsChecked(!isChecked)}
-                      color="#007BFF"
-                      uncheckedColor="#666"
-                    />
-                    </View>
-                    <Text style={styles.checkboxLabel}>
-                      I agree to the{' '}
-                      <Text style={styles.linkText} onPress={() => Linking.openURL('https://crewzcontrol.com/CrewzControlEndUserLicenseAgreement.htm')}>
-                        Terms of Service
-                      </Text> and{' '}
-                      <Text style={styles.linkText} onPress={() => Linking.openURL('https://crewzcontrol.com/CrewzControlPrivacyPolicy.htm')}>
-                        Privacy Policy
-                      </Text>.
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.button, !isChecked && styles.disabledButton]}
-                    onPress={handleLogin}
-                    disabled={!isChecked}
-                  >
-                    <Text style={styles.buttonText}>Sign-in</Text>
-                  </TouchableOpacity>
-                </View>
-              )
-            )}
+  <View style={{ flex: 1 }}>
+    <View style={styles.container}>
+      <Image source={require('../assets/images/crewzControlIcon.png')} style={LogoStyles.logo} resizeMode="contain" />
+      
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#ffffff" style={[styles.loading, { transform: [{ scale: 2 }] }]} />
+      ) : (
+        isInvalid ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Invalid Sign-in. Please Try Again.</Text>
+            <TouchableOpacity style={styles.button} onPress={() => setIsInvalid(false)}>
+              <Text style={styles.buttonText}>Back to Login</Text>
+            </TouchableOpacity>
           </View>
-          <StatusBar style="auto" />
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+        ) : (
+          <View style={styles.loginContainer}>
+            <Text style={styles.title}>Sign-in</Text>
+            <TextInput
+              style={styles.email}
+              placeholder="Username"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoFocus={true}
+            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="#007BFF" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.checkboxContainer}>
+              <View style={styles.checkboxWrapper}>
+                <Checkbox
+                  status={isChecked ? 'checked' : 'unchecked'}
+                  onPress={() => setIsChecked(!isChecked)}
+                  color="#007BFF"
+                  uncheckedColor="#666"
+                />
+              </View>
+              <Text style={styles.checkboxLabel}>
+                I agree to the{' '}
+                <Text style={styles.linkText} onPress={() => Linking.openURL('https://crewzcontrol.com/CrewzControlEndUserLicenseAgreement.htm')}>
+                  Terms of Service
+                </Text>{' '}and{' '}
+                <Text style={styles.linkText} onPress={() => Linking.openURL('https://crewzcontrol.com/CrewzControlPrivacyPolicy.htm')}>
+                  Privacy Policy
+                </Text>.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.button, !isChecked && styles.disabledButton]}
+              onPress={handleLogin}
+              disabled={!isChecked}
+            >
+              <Text style={styles.buttonText}>Sign-in</Text>
+            </TouchableOpacity>
+          </View>
+        )
+      )}
+    </View>
+    <StatusBar style="auto" />
+  </View>
+</TouchableWithoutFeedback>
+
     </ImageBackground>
   );
 };

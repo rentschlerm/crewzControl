@@ -127,7 +127,11 @@ const ProjectUpdate: React.FC = () => {
   const [isLoadingServices, setIsLoadingServices] = useState(true);
   const [isPickerVisible, setIsPickerVisible] = useState(true);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
- 
+
+
+  const hoursInputRef = useRef<TextInput>(null);
+
+
   useEffect(() => {
     if (jobObj?.blackoutDate) {
       const blackoutDatesArray = jobObj.blackoutDate.split(',').map(date => date.trim());
@@ -713,6 +717,35 @@ const ProjectUpdate: React.FC = () => {
       };
     }, [deviceInfo, location, authorizationCode, jobObj.Serial, quoteSerial])
   );
+  const handleBackPress = () => {
+  if (parseFloat(quoteHours) === 0) {
+    Alert.alert(
+      'Warning',
+      'A quote with 0 hours will not be scheduled. Do you wish to leave this quote with 0 Hours?',
+      [
+        {
+          text: 'No',
+          onPress: () => {
+            // Focus the TextInput again
+            if (hoursInputRef.current) {
+              hoursInputRef.current.focus();
+            }
+          },
+          style: 'cancel',
+        },
+        {
+          text: 'Yes',
+          onPress: () => {
+            router.push('/Project');
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  } else {
+    router.push('/Project');
+  }
+};
   
 
   const handleCancel = () => {
@@ -746,7 +779,7 @@ const ProjectUpdate: React.FC = () => {
           <View style={[styles.mainDiv,  { width: deviceWidth }]}>
             {/* Header */}
             <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.push('/Project')}>
+              <TouchableOpacity onPress={handleBackPress}>
                 <Text style={styles.backText}>Back</Text>
               </TouchableOpacity>
               <Text style={styles.title}>Quote Update</Text>
@@ -771,47 +804,51 @@ const ProjectUpdate: React.FC = () => {
                 <Text style={styles.textValue}>{quoteNum || 'N/A'}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-   <Text 
+  {/* Fixed width label */}
+  <Text 
     style={[
-      styles.label, 
-      { color: parseFloat(quoteHours) === 0 ? 'red' : 'black' } // label color condition
+      {
+        width: 60, // fixed width for label to prevent shifting
+        fontSize: 16,
+        marginRight: 10,
+        color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
+      }
     ]}
   >
     Hours:
   </Text>
+
+  {/* Fixed width and height TextInput */}
   <TextInput
+    ref={hoursInputRef}
     value={quoteHours}
     onChangeText={(text) => {
-      // Always store as raw string for input
-      setQuoteHours(text);
+      setQuoteHours(text); // Store as string
     }}
     onBlur={() => {
       const inputValue = parseFloat(quoteHours);
       if (!isNaN(inputValue)) {
-        // Round to the nearest 0.25 (quarter hour)
         const rounded = Math.round(inputValue * 4) / 4;
-        const formatted = rounded.toFixed(2); // keeps two decimal places
-
+        const formatted = rounded.toFixed(2);
         setQuoteHours(formatted);
         handleSave(formatted, "Hours");
       }
     }}
     placeholder="Enter hours"
     keyboardType="decimal-pad"
-    style={[
-      styles.pickerContainer,
-      {
-        padding: 5,
-        marginRight: 35,
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 5,
-        width: 220,
-        color: parseFloat(quoteHours) === 0 ? 'red' : 'black'
-      },
-    ]}
+    style={{
+      width: 218,  // fixed width
+      height: 40,  // fixed height
+      paddingHorizontal: 8,
+      borderColor: '#ccc',
+      borderWidth: 1,
+      borderRadius: 5,
+      marginLeft: 50,
+      color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
+    }}
   />
 </View>
+
 
 
               {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>

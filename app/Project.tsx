@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
 import { useRouter } from 'expo-router'; // Import useRouter
@@ -58,6 +59,8 @@ const Project: React.FC = () => {
 } | null>(null);
   const { location, fetchLocation } = useLocation(); // Use the custom hook
 
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+
   useEffect(() => {
     const fetchDeviceInfo = async () => {
       const info = await getDeviceInfo();
@@ -94,7 +97,6 @@ const Project: React.FC = () => {
 
   const fetchQuoteDetails = async (jobId: number) => {
     if (!deviceInfo || !location) {
-      Alert.alert('Device or location information is loading');
       return null;
     }
   
@@ -169,7 +171,7 @@ const Project: React.FC = () => {
     // setLoading(true);
   
     try {
-      const crewzControlVersion = '1'; // Hard-coded as per specification
+      const crewzControlVersion = '10'; // Hard-coded as per specification
       const currentDate = new Date();
       const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
       const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
@@ -184,16 +186,24 @@ const Project: React.FC = () => {
       const parser = new XMLParser();
       const result = parser.parse(data);
       console.log('Search Data: ', data);
+
+      const quotes = result.ResultInfo.Selections?.Quote;
+
+      // RHCM 6/24/2025 Normalize to array
+      const normalizedQuotes = Array.isArray(quotes) ? quotes : [quotes];
   
       if (result.ResultInfo?.Result === 'Success') {
-        const enrichedJobs = result.ResultInfo.Selections?.Quote.map((quote: { Name: any; Address: any; City: any; Amount: any; Status: any; Hours: any; Serial: any; }) => ({
+        const enrichedJobs = normalizedQuotes.map((quote: any) => ({
           quoteName: quote.Name,
+          customerName: quote.CustomerName,
           address: quote.Address,
           city: quote.City,
           amount: quote.Amount,
           status: quote.Status,
           hours: quote.Hours,
           id: quote.Serial, // Serial as unique ID
+          serial: quote.Serial, 
+          QuoteNum: quote.QuoteNum,
         }));
         
         // Navigate to SearchResults screen with results
@@ -245,7 +255,12 @@ return (
             style={LogoStyles.logo}
             resizeMode="contain"
           />
-
+          {isLoadingQuote && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text>Loading quote details...</Text>
+            </View>
+          )}
           <View style={styles.mainDiv}>
             <View style={styles.sectionDiv}>
               <Text style={styles.sectionTitle}>Close to:</Text>
@@ -394,6 +409,17 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
     padding: 20,
+  },
+   loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
   },
   mainDiv: {
     padding: 10,
