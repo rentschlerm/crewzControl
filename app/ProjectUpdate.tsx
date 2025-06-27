@@ -848,76 +848,6 @@ const ProjectUpdate: React.FC = () => {
     }}
   />
 </View>
-
-
-
-              {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-  <Text style={styles.label}>Hours:</Text>
-  <TextInput
-    value={quoteHours}
-    onChangeText={(text) => {
-      // Always store as raw string for input
-      setQuoteHours(text);
-    }}
-    onBlur={() => {
-      const inputValue = parseFloat(quoteHours);
-      if (!isNaN(inputValue)) {
-        const hours = Math.floor(inputValue);
-        const decimalPart = inputValue % 1;
-        const minutesRaw = Math.round(decimalPart * 100); // interpret .45 as 45 mins
-    
-        const rounded = minutesRaw >= 30 ? hours + 1 : hours;
-    
-        const finalValue = rounded.toString();
-        setQuoteHours(finalValue);
-        handleSave(finalValue, "Hours");
-      }
-    }}
-    placeholder="Enter hours"
-    keyboardType="decimal-pad"
-    style={[
-      styles.pickerContainer,
-      { padding: 10, borderColor: '#ccc', borderWidth: 1, borderRadius: 5 },
-    ]}
-  />
-</View> */}
-
-              {/* Roll Picker */}
-                {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                <Text style={styles.label}>Hours:</Text>
-                <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
-                  <Picker
-                    selectedValue={quoteHours}
-                    onValueChange={(newValue) => {
-                      console.log("Selected Hour: ", newValue);
-                      setQuoteHours(newValue);
-                      handleSave(newValue, "Hours");
-                      
-                      // Clear existing timeout
-                      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                      
-                      // Close after 1.2s delay
-                      timeoutRef.current = setTimeout(() => {
-                        setIsPickerVisible(false); // Hide picker
-                      }, 1200);
-                    }}
-                    onResponderEnd={() => { // For touch release
-                      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                      timeoutRef.current = setTimeout(() => {
-                        setIsPickerVisible(false);
-                      }, 1200);
-                    }}
-                    style={styles.compactPicker}
-                    itemStyle={styles.pickerItem}
-                  >
-                    {generateHours()}
-                  </Picker>
-                </View>
-                </View> */}
-            
-              
-             
-
               <View style={[styles.row, { zIndex: 1000 }]}>
                   <Text style={styles.label}>Priority:</Text>
                   <View style={styles.dropdownWrapper}>
@@ -973,34 +903,10 @@ const ProjectUpdate: React.FC = () => {
                     handleSave(date, 'MustCompleteBy');
                   }}
                 />
-                
-
-                     
-                    
-                      {/* <CustomDatePicker
-                        label="Blackout Date:"
-                        value={blackoutDate || ''} // Value from the state
-                        labelStyle={{ textAlign: 'right', fontSize: 16 }}
-                        onChange={(date) => {
-                          console.log('BlackoutDate Updated:', date);
-                          setBlackoutDate(date); // Updates the state
-                          handleSave(date, 'BlackoutDate');
-                        }}
-                      /> */}
-                          {/* {blackoutDates.map((date, index) => (
-                            // <DateTimePicker
-                            //   key={`blackout-${index}`}
-                            //   label={`Blackout Date ${index + 1}`}
-                            //   selectedDates={[date]}
-                            //   date={date}
-                            //   onChange={(newDate) => handleBlackoutDateChange(index, newDate)}
-                            //   onRemove={index > 0 ? () => handleRemoveBlackoutDate(index) : undefined}
-                            // />
-                            
-                          ))} */}
                             <DateTimePicker
                               label="Blackout Date(s): "
                               initialDates={blackoutDate} // 🔹 Persist blackout dates from API
+                              labelStyle={{ textAlign: 'right', fontSize: 16 }}
                               onChange={(updatedDates) => {
                                 const cleanedDates = updatedDates.filter(date => /^\d{2}\/\d{2}\/\d{4}$/.test(date)); // ✅ Filter valid dates
                                 

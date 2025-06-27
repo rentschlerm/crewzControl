@@ -60,6 +60,8 @@ const Project: React.FC = () => {
   const { location, fetchLocation } = useLocation(); // Use the custom hook
 
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  const [loading, setLoading] = useState(false);
+
 
   useEffect(() => {
     const fetchDeviceInfo = async () => {
@@ -164,11 +166,10 @@ const Project: React.FC = () => {
 
   const handleSearch = async () => {
     if (!deviceInfo || !location) {
-      Alert.alert('Device or location information is loading');
       return null;
     }
   
-    // setLoading(true);
+    setLoading(true); // Start loading spinner
   
     try {
       const crewzControlVersion = '10'; // Hard-coded as per specification
@@ -220,7 +221,7 @@ const Project: React.FC = () => {
       // Alert.alert('Error', 'An error occurred while searching. Please try again.');
       Alert.alert('', 'No matching quotes found.');
     } finally {
-      // setLoading(false);
+      setLoading(false); // Stop loading spinner
     }
   };
   
@@ -280,9 +281,18 @@ return (
                 placeholder="Enter quote customer name"
                 value={searchTerm}
                 onChangeText={setSearchTerm}
+                editable={!loading} // disable input while loading
               />
-              <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-                <Text style={styles.searchButtonText}>Search</Text>
+              <TouchableOpacity
+                style={[styles.searchButton, loading && { opacity: 0.6 }]}
+                onPress={handleSearch}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.searchButtonText}>Search</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

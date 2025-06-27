@@ -104,14 +104,28 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
 const styles = StyleSheet.create({
   container: { marginVertical: 10 },
-  label: { fontSize: 16, fontWeight: 'bold', marginBottom: 5, marginLeft: 71, },
+  label: { 
+    marginRight: 8, // Space between label and input
+    fontSize: 14,
+    fontWeight: 'bold',
+    justifyContent: 'space-between',
+    flex: 1,
+  },
   showCalendarButton: {
     backgroundColor: '#20D5FF',
-    padding: 10,
-    paddingRight: 16,
-    marginRight: 6,
-    borderRadius: 15,
-    alignItems: 'center',
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 18,
+    textAlign: 'right',
+    paddingVertical: 8, 
+    lineHeight: 18,
+    flex: 1,
+    height: 40,
+    minWidth: 30,
+    maxWidth: '40%',
+    width: 'auto',
   },
   row: {
     // flexDirection: 'row', // Arrange label and input horizontally
