@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, // Shadow opacity for Android
     shadowRadius: 2, // Shadow radius for Android
     elevation: 5, // Elevation for iOS
-    marginTop: -50,
+    marginTop: -260,
   },
   loading: {
     
