@@ -1200,7 +1200,7 @@ const ProjectUpdate: React.FC = () => {
                         <View key={index} style={styles.workPackageContainer}>
                           <View style={styles.headerRow}>
                             <Text style={styles.workPackageTitle}>
-                              {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
+                              {qwp.QuoteWorkPackageName || 'Unnamed Equipment'}
                             </Text>
                             {/* Button Group */}
                           <View style={styles.buttonGroup}>
@@ -1240,7 +1240,7 @@ const ProjectUpdate: React.FC = () => {
 
         })
                     ) : (
-                      <Text style={styles.emptyText}>No Quote Work Packages available.</Text>
+                      <Text style={styles.emptyText}>No Equipment available.</Text>
                     )}
                     </View>
               {/* Skills Section */}
