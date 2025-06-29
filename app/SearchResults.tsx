@@ -85,7 +85,6 @@ useEffect(() => {
 
   const fetchQuoteDetails = async (jobId: number) => {
     if (!deviceInfo || !location) {
-      Alert.alert('Device or location information is loading');
       return null;
     }
   

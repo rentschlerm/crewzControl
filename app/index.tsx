@@ -53,8 +53,10 @@ const SignIn: React.FC = () => {
     const fetchDeviceInfo = async () => {
       const info = await getDeviceInfo();
       setDeviceInfo(info);
+      await fetchLocation();
     };
 
+    
     // JCM 01/18/2025: Added a checking when an app is loaded. If there's an authorizationCode, redirected the user to the /Project screen directly.
     const checkAuthorizationCode = async () => {
       try {
@@ -89,18 +91,36 @@ const SignIn: React.FC = () => {
     // deleteItem('authorizationCode');
 
     fetchDeviceInfo();
-    fetchLocation(); // Fetch location using the custom hook
+    // fetchLocation(); // Fetch location using the custom hook
   }, []);
 
   const handleLogin = async () => {
     if (!deviceInfo) {
-      Alert.alert('Device information is loading');
+      // Alert.alert('Device information is loading');
       return;
     }
-    if (!location){
-      Alert.alert('CrewzControl is still fetching your location...');
+     if (!location) {
+    setIsLoading(true);
+    await fetchLocation();
+
+    if (!location) {
+      setIsLoading(false);
+      // Alert.alert('Error', 'CrewzControl is still fetching your location. Please try again');
+      Alert.alert(
+        'Error',
+        'CrewzControl is still fetching your location. Please try again.',
+        [
+          {
+            text: 'Try Again',
+            // onPress: () => fetchLocation(), // Retry fetching location
+            style: 'default'
+          }
+        ],
+        { cancelable: true }
+      );
       return;
     }
+  }
 
     setIsLoading(true);
 
@@ -160,7 +180,11 @@ const SignIn: React.FC = () => {
   <View style={{ flex: 1 }}>
     <View style={styles.container}>
       <Image source={require('../assets/images/crewzControlIcon.png')} style={LogoStyles.logo} resizeMode="contain" />
-      
+      {!location && (
+        <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 10 }}>
+          Fetching location...
+        </Text>
+      )}
       {isLoading ? (
         <ActivityIndicator size="large" color="#ffffff" style={[styles.loading, { transform: [{ scale: 2 }] }]} />
       ) : (
@@ -283,7 +307,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, // Shadow opacity for Android
     shadowRadius: 2, // Shadow radius for Android
     elevation: 5, // Elevation for iOS
-    marginTop: -50,
+    marginTop: -260,
   },
   loading: {
     

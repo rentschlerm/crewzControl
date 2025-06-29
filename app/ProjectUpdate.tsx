@@ -23,7 +23,7 @@ import CryptoJS from 'crypto-js';
 import { FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome'; 
 import useLocation from '@/hooks/useLocation';
-import { useFocusEffect } from '@react-navigation/native';
+// import { useFocusEffect } from '@react-navigation/native';
 import { Dimensions } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Calendar } from 'react-native-calendars'; 
@@ -656,67 +656,67 @@ const ProjectUpdate: React.FC = () => {
   };
   
 
-  useFocusEffect(
-    useCallback(() => {
-      let didCallAPI = false;
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     let didCallAPI = false;
   
-      const fetchQuoteDetails = async () => {
-        if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial || quoteSerial || didCallAPI) {
-          return; // Exit early if prerequisites are not ready or API was already called
-        }
+  //     const fetchQuoteDetails = async () => {
+  //       if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial || quoteSerial || didCallAPI) {
+  //         return; // Exit early if prerequisites are not ready or API was already called
+  //       }
   
-        const currentDate = new Date();
-        const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
-          currentDate.getDate()
-        ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
-          2,
-          '0'
-        )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
-        const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
-        const key = CryptoJS.SHA1(keyString).toString();
-        const crewzControlVersion = '1';
-        // const serial = jobObj.Serial || quoteSerial
-        const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
-          deviceInfo.id
-        )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+  //       const currentDate = new Date();
+  //       const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+  //         currentDate.getDate()
+  //       ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+  //         2,
+  //         '0'
+  //       )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+  //       const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+  //       const key = CryptoJS.SHA1(keyString).toString();
+  //       const crewzControlVersion = '1';
+  //       // const serial = jobObj.Serial || quoteSerial
+  //       const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
+  //         deviceInfo.id
+  //       )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
   
-        console.log('Fetching Quote on Focus: ', url);
+  //       console.log('Fetching Quote on Focus: ', url);
   
-        try {
-          const response = await fetch(url);
-          const data = await response.text();
-          const parser = new XMLParser();
-          const result = parser.parse(data);
+  //       try {
+  //         const response = await fetch(url);
+  //         const data = await response.text();
+  //         const parser = new XMLParser();
+  //         const result = parser.parse(data);
   
-          if (result.ResultInfo?.Result === 'Success') {
-            const quote = result.ResultInfo.Selections?.Quote || {};
+  //         if (result.ResultInfo?.Result === 'Success') {
+  //           const quote = result.ResultInfo.Selections?.Quote || {};
   
-            console.log('Fetched Quote Data: ', quote);
+  //           console.log('Fetched Quote Data: ', quote);
   
-            setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
-            setMustCompleteDate(quote.MustCompleteBy || '');
-            setNiceToHaveDate(quote.NiceToHaveBy || '');
-            setBlackoutDate(quote.BlackoutDate || '');
-            setNotBefore(quote.NotBefore || '');
-            setUrgency(quote.Priority || 'Normal');
-          } else {
-            Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
-          }
-        } catch (error) {
-          console.error('Error fetching quote details:', error);
-          Alert.alert('Error', 'An error occurred while fetching quote details.');
-        } finally {
-          didCallAPI = true; // Ensure we do not call the API again during this focus
-        }
-      };
+  //           setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
+  //           setMustCompleteDate(quote.MustCompleteBy || '');
+  //           setNiceToHaveDate(quote.NiceToHaveBy || '');
+  //           setBlackoutDate(quote.BlackoutDate || '');
+  //           setNotBefore(quote.NotBefore || '');
+  //           setUrgency(quote.Priority || 'Normal');
+  //         } else {
+  //           Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+  //         }
+  //       } catch (error) {
+  //         console.error('Error fetching quote details:', error);
+  //         Alert.alert('Error', 'An error occurred while fetching quote details.');
+  //       } finally {
+  //         didCallAPI = true; // Ensure we do not call the API again during this focus
+  //       }
+  //     };
   
-      fetchQuoteDetails();
+  //     fetchQuoteDetails();
   
-      return () => {
-        didCallAPI = false; // Reset flag on component unmount or focus change
-      };
-    }, [deviceInfo, location, authorizationCode, jobObj.Serial, quoteSerial])
-  );
+  //     return () => {
+  //       didCallAPI = false; // Reset flag on component unmount or focus change
+  //     };
+  //   }, [deviceInfo, location, authorizationCode, jobObj.Serial, quoteSerial])
+  // );
   const handleBackPress = () => {
   if (parseFloat(quoteHours) === 0) {
     Alert.alert(
@@ -1146,7 +1146,7 @@ const ProjectUpdate: React.FC = () => {
 
         })
                     ) : (
-                      <Text style={styles.emptyText}>No Quote Work Packages available.</Text>
+                      <Text style={styles.emptyText}>No Equipment available.</Text>
                     )}
                     </View>
               {/* Skills Section */}

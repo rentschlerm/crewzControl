@@ -190,7 +190,7 @@ const Project: React.FC = () => {
 
       const quotes = result.ResultInfo.Selections?.Quote;
 
-      // RHCM 6/24/2025 Normalize to array
+      // RHCM 6/24/2025 Normalize to array. This will handle both single quote and multiple quotes.
       const normalizedQuotes = Array.isArray(quotes) ? quotes : [quotes];
   
       if (result.ResultInfo?.Result === 'Success') {

@@ -12,7 +12,7 @@ interface LocationData {
 const useLocation = () => {
   const [location, setLocation] = useState<LocationData | null>(null);
 
-  const fetchLocation = async () => {
+  const fetchLocation = async (): Promise<void> => {
     try {
       // Request location permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
