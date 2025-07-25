@@ -85,8 +85,12 @@ const ProjectUpdate: React.FC = () => {
   const [address, setAddress] = useState(jobObj?.Address);
   const [city, setCity] = useState(jobObj?.City);
   const [quoteNum, setQuoteNum] = useState(jobObj?.QuoteNum);
-  const [serial, setserial] = useState(jobObj?.serial);
-  const [quoteHours, setQuoteHours] = useState("0.00");
+  const [serial, setserial] = useState(jobObj?.Serial);
+  // const [quoteHours, setQuoteHours] = useState(jobObj?.Hour ?? '0.00');
+  const [quoteHours, setQuoteHours] = useState(() => {
+  const initial = parseFloat(jobObj?.Hour);
+  return !isNaN(initial) ? initial.toFixed(2) : '';
+});
   
   const [urgency, setUrgency] = useState('');
   const [urgencyOpen, setUrgencyOpen] = useState(false);
@@ -801,7 +805,7 @@ const ProjectUpdate: React.FC = () => {
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Quote#:</Text>
-                <Text style={styles.textValue}>{quoteNum || 'N/A'}</Text>
+                <Text style={styles.textValue}>{serial +'-'+ quoteNum || '-'}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
   {/* Fixed width label */}
@@ -810,7 +814,7 @@ const ProjectUpdate: React.FC = () => {
       {
         width: 60, // fixed width for label to prevent shifting
         fontSize: 16,
-        marginRight: 10,
+        marginRight: -5,
         color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
       }
     ]}
@@ -834,7 +838,7 @@ const ProjectUpdate: React.FC = () => {
         handleSave(formatted, "Hours");
       }
     }}
-    placeholder="Enter hours"
+    placeholder="0.00"
     keyboardType="decimal-pad"
     style={{
       width: 218,  // fixed width
@@ -988,11 +992,11 @@ const ProjectUpdate: React.FC = () => {
 
                         return (
                           <View key={`${wpIndex}-${index}`} style={styles.workPackageContainer}>
-                            <View style={styles.headerRow}>
-                              <Text style={styles.workPackageTitle}>
-                                {workPackage?.WorkPackageName || 'Undefined Work Package'}
-                              </Text>
-
+                          <View style={styles.headerRow}>
+                            <Text style={styles.workPackageTitle}>
+                              {workPackage?.WorkPackageName || 'Undefined Work Package'}
+                            </Text>
+                              
                               {/* Button Container */}
                               <View style={styles.buttonGroup}>
                                 {/* Alternatives Button */}
@@ -1031,6 +1035,8 @@ const ProjectUpdate: React.FC = () => {
                                     <Icon name="minus" size={24} color="#fff" />
                                   </Text>
                                 </TouchableOpacity>
+                                
+                              
                                 {/* Modal */}
                                 <Modal
                                   transparent
@@ -1071,6 +1077,12 @@ const ProjectUpdate: React.FC = () => {
                                 </Modal>
                               </View>
                             </View>
+                             {Array.isArray(workPackage?.WorkPackageDetail?.WorkPackageItem) &&
+                              workPackage.WorkPackageDetail.WorkPackageItem.map((item: string, idx: number) => (
+                                <Text key={idx} style={[styles.workPackageSubTitle, { paddingLeft: 20 }]}>
+                                  {item}
+                                </Text>
+                              ))}
                           </View>
                         );
                       });
@@ -1108,6 +1120,7 @@ const ProjectUpdate: React.FC = () => {
                             <Text style={styles.workPackageTitle}>
                               {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
                             </Text>
+                             
                             {/* Button Group */}
                           <View style={styles.buttonGroup}>
                             {/* Alternates Button */}
@@ -1141,6 +1154,12 @@ const ProjectUpdate: React.FC = () => {
                             </TouchableOpacity>
                           </View>
                         </View>
+                        {Array.isArray(qwp?.QuoteWorkPackageDetail?.QuoteWorkPackageItem) &&
+                              qwp.QuoteWorkPackageDetail.QuoteWorkPackageItem.map((item: string, idx: number) => (
+                                <Text key={idx} style={[styles.workPackageSubTitle, { paddingLeft: 20 }]}>
+                                  {item}
+                                </Text>
+                              ))}
                       </View>
                     );
 
@@ -1414,6 +1433,12 @@ selectedHours: {
   buttonGroup: {
     flexDirection: 'row',
     gap: 10, // Add space between buttons
+  },
+  workPackageSubTitle:{
+    flexDirection: 'row',
+    fontSize: 16,
+  color: '#000',
+  flex: 1,
   },
   workPackageTitle: {
     flex: 1, // Take up available space for wrapping
