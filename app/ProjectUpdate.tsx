@@ -307,7 +307,13 @@ const ProjectUpdate: React.FC = () => {
     }
   };
   
-  
+  // const handleRemoveResources = async (quoteWorkPackages:string) => {
+  //   if (deviceInfo || location || authorizationCode || jobObj.Serial){
+  //     Alert.alert('Error', 'Device info, location. authorization code, or quote serial is missing.');
+  //     return;
+  //   }
+    
+  // }
   
   const handleRemoveQuoteWorkPackage = async (quoteWorkPackageSerial: number) => {
     if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
@@ -1093,7 +1099,7 @@ const ProjectUpdate: React.FC = () => {
                 {/* Work Packages */}
                     <View style={styles.sectionContainer}>
                     <View style={styles.headerRow}>
-                      <Text style={styles.sectionTitle}>Equipment</Text>
+                      <Text style={styles.sectionTitle}>Equipment Groups</Text>
                       <TouchableOpacity
                         style={styles.iconButton}
                         onPress={() =>
@@ -1114,12 +1120,39 @@ const ProjectUpdate: React.FC = () => {
                         const alternates = normalizeToArray(
                           qwp.QuoteWorkPackageAlternates?.QuoteWorkPackageAlternate || []
                         );
+                        
+
                       return (
                         <View key={index} style={styles.workPackageContainer}>
                           <View style={styles.headerRow}>
-                            <Text style={styles.workPackageTitle}>
+                            {/* <Text style={styles.workPackageTitle}>
                               {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
-                            </Text>
+                            </Text> */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Picker
+                                selectedValue={qwp.selectedNumber || '1'} // Add state for this if needed
+                                onValueChange={(value) => {
+                                qwp.selectedNumber = value; // ← Update your state logic properly if using hooks or context
+                                setQuoteWorkPackages([...quoteWorkPackages]); // force re-render (assuming you're using state)
+                              }}
+                                style={{
+                                  height: 30,
+                                  width: 60,
+                                  color: '#000',
+                                  marginRight: 8,
+                                  backgroundColor: '#f0f0f0',
+                                }}
+                                mode="dropdown"
+                              >
+                                {['1', '2', '3', '4', '5'].map((num) => (
+                                  <Picker.Item key={num} label={num} value={num} />
+                                ))}
+                              </Picker>
+
+                              <Text style={styles.workPackageTitle}>
+                                {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
+                              </Text>
+                            </View>
                              
                             {/* Button Group */}
                           <View style={styles.buttonGroup}>
@@ -1233,7 +1266,7 @@ const ProjectUpdate: React.FC = () => {
                 )}
               
 
-              {/*// Equipment Section
+              {/*// Equipment Section*/}
               
               <View style={styles.headerRow}>
                 <Text style={styles.sectionTitle}>Equipment</Text>
@@ -1247,7 +1280,7 @@ const ProjectUpdate: React.FC = () => {
                   }
                 >
                   <Text>
-                    <Icon name="plus" size={16} color="#fff" /> //Smaller plus icon
+                    <Icon name="plus" size={16} color="#fff" /> {/*//Smaller plus icon}*/}
                   </Text>
                 </TouchableOpacity>
                 </View>
@@ -1257,7 +1290,7 @@ const ProjectUpdate: React.FC = () => {
                       <View style={styles.headerRow}>
                         <Text style={styles.workPackageTitle}>{equipment.EquipmentName}</Text>
                         <View style={styles.buttonGroup}>
-                          //🔻 Decrease Quantity or Remove Skill
+                          {/*//🔻 Decrease Quantity or Remove Skill*/}
                         <TouchableOpacity
                           style={styles.removeSkillsButton}
                           onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount - 1)}
@@ -1267,16 +1300,16 @@ const ProjectUpdate: React.FC = () => {
                           </Text>
                         </TouchableOpacity>
 
-                        //🔹 Quantity Display
+                        {/*//🔹 Quantity Display*/}
                         <Text style={styles.skillsQuantityLabel}>{equipment.EquipmentCount}</Text>
 
-                        //🔺 Increase Quantity
+                        {/*//🔺 Increase Quantity*/}
                         <TouchableOpacity
                           style={styles.addEquipmentButton}
                           onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount + 1)}
                         >
                           <Text>
-                            <Icon name="plus" size={16} color="#fff" />// Icon only
+                            <Icon name="plus" size={16} color="#fff" />{/*// Icon only*/}
                           </Text>
                         </TouchableOpacity>
                         </View>
@@ -1285,7 +1318,7 @@ const ProjectUpdate: React.FC = () => {
                   ))
                 ) : (
                   <Text style={styles.emptyText}>No equipment available.</Text>
-                )} */}
+                )}
               
               </View>
               </View>
@@ -1431,12 +1464,13 @@ selectedHours: {
   color: "gray",
 },
   buttonGroup: {
+    marginLeft: -80,
     flexDirection: 'row',
     gap: 10, // Add space between buttons
   },
   workPackageSubTitle:{
-    flexDirection: 'row',
-    fontSize: 16,
+  flexDirection: 'row',
+  fontSize: 14,
   color: '#000',
   flex: 1,
   },
@@ -1444,7 +1478,7 @@ selectedHours: {
     flex: 1, // Take up available space for wrapping
     fontSize: 16,
     color: '#000',
-    marginRight: 10, // Add space between text and buttons
+    marginRight: -100, // Add space between text and buttons
     lineHeight: 20, // Add space between lines for better readability
     flexWrap: 'wrap', // Ensure text wraps properly
   },
