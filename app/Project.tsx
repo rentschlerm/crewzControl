@@ -101,6 +101,8 @@ const Project: React.FC = () => {
     if (!deviceInfo || !location) {
       return null;
     }
+
+    const startTime = Date.now(); // Start overall timer
   
     const crewzControlVersion = '1'; // Hard-coded as per specification
     const currentDate = new Date();
@@ -112,17 +114,28 @@ const Project: React.FC = () => {
     console.log(`${url}`);
   
     try {
+      const fetchStart = Date.now();
       const response = await fetch(url);
+      const fetchEnd = Date.now();
+
       const data = await response.text();
+      const parseEnd = Date.now();
+
+      // 🧪 Log breakdown
+      console.log(`⏱ [GetQuote] fetch() took ${fetchEnd - fetchStart} ms`);
+      console.log(`📄 [GetQuote] response.text() took ${parseEnd - fetchEnd} ms`);
+      console.log(`✅ TOTAL fetchQuoteDetails (Project) duration: ${parseEnd - startTime} ms`);
+
       const parser = new XMLParser();
       const result = parser.parse(data);
-  console.log('GetQuote Data: ', data);
+
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
         return null;
       }
+
     } catch (error) {
       console.error('Error fetching quote details:', error);
       Alert.alert('Error', 'An error occurred while fetching quote details.');
@@ -228,14 +241,14 @@ const Project: React.FC = () => {
   
 
   const handleJobPress = async (job: Job) => {
-  const quoteDetails = await fetchQuoteDetails(job.id);
-  if (quoteDetails) {
-    router.push({
-      pathname: '/ProjectUpdate',
-      params: { job: JSON.stringify(quoteDetails) },
-    });
-  }
-};
+    const quoteDetails = await fetchQuoteDetails(job.id);
+    if (quoteDetails) {
+      router.push({
+        pathname: '/ProjectUpdate',
+        params: { job: JSON.stringify(quoteDetails) },
+      });
+    }
+  };
 return (
   <KeyboardAvoidingView
     style={{ flex: 1 }}

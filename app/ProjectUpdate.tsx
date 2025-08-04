@@ -73,10 +73,11 @@ interface Service {
 
 const ProjectUpdate: React.FC = () => {
   const router = useRouter();
+
+  // contains all quote details passed from Project.tsx
   const { job, quoteSerial } = useLocalSearchParams();
-
-
   const jobObj: Job = typeof job === 'string' ? JSON.parse(job) : job;
+
   const { updateJob, authorizationCode } = useContext(JobsContext)!;
   const { width: deviceWidth } = Dimensions.get('window');
   const [jobData, setJobData] = useState<Job | null>(null);
@@ -88,9 +89,9 @@ const ProjectUpdate: React.FC = () => {
   const [serial, setserial] = useState(jobObj?.Serial);
   // const [quoteHours, setQuoteHours] = useState(jobObj?.Hour ?? '0.00');
   const [quoteHours, setQuoteHours] = useState(() => {
-  const initial = parseFloat(jobObj?.Hour);
-  return !isNaN(initial) ? initial.toFixed(2) : '';
-});
+    const initial = parseFloat(jobObj?.Hour);
+    return !isNaN(initial) ? initial.toFixed(2) : '';
+  });
   
   const [urgency, setUrgency] = useState('');
   const [urgencyOpen, setUrgencyOpen] = useState(false);
@@ -112,7 +113,6 @@ const ProjectUpdate: React.FC = () => {
   const [niceToHaveDate, setNiceToHaveDate] = useState(jobObj?.niceToHaveDate);
   const [blackoutDate, setBlackoutDate] = useState<string | undefined>(jobObj?.blackoutDate);
   const [notBefore, setNotBefore] = useState(jobObj?.notbefore);
-  
   const [blackoutDates, setBlackoutDates] = useState<string[]>([]);
   
   
@@ -136,6 +136,7 @@ const ProjectUpdate: React.FC = () => {
   const hoursInputRef = useRef<TextInput>(null);
 
 
+  // 1. PRepare the blackout dates into an aray for calendar or list display
   useEffect(() => {
     if (jobObj?.blackoutDate) {
       const blackoutDatesArray = jobObj.blackoutDate.split(',').map(date => date.trim());
@@ -160,6 +161,7 @@ const ProjectUpdate: React.FC = () => {
     return items;
   };
 
+  // 2. Parse jobObj data
   useEffect(() => {
     const fetchDeviceInfo = async () => {
       const info = await getDeviceInfo();
@@ -230,7 +232,7 @@ const ProjectUpdate: React.FC = () => {
         ? JSON.parse(rawServices)
         : rawServices;
   
-      console.log('Parsed Services:', parsedServices);
+
   
       return normalizeToArray(parsedServices?.Service);
     } catch (error) {
@@ -506,37 +508,54 @@ const ProjectUpdate: React.FC = () => {
   };
   
   const fetchQuoteDetails = async () => {
+    
+    // 1. Exit early if requried data is missing or qutoeSerial already loaded
     if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial || quoteSerial ) {
-      return; // Exit early if prerequisites are not ready or API was already called
+      return;
     }
 
+    const startTime = Date.now(); // Total timer start
+
+    // 2. Prepare the formatted date string
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
       currentDate.getDate()
-    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
-      2,
-      '0'
-    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart( 2, '0' )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+
+    // 3. Generate SHA1 key for authentication
     const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
     const key = CryptoJS.SHA1(keyString).toString();
+
+    // 4. Construct API url
     const crewzControlVersion = '1';
     // const serial = jobObj.Serial || quoteSerial
     const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
     )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
 
-    console.log('Fetching Quote on Focus: ', url);
 
     try {
+      // 5. Fetch the quote data from the API
+      const fetchStart = Date.now();
       const response = await fetch(url);
+      const fetchEnd = Date.now();
+      console.log(`⏱ GetQuote fetch() took ${fetchEnd - fetchStart} ms`);
+
+      // 6. Read the response body as text
+      const textStart = Date.now();
       const data = await response.text();
+      const textEnd = Date.now();
+      console.log(`📄 GetQuote response.text() took ${textEnd - textStart} ms`);
+
+      // 7. Parse the xml response
       const parser = new XMLParser();
       const result = parser.parse(data);
 
+      // 8. If success, extract and udpate state with quote info
       if (result.ResultInfo?.Result === 'Success') {
         const quote = result.ResultInfo.Selections?.Quote || {};
 
-        console.log('Fetched Quote Data: ', quote);
+        //console.log('Fetched Quote Data: ', quote);
 
         setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
         setMustCompleteDate(quote.MustCompleteBy || '');
@@ -547,6 +566,11 @@ const ProjectUpdate: React.FC = () => {
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
       }
+
+      // Log total execution tim
+      const totalDuration = Date.now() - startTime;
+      console.log(`✅ TOTAL fetchQuoteDetails (ProjectUpdate) duration: ${totalDuration} ms`);
+
     } catch (error) {
       console.error('Error fetching quote details:', error);
       Alert.alert('Error', 'An error occurred while fetching quote details.');

@@ -61,11 +61,20 @@ const AddResourceGroup: React.FC = () => {
 
   useEffect(() => {
     const fetchResources = async () => {
+
+      // 1. Skip if required data is missing
       if (!deviceInfo || !authorizationCode || !location) {
         return;
       }
+
+      const startTime = Date.now(); // Start total timer
+      
+      // 2. Show loading indicator
       setLoading(true);
+
       try {
+
+        // 3. Prepare parameters
         const crewzControlVersion = "1";
         const currentDate = new Date();
         const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, "0")}/${String(
@@ -73,20 +82,36 @@ const AddResourceGroup: React.FC = () => {
         ).padStart(2, "0")}/${currentDate.getFullYear()}-${String(
           currentDate.getHours()
         ).padStart(2, "0")}:${String(currentDate.getMinutes()).padStart(2, "0")}`;
+
+
+        // 4. Generate auth key
         const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
         const key = CryptoJS.SHA1(keyString).toString();
   
+
+        // 5. Construct API url
         const url = `https://CrewzControl.com/dev/CCService/GetResourceGroupList.php?DeviceID=${encodeURIComponent(
           deviceInfo.id
         )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN&Quote=${quoteSerial}`;
   
-        console.log("Fetch Resource Groups URL:", url);
+
+        // 6. Fetch Data from server
+        const fetchStart  = Date.now();
         const response = await fetch(url);
+        const fetchEnd = Date.now();
+        console.log(`⏱ fetch() duration: ${fetchEnd - fetchStart} ms`); 
+
+
+        // 7. Parse XML response
+        const parseStart = Date.now();
         const data = await response.text();
         const parser = new XMLParser();
         const result = parser.parse(data);
-        console.log(result);
-  
+        const parseEnd = Date.now();
+        console.log(`🧪 XML parsing duration: ${parseEnd - parseStart} ms`);
+        console.log("EQ result: ", result);
+
+        // 8. Process result
         if (result.ResultInfo?.Result === "Success") {
           const groups =
             Array.isArray(result.ResultInfo.Selections?.ResourceGroup)
@@ -114,6 +139,11 @@ const AddResourceGroup: React.FC = () => {
         } else {
           Alert.alert("Error", result.ResultInfo?.Message || "Failed to fetch Equipment groups.");
         }
+
+        // Log total time
+        const totalTime = Date.now() - startTime;
+        console.log(`✅ TOTAL fetchResources() duration: ${totalTime} ms`);
+
       } catch (error) {
         console.error("Error fetching Equipment groups:", error);
         Alert.alert("Error", "An error occurred while fetching Equipment groups.");

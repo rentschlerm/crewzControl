@@ -93,8 +93,11 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   
     const fetchJobs = async () => {
+
       // JCM 01/18/2025: Removed the !location condition as it was created separately
       if (!deviceInfo || !authorizationCode || jobsFetched) return; // Exit if jobs are already fetched or data is missing
+
+      const startTime = Date.now(); // Total timer
 
       // JCM 01/18/2025: Make variables for location's longitude and latitude to be used for the API URL
       let longitude = location?.longitude;
@@ -125,22 +128,28 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
     
         // Generate the key for the request
-        // const keyString = `${deviceInfo.id}${formattedDate}`;
         const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
         const key = CryptoJS.SHA1(keyString).toString();
         console.log(`Authorization Code: ${authorizationCode}`)
         
         //  JCM 01/18/2025: Updated the URL value for Longitude and Latitude from location.longitude and location.latitude to longittude and latitude
         const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${longitude}&Latitude=${latitude}&Language=EN`;
-        console.log(`Request URL: ${url}`);
 
+        const fetchStart = Date.now();
         const response = await fetch(url);
+        const fetchEnd = Date.now();
+        console.log(`⏱ JobContext fetch() duration: ${fetchEnd - fetchStart} ms`);
+
         const data = await response.text();
-        console.log(`Response Data: ${data}`);
+        const textEnd = Date.now();
 
         // Parse XML response
+        const parseStart = Date.now();
         const parser = new XMLParser();
         const result = parser.parse(data);
+        const parseEnd = Date.now();
+        console.log(`JobContext parsing duration: ${parseEnd - parseStart} ms`);
+
         const resultInfo = result?.ResultInfo;
 
         if (resultInfo && resultInfo.Result === 'Success') {
@@ -148,7 +157,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
           const quotes = resultInfo.Selections?.Quote || [];
           const normalizedQuotes = Array.isArray(quotes) ? quotes : [quotes]; // Normalize single object to array
 
-          const fetchedJobs = normalizedQuotes.map((quote: any) => ({
+          /*const fetchedJobs = normalizedQuotes.map((quote: any) => ({
             id: parseInt(quote.Serial, 10) ,
             quoteName: quote.QName || '-',
             QuoteNum: quote.QuoteNum || '_',
@@ -177,19 +186,65 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             Hour: quote.Hour || '0',         
             Equipments: quote.Equipments || '-', 
             Skills: quote.Skills || '-',   
-          }));
+          }));*/
+
+          // Noel: same code but minor cleanup and avoid duplicate fields to improvate maintainability.
+          const fetchedJobs: Job[] = normalizedQuotes.map((quote: any): Job => {
+            const serialNum = parseInt(quote.Serial, 10) || -1;
+
+            return {
+              id: serialNum,
+              serial: serialNum,
+              QuoteNum: quote.QuoteNum || '-',
+              quoteName: quote.QName || '-',
+              customerName: quote.Name || '-',
+              address: quote.Address || '-',
+              city: quote.City || '-',
+              amount: quote.Amount ? String(quote.Amount) : '0',
+              status: quote.Status || '-',
+
+              // Optional values
+              urgency: quote.Urgency || undefined,
+              baseHours: quote.BaseHours || undefined,
+              mustCompleteDate: quote.MustCompleteDate || undefined,
+              niceToHaveDate: quote.NiceToHaveDate || undefined,
+              blackoutDate: quote.BlackoutDate || undefined,
+              availableDate: quote.AvailableDate || undefined,
+              notbefore: quote.NotBefore || undefined,
+
+              // Quote details
+              QuoteDetailName: quote.QuoteDetailName || '-',
+              Services: quote.QuoteDetailName || '-', // alias
+              Quantity: quote.Quantity || '-',
+              WorkPackageName: quote.WorkPackageName || '-',
+              WorkPackages: quote.WorkPackages || '-',
+              QuoteWorkPackages: quote.QuoteWorkPackages || '-',
+              Hour: quote.Hour || '0',
+              Equipments: quote.Equipments || '-',
+              Skills: quote.Skills || '-',
+
+              // These may exist in uppercase too
+              Serial: quote.Serial || '-',
+              Address: quote.Address || '-',
+              City: quote.City || '-',
+              Name: quote.Name || '-',
+            };
+          });
+
+
 
           // Log `amount` for each job
           // fetchedJobs.forEach((job) => {
           //   console.log(`Job Amount: ${job.amount}`);
           // });
-
           setJobs(fetchedJobs);
           setJobsReady(true);
           setJobsFetched(true); // Mark jobs as fetched
         } else {
           console.warn('Failed to fetch quotes:', resultInfo?.Message);
         }
+        const totalDuration = Date.now() - startTime;
+        console.log(`✅ TOTAL fetchJobs duration: ${totalDuration} ms`);
       } catch (error) {
         console.error('Error fetching jobs:', error);
       }
