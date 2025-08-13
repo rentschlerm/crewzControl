@@ -107,6 +107,7 @@ const ProjectUpdate: React.FC = () => {
 
   const { location, fetchLocation } = useLocation(); // custom hook
 
+  const [isMultiDay, setIsMultiDay] = useState(false);//track Multi-Day button
 
   const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.mustCompleteDate);
   const [niceToHaveDate, setNiceToHaveDate] = useState(jobObj?.niceToHaveDate);
@@ -1121,6 +1122,10 @@ const ProjectUpdate: React.FC = () => {
                           qwp.QuoteWorkPackageAlternates?.QuoteWorkPackageAlternate || []
                         );
                         
+                        // RHCM 8/8/2025 Get only selected alternates
+                      const selectedAlternates = alternates.filter(
+                        (alt) => alt.WPAlternateStatus === 1
+                      );
 
                       return (
                         <View key={index} style={styles.workPackageContainer}>
@@ -1129,26 +1134,27 @@ const ProjectUpdate: React.FC = () => {
                               {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
                             </Text> */}
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Picker
-                                selectedValue={qwp.selectedNumber || '1'} // Add state for this if needed
-                                onValueChange={(value) => {
-                                qwp.selectedNumber = value; // ← Update your state logic properly if using hooks or context
-                                setQuoteWorkPackages([...quoteWorkPackages]); // force re-render (assuming you're using state)
-                              }}
-                                style={{
-                                  height: 30,
-                                  width: 60,
-                                  color: '#000',
-                                  marginRight: 8,
-                                  backgroundColor: '#f0f0f0',
+                              {isMultiDay && (
+                                <Picker
+                                  selectedValue={qwp.selectedNumber || '1'} // Add state for this if needed
+                                  onValueChange={(value) => {
+                                  qwp.selectedNumber = value || '1'; // ← Update your state logic properly if using hooks or context
+                                  setQuoteWorkPackages([...quoteWorkPackages]); // force re-render (assuming you're using state)
                                 }}
-                                mode="dropdown"
-                              >
-                                {['1', '2', '3', '4', '5'].map((num) => (
-                                  <Picker.Item key={num} label={num} value={num} />
-                                ))}
-                              </Picker>
-
+                                  style={{
+                                    height: 30,
+                                    width: 60,
+                                    color: '#000',
+                                    marginRight: 8,
+                                    backgroundColor: '#f0f0f0',
+                                  }}
+                                  mode="dropdown"
+                                >
+                                  {['1', '2', '3', '4', '5'].map((num) => (
+                                    <Picker.Item key={num} label={num} value={num} />
+                                  ))}
+                                </Picker>
+                              )}
                               <Text style={styles.workPackageTitle}>
                                 {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
                               </Text>
@@ -1192,7 +1198,21 @@ const ProjectUpdate: React.FC = () => {
                                 <Text key={idx} style={[styles.workPackageSubTitle, { paddingLeft: 20 }]}>
                                   {item}
                                 </Text>
-                              ))}
+                              ))
+                        }
+                        {/*RHCM 8/8/2025 */}
+                        {/* Display selected alternates if any */}
+                         {/* Selected Alternates Section */}
+                        {selectedAlternates.length > 0 && (
+                          <View style={{ marginTop: 4, paddingLeft: 20 }}>
+                            <Text style={styles.selectedAltHeader}>Selected Alternates</Text>
+                            {selectedAlternates.map((alt, altIndex) => (
+                              <Text key={altIndex} style={styles.selectedAltItem}>
+                                {alt.WPAlternateName}
+                              </Text>
+                            ))}
+                          </View>
+                        )}
                       </View>
                     );
 
@@ -1233,6 +1253,27 @@ const ProjectUpdate: React.FC = () => {
                   skills.map((skill, skillIndex) => (
                     <View key={skillIndex} style={styles.workPackageContainer}>
                       <View style={styles.rowContainer}>
+                        {isMultiDay && (
+                        <Picker
+                                selectedValue={skill.selectedNumber || '1'} // Add state for this if needed
+                                onValueChange={(value) => {
+                                skill.selectedNumber = value || '1'; // ← Update your state logic properly if using hooks or context
+                                // setQuoteWorkPackages([...quoteWorkPackages]); // force re-render (assuming you're using state)
+                              }}
+                                style={{
+                                  height: 30,
+                                  width: 60,
+                                  color: '#000',
+                                  marginRight: 8,
+                                  backgroundColor: '#f0f0f0',
+                                }}
+                                mode="dropdown"
+                              >
+                                {['1', '2', '3', '4', '5'].map((num) => (
+                                  <Picker.Item key={num} label={num} value={num} />
+                                ))}
+                              </Picker>
+                              )}
                         <Text style={styles.workPackageTitle}>{skill.SkillName}</Text>
                         <View style={styles.buttonGroup}>
                         {/* 🔻 Decrease Quantity or Remove Skill */}
@@ -1288,6 +1329,27 @@ const ProjectUpdate: React.FC = () => {
                   equipments.map((equipment, equipmentIndex) => (
                     <View key={equipmentIndex} style={styles.workPackageContainer}>
                       <View style={styles.headerRow}>
+                        {isMultiDay && (
+                                <Picker
+                                  selectedValue={equipment.selectedNumber || '1'} // Add state for this if needed
+                                  onValueChange={(value) => {
+                                  equipment.selectedNumber = value || '1'; // ← Update your state logic properly if using hooks or context
+                                  // setQuoteWorkPackages([...quoteWorkPackages]); // force re-render (assuming you're using state)
+                                }}
+                                  style={{
+                                    height: 30,
+                                    width: 60,
+                                    color: '#000',
+                                    marginRight: 8,
+                                    backgroundColor: '#f0f0f0',
+                                  }}
+                                  mode="dropdown"
+                                >
+                                  {['1', '2', '3', '4', '5'].map((num) => (
+                                    <Picker.Item key={num} label={num} value={num} />
+                                  ))}
+                                </Picker>
+                              )}
                         <Text style={styles.workPackageTitle}>{equipment.EquipmentName}</Text>
                         <View style={styles.buttonGroup}>
                           {/*//🔻 Decrease Quantity or Remove Skill*/}
@@ -1328,6 +1390,9 @@ const ProjectUpdate: React.FC = () => {
             <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
               <Text style={styles.cancelButtonText}>Back</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIsMultiDay(prev => !prev)} style={styles.cancelButton}>
+              <Text style={styles.cancelButtonText}>{isMultiDay ? ' Multi-Day' : ' Multi-Day'}</Text>
+            </TouchableOpacity>
             {/* <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
               <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity> */}
@@ -1348,6 +1413,17 @@ const styles = StyleSheet.create({
   // plus:{
   //   alignItems: 'flex-start',
   // },
+  selectedAltHeader: {
+  fontSize: 8,
+  fontWeight: 'bold',
+  color: '#000',
+  marginTop: 2,
+},
+selectedAltItem: {
+  fontSize: 8,
+  color: '#555',
+  paddingLeft: 10,
+},
   container: { padding: 20, marginTop: -60, },
   viewButton: {
     backgroundColor: 'white',

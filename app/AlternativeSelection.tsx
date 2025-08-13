@@ -24,6 +24,7 @@ interface Alternative {
   name: string;
   hours: string;
   checked?: boolean;
+  details?: string[];
   // alternateStatus: string;
 }
 
@@ -69,10 +70,23 @@ const AlternativeSelection: React.FC = () => {
 const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
   const quoteAlt = parsedQuoteAlternates.find((qa: any) => qa.AlternateSerial === alt.AlternateSerial);
 
+  //RHCM 5/08/2025
+   // Normalize WPAlternateItem into an array
+  let detailItems: string[] = [];
+  if (quoteAlt?.WPAlternateDetail?.WPAlternateItem) {
+    if (Array.isArray(quoteAlt.WPAlternateDetail.WPAlternateItem)) {
+      detailItems = quoteAlt.WPAlternateDetail.WPAlternateItem;
+    } else {
+      detailItems = [quoteAlt.WPAlternateDetail.WPAlternateItem];
+    }
+  }
+
   return {
     name: alt.AlternateName || alt.WPAlternateName || 'Unnamed Alternative',
-    hours: alt.AlternateHour ? alt.AlternateHour.toString() : '',
-    checked: alt.AlternateStatus === '1' || alt.WPAlternateStatus === '1',
+    hours: alt.WPAlternateHour ? alt.WPAlternateHour.toString() : '',
+    checked: alt.AlternateStatus === 1 || alt.WPAlternateStatus === 1,
+    details: quoteAlt?.WPAlternateDetail?.WPAlternateItem || [], // Use WPAlternateDetail if available
+    // details: detailItems, // Use the normalized detail items
   };
 });
 
@@ -119,10 +133,10 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
       //   Alert.alert('Missing location');
       //   return;
       // }
-  
+  console.log('Parsed Alternates:', parsedAlternates);
       // 🔹 Format selected alternatives
       const selectedAlternatives = alternatives.map((item, index) => ({
-        serial: parsedAlternates[index]?.AlternateSerial || '',
+        serial: parsedAlternates[index]?.WPAlternateSerial || '',
         checked: item.checked ? '1' : '0',
       }));
   
@@ -130,7 +144,9 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
         .filter(item => item.serial) // Remove empty serials
         .map(item => `${item.serial}-${item.checked}`)
         .join(',');
-  
+      console.log('List Param:', listParam);
+      // RHCM 5/08/2025
+      // Commented out the previous validation for listParam
       if (!listParam) {
         Alert.alert('No valid alternatives selected.');
         return;
@@ -151,7 +167,7 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
       // 🔹 Build request URL
       const url = `https://CrewzControl.com/dev/CCService/UpdateResourceOption.php?DeviceID=${encodeURIComponent(
         deviceId
-      )}&Date=${encodeURIComponent(formattedDate)}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&List=${listParam}`;
+      )}&Date=${encodeURIComponent(formattedDate)}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=add&List=${listParam}`;
   
       console.log('Request URL:', url);
   
@@ -229,7 +245,17 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
                     onPress={() => toggleCheckbox(index)}
                   /> */}
                   <Text style={styles.altText}>{alt.name}</Text>
-
+                      {/*RHCM 5/08/2025 */}
+                      {/* NEW: Render WPAlternateDetail items */}
+                      
+                      {alt.details?.map((detail, dIdx) => (
+                        <Text
+                          key={dIdx}
+                          style={[styles.altDetailText, { paddingLeft: 20, color: '#555' }]}
+                        >
+                          {detail}
+                        </Text>
+                      ))}
                   {/* Check if hours are rendered correctly */}
                   <View style={styles.hoursField}>
                     <TextInput
@@ -359,6 +385,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
+  altDetailText: {
+  fontSize: 12,
+  color: '#666',
+},
   altText: {
     flex: 1,
     fontSize: 16,
