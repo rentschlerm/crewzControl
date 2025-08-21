@@ -232,7 +232,7 @@ const Project: React.FC = () => {
   if (quoteDetails) {
     router.push({
       pathname: '/ProjectUpdate',
-      params: { job: JSON.stringify(quoteDetails) },
+      params: { job: JSON.stringify(quoteDetails), quoteSerial: job.id.toString() },
     });
   }
 };
@@ -301,114 +301,6 @@ return (
     </TouchableWithoutFeedback>
   </KeyboardAvoidingView>
 );
-
-// const renderContent = () => (
-//   <ImageBackground
-//     source={require('../assets/images/background.png')}
-//     style={styles.background}
-//   >
-//     <Image
-//       source={require('../assets/images/crewzControlIcon.png')}
-//       style={LogoStyles.logo}
-//       resizeMode="contain"
-//     />
-
-//     <View style={styles.mainDiv}>
-//       <View style={styles.sectionDiv}>
-//         <Text style={styles.sectionTitle}>Close to:</Text>
-//         <JobListItem job={jobs[0]} onPress={handleJobPress} />
-//       </View>
-
-//       <View style={styles.sectionDiv}>
-//         <Text style={styles.sectionTitle}>Recent:</Text>
-//         {jobs.slice(1, 4).map((item) => (
-//           <JobListItem key={item.id.toString()} job={item} onPress={handleJobPress} />
-//         ))}
-//       </View>
-
-//       <View style={styles.searchContainer}>
-//         <TextInput
-//           style={styles.searchInput}
-//           placeholder="Enter quote customer name"
-//           value={searchTerm}
-//           onChangeText={setSearchTerm}
-//         />
-//         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-//           <Text style={styles.searchButtonText}>Search</Text>
-//         </TouchableOpacity>
-//       </View>
-//     </View>
-//   </ImageBackground>
-// );
-
-// return (
-//   <KeyboardAvoidingView
-//     style={{ flex: 1 }}
-//     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-//   >
-//     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-//       <View style={{ flex: 1 }}>
-//         {renderContent()}
-//       </View>
-//     </TouchableWithoutFeedback>
-//   </KeyboardAvoidingView>
-// );
-
-  
-// return (
-//   <KeyboardAvoidingView
-//     style={{ flex: 1 }}
-//     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-//   >
-//     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-//       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-//         <ImageBackground
-//           source={require('../assets/images/background.png')}
-//           style={styles.background}
-//         >
-//           <Image
-//             source={require('../assets/images/crewzControlIcon.png')}
-//             style={LogoStyles.logo}
-//             resizeMode="contain"
-//           />
-
-//           <View style={styles.mainDiv}>
-//             <View style={styles.sectionDiv}>
-//               <Text style={styles.sectionTitle}>Close to:</Text>
-//               <FlatList
-//                 data={jobs.slice(0, 1)}
-//                 renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
-//                 keyExtractor={(item) => item.id.toString()}
-//               />
-//             </View>
-
-//             <View style={styles.sectionDiv}>
-//               <Text style={styles.sectionTitle}>Recent:</Text>
-//               <FlatList
-//                 data={jobs.slice(1, 4)}
-//                 renderItem={({ item }) => <JobListItem job={item} onPress={handleJobPress} />}
-//                 keyExtractor={(item) => item.id.toString()}
-//               />
-//             </View>
-
-//             <View style={styles.searchContainer}>
-//               <TextInput
-//                 style={styles.searchInput}
-//                 placeholder="Enter quote customer name"
-//                 value={searchTerm}
-//                 onChangeText={setSearchTerm}
-//                 onFocus={() => setSearchTerm(searchTerm)} // optional
-//               />
-//               <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-//                 <Text style={styles.searchButtonText}>Search</Text>
-//               </TouchableOpacity>
-//             </View>
-//           </View>
-//         </ImageBackground>
-//       </ScrollView>
-//     </TouchableWithoutFeedback>
-//   </KeyboardAvoidingView>
-// );
 };
 
 // Styles

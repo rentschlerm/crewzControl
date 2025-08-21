@@ -13,7 +13,8 @@ import {
   TextInput,
 } from 'react-native';
 import { JobsContext, Job } from '../components/JobContext';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useQuotes } from "../components/QuoteContext"; 
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import LogoStyles from '../components/LogoStyles';
 import DropDownPicker from 'react-native-dropdown-picker';
 import CustomDatePicker from '../components/CustomDatePicker';
@@ -28,6 +29,7 @@ import { Dimensions } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Calendar } from 'react-native-calendars'; 
 import DateTimePicker from '../components/DateTimePicker';
+import { useRoute } from '@react-navigation/native';
 
 interface WorkPackageAlternate {
   AlternateName: string;
@@ -73,10 +75,14 @@ interface Service {
 
 const ProjectUpdate: React.FC = () => {
   const router = useRouter();
-  const { job, quoteSerial } = useLocalSearchParams();
-
-
+  // const { job, quoteSerial } = useLocalSearchParams();
+  const { job, quoteSerial } = useLocalSearchParams<{ job?: string; quoteSerial?: string }>();
+  
+  // const jobObj: Job = typeof job === 'string' ? JSON.parse(job) : job;
   const jobObj: Job = typeof job === 'string' ? JSON.parse(job) : job;
+  console.log("quoteSerial param:", quoteSerial);
+  console.log("jobObj.Serial:", jobObj?.Serial);
+  // const quoteSerial = jobObj?.Serial;
   const { updateJob, authorizationCode } = useContext(JobsContext)!;
   const { width: deviceWidth } = Dimensions.get('window');
   const [jobData, setJobData] = useState<Job | null>(null);
@@ -94,6 +100,7 @@ const ProjectUpdate: React.FC = () => {
   
   const [urgency, setUrgency] = useState('');
   const [urgencyOpen, setUrgencyOpen] = useState(false);
+  const [multiDayOpen, setMultiDayOpen] = useState(false);
   const [quoteWorkPackages, setQuoteWorkPackages] = useState<any[]>([]);
   const [skills, setSkills] = useState<any[]>([]);
   const [equipments, setEquipments] = useState<any[]>([]);
@@ -136,6 +143,17 @@ const ProjectUpdate: React.FC = () => {
 
   const hoursInputRef = useRef<TextInput>(null);
 
+  useFocusEffect(
+  useCallback(() => {
+    console.log("🔄 ProjectUpdate focused, refreshing quote...");
+    fetchQuoteDetails();
+
+    // optional cleanup when screen loses focus
+    return () => {
+      console.log("👋 ProjectUpdate unfocused");
+    };
+  }, [jobObj?.Serial, deviceInfo, location, authorizationCode])
+);
 
   useEffect(() => {
     if (jobObj?.blackoutDate) {
@@ -533,7 +551,7 @@ const ProjectUpdate: React.FC = () => {
       const data = await response.text();
       const parser = new XMLParser();
       const result = parser.parse(data);
-
+      console.log('GetQuote Data from ProjectUpdate: ', data);
       if (result.ResultInfo?.Result === 'Success') {
         const quote = result.ResultInfo.Selections?.Quote || {};
 
@@ -1016,6 +1034,7 @@ const ProjectUpdate: React.FC = () => {
                                         params: {
                                           workPackageName: workPackage?.WorkPackageName,
                                           workPackageAlternates: JSON.stringify(alternates),
+                                          quoteSerial: jobObj?.Serial,
                                         },
                                       })
                                     }
@@ -1135,26 +1154,81 @@ const ProjectUpdate: React.FC = () => {
                             </Text> */}
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                               {isMultiDay && (
-                                <Picker
-                                  selectedValue={qwp.selectedNumber || '1'} // Add state for this if needed
-                                  onValueChange={(value) => {
-                                  qwp.selectedNumber = value || '1'; // ← Update your state logic properly if using hooks or context
-                                  setQuoteWorkPackages([...quoteWorkPackages]); // force re-render (assuming you're using state)
-                                }}
+                                <DropDownPicker
+                                  open={qwp.open || false}
+                                  value={qwp.selectedNumber || 'DAY 1'}
+                                  items={[
+                                    { label: 'DAY 1', value: 'DAY 1' },
+                                    { label: 'DAY 2', value: 'DAY 2' },
+                                    { label: 'DAY 3', value: 'DAY 3' },
+                                    { label: 'DAY 4', value: 'DAY 4' },
+                                    { label: 'DAY 5', value: 'DAY 5' },
+                                  ]}
+                                  setOpen={(open) => {
+                                    qwp.open = open;
+                                    setQuoteWorkPackages([...quoteWorkPackages]);
+                                  }}
+                                  setValue={(callback) => {
+                                    const newValue = callback(qwp.selectedNumber || 'DAY 1');
+                                    qwp.selectedNumber = newValue;
+                                    setQuoteWorkPackages([...quoteWorkPackages]);
+                                  }}
+                                  setItems={() => {}}
                                   style={{
                                     height: 30,
-                                    width: 60,
-                                    color: '#000',
+                                    width: 90,
                                     marginRight: 8,
                                     backgroundColor: '#f0f0f0',
                                   }}
-                                  mode="dropdown"
-                                >
-                                  {['1', '2', '3', '4', '5'].map((num) => (
-                                    <Picker.Item key={num} label={num} value={num} />
-                                  ))}
-                                </Picker>
+                                  dropDownContainerStyle={{
+                                    width: 100,
+                                  }}
+                                  zIndex={1000}
+                                />
                               )}
+
+                              {/* {isMultiDay && (
+                                <View style={[styles.row, { zIndex: 900 }]}>
+                                  <View style={styles.dropdownWrapper}>
+                                    <DropDownPicker
+                                      open={multiDayOpen}
+                                      value={qwp.selectedNumber || 'DAY 1'}
+                                      items={[
+                                        { label: 'DAY 1', value: 'DAY 1' },
+                                        { label: 'DAY 2', value: 'DAY 2' },
+                                        { label: 'DAY 3', value: 'DAY 3' },
+                                        { label: 'DAY 4', value: 'DAY 4' },
+                                        { label: 'DAY 5', value: 'DAY 5' },
+                                      ]}
+                                      setOpen={setMultiDayOpen}
+                                      setValue={(callback) => {
+                                        const val = callback(qwp.selectedNumber || 'DAY 1');
+                                        qwp.selectedNumber = val;
+                                        setQuoteWorkPackages([...quoteWorkPackages]); // force re-render
+                                      }}
+                                       style={{
+                                          height: 30,
+                                          width: 90,
+                                          marginRight: 8,
+                                          backgroundColor: '#f0f0f0',
+                                          borderColor: '#ccc',
+                                        }}
+                                        dropDownContainerStyle={{
+                                          width: 90,
+                                          backgroundColor: '#f0f0f0',
+                                          borderColor: '#ccc',
+                                          zIndex: 900,
+                                        }}
+                                        textStyle={{
+                                          fontSize: 14,
+                                          color: '#000',
+                                        }}
+                                      zIndex={900}
+                                    />
+                                  </View>
+                                </View>
+                              )} */}
+
                               <Text style={styles.workPackageTitle}>
                                 {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
                               </Text>
@@ -1172,6 +1246,7 @@ const ProjectUpdate: React.FC = () => {
                                     params: {
                                       workPackageName: qwp.QuoteWorkPackageName,
                                       workPackageAlternates: JSON.stringify(alternates),
+                                      quoteSerial: jobObj?.Serial,
                                     },
                                   })
                                 }

@@ -1,4 +1,4 @@
-import React, { createContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, ReactNode, useEffect, useContext } from 'react';
 import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import { getDeviceInfo } from '../components/DeviceUtils';
@@ -56,7 +56,7 @@ interface JobsContextType {
   deviceInfo: DeviceInfo | null;
   authorizationCode: string | null;
   setAuthorizationCode: (code: string) => void; 
-  refreshJobs: () => void;
+  refreshJobs: () => Promise<void>;
 }
 
 // Create a default context value
@@ -222,4 +222,13 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </JobsContext.Provider>
   );
+  
 };
+
+export const useJobs = () => {
+  const context = useContext(JobsContext);
+  if (!context) {
+    throw new Error('useJobs must be used within a JobsProvider');
+  }
+  return context;
+}

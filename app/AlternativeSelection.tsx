@@ -16,7 +16,8 @@ import LogoStyles from '../components/LogoStyles';
 import CryptoJS, { SHA1 } from 'crypto-js';
 import useLocation from '@/hooks/useLocation';
 import { getDeviceInfo } from '../components/DeviceUtils';
-import { JobsContext } from '@/components/JobContext';
+import { JobsContext } from '../components/JobContext';
+import { useQuotes } from '../components/QuoteContext';
 import { XMLParser } from 'fast-xml-parser';
 
 interface Alternative {
@@ -24,7 +25,7 @@ interface Alternative {
   name: string;
   hours: string;
   checked?: boolean;
-  details?: string[];
+  details?: string;
   // alternateStatus: string;
 }
 
@@ -38,9 +39,17 @@ const AlternativeSelection: React.FC = () => {
       model: string;
       version: string;
     } | null>(null);
+  const { quoteSerial } = useLocalSearchParams<{ quoteSerial?: string}>();
   
-    const { location, fetchLocation } = useLocation();
-  const { workPackageName, workPackageAlternates } = useLocalSearchParams();
+  console.log("Quote Serial received:", quoteSerial);
+  const { serial, workPackageName, workPackageAlternates, quoteWorkPackageAlternates } = useLocalSearchParams();
+  const jobIdParam = Array.isArray(serial) ? serial[0] : serial;
+  const jobId = jobIdParam ? parseInt(jobIdParam, 10) : NaN;
+
+  const { fetchQuoteDetailsFromAPI , loadingQuote } = useQuotes();
+  const { refreshJobs } = useContext(JobsContext);
+  const { location, fetchLocation } = useLocation();
+  // const { workPackageName, workPackageAlternates } = useLocalSearchParams();
 
   // Parse alternates if passed via route params
   // const parsedAlternates = workPackageAlternates
@@ -55,7 +64,7 @@ const AlternativeSelection: React.FC = () => {
   const parsedAlternates = workPackageAlternates
   ? JSON.parse(Array.isArray(workPackageAlternates) ? workPackageAlternates.join('') : workPackageAlternates)
   : [];
-  const { quoteWorkPackageAlternates } = useLocalSearchParams();
+ 
 
   const parsedQuoteAlternates = quoteWorkPackageAlternates
     ? JSON.parse(
@@ -68,31 +77,46 @@ const AlternativeSelection: React.FC = () => {
 
 // Match alternates by serial and merge extra info like WPAlternateName
 const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
-  const quoteAlt = parsedQuoteAlternates.find((qa: any) => qa.AlternateSerial === alt.AlternateSerial);
-
+  // const quoteAlt = parsedQuoteAlternates.find((qa: any) => qa.WPAlternateSerial === alt.WPAlternateSerial);
+//   console.log('Matching alt:', alt);
+// console.log('Found quoteAlt:', quoteAlt);
+// console.log('quoteAlt for', alt.WPAlternateName, alt);
+// console.log(
+//   'Raw WPAlternateItem:',
+//   alt?.WPAlternateDetail?.WPAlternateItem
+// );
   //RHCM 5/08/2025
    // Normalize WPAlternateItem into an array
-  let detailItems: string[] = [];
-  if (quoteAlt?.WPAlternateDetail?.WPAlternateItem) {
-    if (Array.isArray(quoteAlt.WPAlternateDetail.WPAlternateItem)) {
-      detailItems = quoteAlt.WPAlternateDetail.WPAlternateItem;
-    } else {
-      detailItems = [quoteAlt.WPAlternateDetail.WPAlternateItem];
-    }
-  }
+  // let detailItems: string[] = [];
+  // if (alt?.WPAlternateDetail?.WPAlternateItem) {
+  //   if (Array.isArray(alt.WPAlternateDetail.WPAlternateItem)) {
+  //     detailItems = alt.WPAlternateDetail.WPAlternateItem;
+  //   } else {
+  //     detailItems = [alt.WPAlternateDetail.WPAlternateItem];
+  //   }
+  // }
 
   return {
     name: alt.AlternateName || alt.WPAlternateName || 'Unnamed Alternative',
     hours: alt.WPAlternateHour ? alt.WPAlternateHour.toString() : '',
     checked: alt.AlternateStatus === 1 || alt.WPAlternateStatus === 1,
-    details: quoteAlt?.WPAlternateDetail?.WPAlternateItem || [], // Use WPAlternateDetail if available
+    details: alt?.WPAlternateDetail?.WPAlternateItem, // Use WPAlternateDetail if available
+    
     // details: detailItems, // Use the normalized detail items
   };
 });
 
+//RHCM 08/18/2025
+//added handleBack function to refresh jobs when navigating back
+ const handleBack = async () => {
+    await refreshJobs();   // Call API again
+    router.back();         // Then navigate back
+  };
+
   const [alternatives, setAlternatives] = useState<Alternative[]>(alternativesData);
   
     useEffect(() => {
+      console.log("Serial:", quoteSerial);
       const fetchDeviceInfo = async () => {
         const info = await getDeviceInfo();
         setDeviceInfo(info);
@@ -124,73 +148,112 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
   //Added API call to the UpdateResourceOption endpoint
   //---------------------------------------Start of-----------------------------------------------
   const handleSave = async () => {
-    try {
-      if (!alternatives || !parsedAlternates || !authorizationCode || !deviceInfo || !location) {
-        Alert.alert('Missing required data: alternatives, parsedAlternates, or authorizationCode');
-        return;
-      }
-      // else if (!location){
-      //   Alert.alert('Missing location');
-      //   return;
-      // }
-  console.log('Parsed Alternates:', parsedAlternates);
-      // 🔹 Format selected alternatives
-      const selectedAlternatives = alternatives.map((item, index) => ({
-        serial: parsedAlternates[index]?.WPAlternateSerial || '',
-        checked: item.checked ? '1' : '0',
-      }));
-  
-      const listParam = selectedAlternatives
-        .filter(item => item.serial) // Remove empty serials
-        .map(item => `${item.serial}-${item.checked}`)
-        .join(',');
-      console.log('List Param:', listParam);
-      // RHCM 5/08/2025
-      // Commented out the previous validation for listParam
-      if (!listParam) {
-        Alert.alert('No valid alternatives selected.');
-        return;
-      }
-  
-      // 🔹 Device info and version
-      const deviceId = deviceInfo.id || 'defaultDeviceId';
-      const crewzControlVersion = '1';
-  
-      // 🔹 Format date
-      const now = new Date();
-      const formattedDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}-${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  
-      // 🔹 Generate secure key
-      const keyString = `${deviceId}${formattedDate}${authorizationCode}`;
-      const key = CryptoJS.SHA1(keyString).toString();
-  
-      // 🔹 Build request URL
-      const url = `https://CrewzControl.com/dev/CCService/UpdateResourceOption.php?DeviceID=${encodeURIComponent(
-        deviceId
-      )}&Date=${encodeURIComponent(formattedDate)}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=add&List=${listParam}`;
-  
-      console.log('Request URL:', url);
-  
-      // 🔹 Make API request
-      const response = await fetch(url);
-      const resultText = await response.text();
-  
-      console.log('API Response:', resultText);
-  
-      const parser = new XMLParser();
-      const result = parser.parse(resultText);
-  
-      if (result.ResultInfo?.Result === 'Success') {
-        console.log('✅ Resource options updated successfully.');
-        router.back(); // navigate back on success
-      } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update resource options.');
-      }
-    } catch (error) {
-      console.error('❌ Save failed:', error);
-      Alert.alert('Error', 'An unexpected error occurred while saving.');
+  try {
+    if (!alternatives || !parsedAlternates || !authorizationCode || !deviceInfo || !location) {
+      Alert.alert("Error", "Missing required data: alternatives, parsedAlternates, or authorization code.");
+      return;
     }
-  };
+
+    console.log("Parsed Alternates:", parsedAlternates);
+
+    // 🔹 Format selected alternatives
+    const selectedAlternatives = alternatives.map((item, index) => ({
+      serial: parsedAlternates[index]?.WPAlternateSerial || "",
+      checked: item.checked ? "1" : "0",
+       hours: item.hours || "0" ,
+    }));
+
+    const listParam = selectedAlternatives
+      .filter((item) => item.serial) // Remove empty serials
+      .map((item) => `${item.serial}-${item.checked}`)
+      .join(",");
+
+    console.log("List Param:", listParam);
+
+    const hourParam = selectedAlternatives
+      .filter((item) => item.serial) // remove empty serials
+      .map((item) => {
+        // Ensure hours is valid decimal string
+        const normalizedHours = isNaN(parseFloat(item.hours)) ? "0" : parseFloat(item.hours).toString();
+        return `${item.serial}-${normalizedHours}`;
+      })
+      .join(",");
+
+    console.log("Hour Param:", hourParam);
+
+    if (!listParam) {
+      Alert.alert("Error", "No valid alternatives selected.");
+      return;
+    }
+
+    // 🔹 Device info and version
+    const deviceId = deviceInfo.id || "defaultDeviceId";
+    const crewzControlVersion = "1";
+
+    // 🔹 Format date
+    const now = new Date();
+    const formattedDate = `${String(now.getMonth() + 1).padStart(2, "0")}/${String(
+      now.getDate()
+    ).padStart(2, "0")}/${now.getFullYear()}-${String(now.getHours()).padStart(2, "0")}:${String(
+      now.getMinutes()
+    ).padStart(2, "0")}`;
+
+    // 🔹 Generate secure key
+    const keyString = `${deviceId}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+
+    // 🔹 Build Update URL
+    const updateUrl = `https://CrewzControl.com/dev/CCService/UpdateResourceOption.php?DeviceID=${encodeURIComponent(
+      deviceId
+    )}&Date=${encodeURIComponent(formattedDate)}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=add&List=${listParam}&Hour=${hourParam}`;
+
+    console.log("Update Resource Option URL:", updateUrl);
+
+    // 🔹 Make Update API request
+    const updateResponse = await fetch(updateUrl);
+    const updateData = await updateResponse.text();
+    console.log("Update API Response:", updateData);
+
+    const updateParser = new XMLParser();
+    const updateResult = updateParser.parse(updateData);
+
+    if (updateResult.ResultInfo?.Result === "Success") {
+      console.log("✅ Resource options updated successfully.");
+
+      // 🔹 Now fetch updated Quote (like handleProceed)
+      console.log("🔄 Fetching updated quote...");
+      const fetchUrl = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
+        deviceId
+      )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${quoteSerial}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+
+      console.log("GetQuote URL:", fetchUrl);
+
+      const fetchResponse = await fetch(fetchUrl);
+      const fetchData = await fetchResponse.text();
+
+      console.log("GetQuote API Response:", fetchData);
+
+      const fetchParser = new XMLParser();
+      const fetchResult = fetchParser.parse(fetchData);
+
+      if (fetchResult.ResultInfo?.Result === "Success") {
+        console.log("Fetched updated quote data:", fetchResult.ResultInfo.Selections.Quote);
+
+        router.push({
+          pathname: "/ProjectUpdate",
+          params: { job: JSON.stringify(fetchResult.ResultInfo.Selections.Quote) },
+        });
+      } else {
+        Alert.alert("Error", fetchResult.ResultInfo?.Message || "Failed to fetch updated quote details.");
+      }
+    } else {
+      Alert.alert("Error", updateResult.ResultInfo?.Message || "Failed to update resource options.");
+    }
+  } catch (error) {
+    console.error("❌ Save failed:", error);
+    Alert.alert("Error", "An unexpected error occurred while saving.");
+  }
+};
   //-------------------------------------End of---------------------------------------------------
 
 
@@ -215,7 +278,7 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
       <View style={styles.mainDiv}>
         <ScrollView>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={handleBack}>
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
             <Text style={styles.title}>
@@ -229,7 +292,8 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
             alternatives.map((alt, index) => {
               // console.log('Rendering alt:', alt);  // Log alt to ensure data is correctly passed
               return (
-                <View key={index} style={styles.row}>
+                <View key={index} style={{ marginBottom: 15 }}>
+                   <View style={styles.row}>
                   <View style={styles.checkboxContainer}>
                     <View style={styles.checkboxWrapper}>
                     <Checkbox
@@ -248,14 +312,14 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
                       {/*RHCM 5/08/2025 */}
                       {/* NEW: Render WPAlternateDetail items */}
                       
-                      {alt.details?.map((detail, dIdx) => (
+                      {/* {alt.details?.map((detail, dIdx) => (
                         <Text
                           key={dIdx}
                           style={[styles.altDetailText, { paddingLeft: 20, color: '#555' }]}
                         >
                           {detail}
                         </Text>
-                      ))}
+                      ))} */}
                   {/* Check if hours are rendered correctly */}
                   <View style={styles.hoursField}>
                     <TextInput
@@ -270,13 +334,24 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
                       {alt.hours === '1' ? 'hr' : 'hrs'}
                     </Text>
                   </View>
-
+                </View>
+                {Array.isArray(alt.details) &&
+                        alt.details.map((item: string, idx: number) => (
+                          <Text
+                            key={idx}
+                            style={[styles.workPackageSubTitle, { paddingLeft: 70 }]}
+                          >
+                            {item}
+                          </Text>
+                        ))
+                      }
                 </View>
               );
             })
           ) : (
             <Text>No alternatives available.</Text>
           )}
+          
 
 
           <View style={styles.buttonRow}>
@@ -306,6 +381,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  workPackageSubTitle:{
+  fontSize: 14,
+  color: '#555',
+  paddingLeft: 50, // indent so it's visually linked to the main row
+  marginTop: -5,
+  },
+  
   checkboxWrapper: {
     borderWidth: 1,
     borderColor: '#007BFF',
