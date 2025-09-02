@@ -1145,94 +1145,66 @@ const ProjectUpdate: React.FC = () => {
                       const selectedAlternates = alternates.filter(
                         (alt) => alt.WPAlternateStatus === 1
                       );
+                       const pickerZ = 1000 - index;
 
                       return (
                         <View key={index} style={styles.workPackageContainer}>
-                          <View style={styles.headerRow}>
+                          {/* <View style={styles.headerRow}> */}
                             {/* <Text style={styles.workPackageTitle}>
                               {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
                             </Text> */}
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              {isMultiDay && (
-                                <DropDownPicker
-                                  open={qwp.open || false}
-                                  value={qwp.selectedNumber || 'DAY 1'}
-                                  items={[
-                                    { label: 'DAY 1', value: 'DAY 1' },
-                                    { label: 'DAY 2', value: 'DAY 2' },
-                                    { label: 'DAY 3', value: 'DAY 3' },
-                                    { label: 'DAY 4', value: 'DAY 4' },
-                                    { label: 'DAY 5', value: 'DAY 5' },
-                                  ]}
-                                  setOpen={(open) => {
-                                    qwp.open = open;
-                                    setQuoteWorkPackages([...quoteWorkPackages]);
-                                  }}
-                                  setValue={(callback) => {
-                                    const newValue = callback(qwp.selectedNumber || 'DAY 1');
-                                    qwp.selectedNumber = newValue;
-                                    setQuoteWorkPackages([...quoteWorkPackages]);
-                                  }}
-                                  setItems={() => {}}
-                                  style={{
-                                    height: 30,
-                                    width: 90,
-                                    marginRight: 8,
-                                    backgroundColor: '#f0f0f0',
-                                  }}
-                                  dropDownContainerStyle={{
-                                    width: 100,
-                                  }}
-                                  zIndex={1000}
-                                />
-                              )}
+                            <View style={[styles.rowContainer, { alignItems: 'center' }]}>
+                              {/* LEFT: Day picker (conditionally) + label */}
+        <View style={styles.leftGroup}>
+          {isMultiDay && (
+            <View style={[{ zIndex: 1000 }]}>
+              <View style={styles.dropdownWrapper}>
+              <DropDownPicker
+                open={!!qwp.open}
+                value={qwp.selectedNumber ?? 'DAY 1'}
+                items={[
+                  { label: 'DAY 1', value: 'DAY 1' },
+                  { label: 'DAY 2', value: 'DAY 2' },
+                  { label: 'DAY 3', value: 'DAY 3' },
+                  { label: 'DAY 4', value: 'DAY 4' },
+                  { label: 'DAY 5', value: 'DAY 5' },
+                ]}
+                setOpen={(openOrFn) => {
+                  const open = typeof openOrFn === 'function' ? openOrFn(qwp.open ?? false) : openOrFn;
+                  qwp.open = open;
+                  setQuoteWorkPackages([...quoteWorkPackages]);
+                  return open;
+                }}
+                // typed param: either a callback or a direct value
+                setValue={(valOrCb: ((prev?: string) => string) | string) => {
+                  const newValue =
+                    typeof valOrCb === 'function'
+                      ? valOrCb(qwp.selectedNumber)
+                      : valOrCb;
+                  qwp.selectedNumber = newValue;
+                  setQuoteWorkPackages([...quoteWorkPackages]);
+                }}
+                setItems={() => {}}
+                style={styles.dayPicker}
+                textStyle={styles.dayPickerText}
+                dropDownContainerStyle={[styles.dayPickerDropDown, { zIndex: 1000 }]}
+                listItemLabelStyle={styles.dayPickerListLabel}
+                zIndex={1000}
+              />
+            </View>
+            </View>
+          )}
 
-                              {/* {isMultiDay && (
-                                <View style={[styles.row, { zIndex: 900 }]}>
-                                  <View style={styles.dropdownWrapper}>
-                                    <DropDownPicker
-                                      open={multiDayOpen}
-                                      value={qwp.selectedNumber || 'DAY 1'}
-                                      items={[
-                                        { label: 'DAY 1', value: 'DAY 1' },
-                                        { label: 'DAY 2', value: 'DAY 2' },
-                                        { label: 'DAY 3', value: 'DAY 3' },
-                                        { label: 'DAY 4', value: 'DAY 4' },
-                                        { label: 'DAY 5', value: 'DAY 5' },
-                                      ]}
-                                      setOpen={setMultiDayOpen}
-                                      setValue={(callback) => {
-                                        const val = callback(qwp.selectedNumber || 'DAY 1');
-                                        qwp.selectedNumber = val;
-                                        setQuoteWorkPackages([...quoteWorkPackages]); // force re-render
-                                      }}
-                                       style={{
-                                          height: 30,
-                                          width: 90,
-                                          marginRight: 8,
-                                          backgroundColor: '#f0f0f0',
-                                          borderColor: '#ccc',
-                                        }}
-                                        dropDownContainerStyle={{
-                                          width: 90,
-                                          backgroundColor: '#f0f0f0',
-                                          borderColor: '#ccc',
-                                          zIndex: 900,
-                                        }}
-                                        textStyle={{
-                                          fontSize: 14,
-                                          color: '#000',
-                                        }}
-                                      zIndex={900}
-                                    />
-                                  </View>
-                                </View>
-                              )} */}
-
-                              <Text style={styles.workPackageTitle}>
-                                {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
-                              </Text>
-                            </View>
+                              {/* Equipment label */}
+                              {/* keep the label right next to the picker, shrink when needed */}
+          <Text
+            style={styles.workPackageTitle}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
+          </Text>
+        </View>
                              
                             {/* Button Group */}
                           <View style={styles.buttonGroup}>
@@ -1268,6 +1240,7 @@ const ProjectUpdate: React.FC = () => {
                             </TouchableOpacity>
                           </View>
                         </View>
+                        {/* </View> */}
                         {Array.isArray(qwp?.QuoteWorkPackageDetail?.QuoteWorkPackageItem) &&
                               qwp.QuoteWorkPackageDetail.QuoteWorkPackageItem.map((item: string, idx: number) => (
                                 <Text key={idx} style={[styles.workPackageSubTitle, { paddingLeft: 20 }]}>
@@ -1645,6 +1618,40 @@ selectedHours: {
     alignItems: 'center',
     
   },
+  leftGroup: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  flex: 1,            // label can take the remaining space
+  paddingRight: 8,    // small gap before the right-side buttons
+  justifyContent: 'flex-start',
+},
+  dayPicker: {
+  height: 36,
+  width: 88,              // compact picker width so it doesn't hog space
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: '#e6e6e6',
+  backgroundColor: '#fff',
+  justifyContent: 'center',
+  zIndex: 1000,       // iOS
+  elevation: 1000,    // Android
+},
+dayPickerText: {
+  fontSize: 13,
+  textAlign: 'center',
+  color: '#000',
+},
+dayPickerDropDown: {
+  width: 96,
+  borderWidth: 1,
+  borderColor: '#e6e6e6',
+  zIndex: 1000,       // iOS
+  elevation: 1000,    // Android
+},
+dayPickerListLabel: {
+  fontSize: 13,
+  textAlign: 'center',
+},
   alternateButton: {
     padding: 8,
     backgroundColor: '#20D5FF',

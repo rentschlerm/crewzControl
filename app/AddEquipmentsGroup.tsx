@@ -304,6 +304,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     justifyContent: "space-between",
     marginTop: 150, 
+    borderRadius: 15,
   },
   footer: {
     flexDirection: "row",

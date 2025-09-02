@@ -2,14 +2,14 @@
   "expo": {
     "name": "CrewzControl",
     "slug": "crewzcontrol",
-    "version": "2.0.28",
+    "version": "2.1.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "jsEngine": "hermes",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
