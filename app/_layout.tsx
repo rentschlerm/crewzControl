@@ -4,8 +4,11 @@ import { QuoteProvider } from "../components/QuoteContext";
 
 export default function RootLayout() {
   return (
+
+
     <JobsProvider>
       <QuoteProvider>
+        
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }}/>
           <Stack.Screen name="SecurityCodeScreen" options={{ headerShown: false }}/>
@@ -18,6 +21,9 @@ export default function RootLayout() {
           <Stack.Screen name="AddSkillsGroup" options={{ headerShown: false }}/>
         </Stack>
       </QuoteProvider>
+      
     </JobsProvider>
+
+
   );
 }
