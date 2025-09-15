@@ -30,6 +30,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Calendar } from 'react-native-calendars'; 
 import DateTimePicker from '../components/DateTimePicker';
 import { useRoute } from '@react-navigation/native';
+import { useJobs } from '../components/JobContext';
 
 interface WorkPackageAlternate {
   AlternateName: string;
@@ -74,6 +75,7 @@ interface Service {
 }
 
 const ProjectUpdate: React.FC = () => {
+   const { fetchJobs } = useJobs();
   const router = useRouter();
   // const { job, quoteSerial } = useLocalSearchParams();
   const { job, quoteSerial } = useLocalSearchParams<{ job?: string; quoteSerial?: string }>();
@@ -746,45 +748,83 @@ const ProjectUpdate: React.FC = () => {
   //     };
   //   }, [deviceInfo, location, authorizationCode, jobObj.Serial, quoteSerial])
   // );
-  const handleBackPress = () => {
-  if (parseFloat(quoteHours) === 0) {
-    Alert.alert(
-      'Warning',
-      'A quote with 0 hours will not be scheduled. Do you wish to leave this quote with 0 Hours?',
-      [
-        {
-          text: 'No',
-          onPress: () => {
-            // Focus the TextInput again
-            if (hoursInputRef.current) {
-              hoursInputRef.current.focus();
-            }
-          },
-          style: 'cancel',
-        },
-        {
-          text: 'Yes',
-          onPress: () => {
-            router.push('/Project');
-          },
-        },
-      ],
-      { cancelable: false }
-    );
-  } else {
-    router.push('/Project');
-  }
-};
+
+  //--------------------------------------------------------------------------------------
+//   const handleBackPress = () => {
+//   if (parseFloat(quoteHours) === 0) {
+//     Alert.alert(
+//       'Warning',
+//       'A quote with 0 hours will not be scheduled. Do you wish to leave this quote with 0 Hours?',
+//       [
+//         {
+//           text: 'No',
+//           onPress: () => {
+//             // Focus the TextInput again
+//             if (hoursInputRef.current) {
+//               hoursInputRef.current.focus();
+//             }
+//           },
+//           style: 'cancel',
+//         },
+//         {
+//           text: 'Yes',
+//           onPress: () => {
+//             router.push('/Project');
+//           },
+//         },
+//       ],
+//       { cancelable: false }
+//     );
+//   } else {
+//     router.push('/Project');
+//   }
+// };
   
 
-  const handleCancel = () => {
-    // Alert.alert('Exit Without Saving?', 'Are you sure you want to exit without saving?', [
-    //   { text: 'No', style: 'cancel' },
-    //   { text: 'Yes', onPress: () =>  },
-    // ]);
-    router.back()
+//   const handleCancel = () => {
+//     // Alert.alert('Exit Without Saving?', 'Are you sure you want to exit without saving?', [
+//     //   { text: 'No', style: 'cancel' },
+//     //   { text: 'Yes', onPress: () =>  },
+//     // ]);
+//     router.back()
+//   };
+ //--------------------------------------------------------------------------------------
+  const handleBackPress = () => {
+    if (parseFloat(quoteHours) === 0) {
+      Alert.alert(
+        'Warning',
+        'A quote with 0 hours will not be scheduled. Do you wish to leave this quote with 0 Hours?',
+        [
+          {
+            text: 'No',
+            onPress: () => {
+              if (hoursInputRef.current) {
+                hoursInputRef.current.focus();
+              }
+            },
+            style: 'cancel',
+          },
+          {
+            text: 'Yes',
+            onPress: async () => {
+             await fetchJobs(); // Ensure jobs are refreshed
+              router.push('/Project');
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    } else {
+      fetchJobs().then(() => { // Ensure jobs are refreshed
+        router.push('/Project');
+      });
+    }
   };
- 
+
+  const handleCancel = async () => {
+    await fetchJobs(); // refresh before leaving
+    router.back();
+  };
   
   if (!job) {
     return <Text>Error: No job data found</Text>;
@@ -1187,9 +1227,9 @@ const ProjectUpdate: React.FC = () => {
                 setItems={() => {}}
                 style={styles.dayPicker}
                 textStyle={styles.dayPickerText}
-                dropDownContainerStyle={[styles.dayPickerDropDown, { zIndex: 1000 }]}
+                dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex:1000 }]}
                 listItemLabelStyle={styles.dayPickerListLabel}
-                zIndex={1000}
+                zIndex= {1000}
               />
             </View>
             </View>

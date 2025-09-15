@@ -57,17 +57,21 @@ interface JobsContextType {
   authorizationCode: string | null;
   setAuthorizationCode: (code: string) => void; 
   refreshJobs: () => Promise<void>;
+   fetchJobs: () => Promise<void>;
 }
 
 // Create a default context value
 const defaultContext: JobsContextType = {
   jobs: [],
-  updateJob: () => {},
+  updateJob: () => { },
   jobsReady: false,
   deviceInfo: null,
   authorizationCode: null,
-  setAuthorizationCode: () => {},
-  refreshJobs:  async () => {},
+  setAuthorizationCode: () => { },
+  refreshJobs: async () => { },
+  fetchJobs: function (): Promise<void> {
+    throw new Error('Function not implemented.');
+  }
 };
 
 export const JobsContext = createContext<JobsContextType>(defaultContext);
@@ -217,7 +221,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <JobsContext.Provider
-      value={{ jobs, updateJob, jobsReady, deviceInfo, authorizationCode, setAuthorizationCode,  refreshJobs: fetchJobs,  }}
+      value={{ jobs, updateJob, jobsReady, deviceInfo, authorizationCode, setAuthorizationCode,  refreshJobs: fetchJobs, fetchJobs,   }}
     >
       {children}
     </JobsContext.Provider>
