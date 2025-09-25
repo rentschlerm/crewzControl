@@ -9,7 +9,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define the Job type
 export interface Job {
-  notbefore?: string;
+  Expense: number,
+  NotBefore?: string;
   QuoteWorkPackages: any;
   Serial: any;
   QuoteNum: any;
@@ -31,12 +32,12 @@ export interface Job {
   address: string;
   city: string;
   status: string;
-  amount: string;
+  amount: number;
   urgency?: string;
   baseHours?: string;
-  mustCompleteDate?: string;
-  niceToHaveDate?: string;
-  blackoutDate?: string;
+  MustCompleteBy?: string;
+  NiceToHaveBy?: string;
+  BlackoutDate?: string;
   availableDate?: string;
 }
 
@@ -57,17 +58,21 @@ interface JobsContextType {
   authorizationCode: string | null;
   setAuthorizationCode: (code: string) => void; 
   refreshJobs: () => Promise<void>;
+   fetchJobs: () => Promise<void>;
 }
 
 // Create a default context value
 const defaultContext: JobsContextType = {
   jobs: [],
-  updateJob: () => {},
+  updateJob: () => { },
   jobsReady: false,
   deviceInfo: null,
   authorizationCode: null,
-  setAuthorizationCode: () => {},
-  refreshJobs:  async () => {},
+  setAuthorizationCode: () => { },
+  refreshJobs: async () => { },
+  fetchJobs: function (): Promise<void> {
+    throw new Error('Function not implemented.');
+  }
 };
 
 export const JobsContext = createContext<JobsContextType>(defaultContext);
@@ -155,6 +160,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             customerName: quote.Name || '-',
             address: quote.Address || '-',
             city: quote.City || '-',
+            Expense: quote.Expense || '0',
             // JCM 01/15/2025: Replace - with 0 on quote amount. When quote.Amount is equal to 0, it should display 0 not - to avoid $NaN issue on the UI
             amount: quote.Amount || '0',
             status: quote.Status || '-',
@@ -217,7 +223,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <JobsContext.Provider
-      value={{ jobs, updateJob, jobsReady, deviceInfo, authorizationCode, setAuthorizationCode,  refreshJobs: fetchJobs,  }}
+      value={{ jobs, updateJob, jobsReady, deviceInfo, authorizationCode, setAuthorizationCode,  refreshJobs: fetchJobs, fetchJobs,   }}
     >
       {children}
     </JobsContext.Provider>
