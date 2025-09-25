@@ -90,6 +90,11 @@ const ProjectUpdate: React.FC = () => {
   const [jobData, setJobData] = useState<Job | null>(null);
   
   const [customerName, setName] = useState(jobObj?.Name);
+  const [amount, setAmount] = useState(jobObj?.amount);
+  // const [expense, setExpense] = useState(jobObj?.Expense);
+  const [expense, setExpense] = useState<string>(
+  jobObj?.Expense !== undefined ? String(jobObj.Expense) : "0"
+);
   const [address, setAddress] = useState(jobObj?.Address);
   const [city, setCity] = useState(jobObj?.City);
   const [quoteNum, setQuoteNum] = useState(jobObj?.QuoteNum);
@@ -118,10 +123,10 @@ const ProjectUpdate: React.FC = () => {
 
   const [isMultiDay, setIsMultiDay] = useState(false);//track Multi-Day button
 
-  const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.mustCompleteDate);
-  const [niceToHaveDate, setNiceToHaveDate] = useState(jobObj?.niceToHaveDate);
-  const [blackoutDate, setBlackoutDate] = useState<string | undefined>(jobObj?.blackoutDate);
-  const [notBefore, setNotBefore] = useState(jobObj?.notbefore);
+  const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.MustCompleteBy);
+  const [niceToHaveDate, setNiceToHaveDate] = useState(jobObj?.NiceToHaveBy);
+  const [blackoutDate, setBlackoutDate] = useState<string | undefined>(jobObj?.BlackoutDate);
+  const [notBefore, setNotBefore] = useState(jobObj?.NotBefore);
   
   const [blackoutDates, setBlackoutDates] = useState<string[]>([]);
   
@@ -158,11 +163,11 @@ const ProjectUpdate: React.FC = () => {
 );
 
   useEffect(() => {
-    if (jobObj?.blackoutDate) {
-      const blackoutDatesArray = jobObj.blackoutDate.split(',').map(date => date.trim());
+    if (jobObj?.BlackoutDate) {
+      const blackoutDatesArray = jobObj.BlackoutDate.split(',').map(date => date.trim());
       setBlackoutDates(blackoutDatesArray);
     }
-  }, [jobObj?.blackoutDate]);
+  }, [jobObj?.BlackoutDate]);
 
   const formattedMarkedDates = blackoutDates.reduce((acc, date) => {
     if (date) {
@@ -262,72 +267,84 @@ const ProjectUpdate: React.FC = () => {
   
 
   const handleSave = async (updated: string | string[], type: string) => {
-    if (!deviceInfo || !location || !jobObj.Serial) {
-      Alert.alert('Device, location, or quote serial information is missing');
-      return;
-    }
-  
-    const crewzControlVersion = '1';
-    const currentDate = new Date();
-    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
-      currentDate.getDate()
-    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
-      2,
-      '0'
-    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
-  
-    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
-    const key = CryptoJS.SHA1(keyString).toString();
-  
-    const serial = jobObj.Serial;
-  
-    const validBlackoutDates = blackoutDates.filter(date => date.trim() !== ""); // Remove empty values
-    const formattedBlackoutDates = validBlackoutDates.length > 0 
-      ? validBlackoutDates.join(",") 
-      : "";
+  if (!deviceInfo || !location || !jobObj.Serial) {
+    Alert.alert('Device, location, or quote serial information is missing');
+    return;
+  }
 
-    // 🔹 Preserve existing blackout dates and append new ones
-    let updatedBlackoutDates = blackoutDates;
-    if (type === 'BlackoutDate') {
-      updatedBlackoutDates = Array.isArray(updated) ? [...blackoutDates, ...updated] : [...blackoutDates, updated];
+  const crewzControlVersion = '1';
+  const currentDate = new Date();
+  const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+    currentDate.getDate()
+  ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+    2,
+    '0'
+  )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+
+  const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+  const key = CryptoJS.SHA1(keyString).toString();
+
+  const serial = jobObj.Serial;
+
+  const validBlackoutDates = blackoutDates.filter(date => date.trim() !== "");
+  const formattedBlackoutDates = validBlackoutDates.length > 0 
+    ? validBlackoutDates.join(",") 
+    : "";
+
+  let updatedBlackoutDates = blackoutDates;
+  if (type === 'BlackoutDate') {
+    updatedBlackoutDates = Array.isArray(updated)
+      ? [...blackoutDates, ...updated]
+      : [...blackoutDates, updated];
+  }
+
+  const uniqueBlackoutDates = [...new Set(updatedBlackoutDates)].join(',');
+
+  // 🔹 Normalize Expense before sending
+  let expenseValue = expense;
+  if (type === "Expense") {
+    if (!updated || updated === "" || isNaN(Number(updated))) {
+      expenseValue = "0"; // fallback
+    } else {
+      expenseValue = updated.toString();
     }
-  
-    // 🔹 Ensure no duplicate blackout dates
-    const uniqueBlackoutDates = [...new Set(updatedBlackoutDates)].join(',');
-  
-    const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
-      deviceInfo.id
-    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${urgency}&MustCompleteBy=${
-      type === 'MustCompleteBy' ? updated : mustCompleteDate
-    }&NiceToHaveBy=${
-      type === 'NiceToHaveBy' ? updated : niceToHaveDate
-    }&BlackoutDate=${uniqueBlackoutDates || ''}&NotBefore=${
-      type === 'NotBefore' ? updated : notBefore
-    }&Hours=${ type === 'Hours' ? updated : quoteHours || ''}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
-  
-    console.log('Request URL:', url);
-  
-    try {
-      const response = await fetch(url);
-      const data = await response.text();
-      console.log('API Response:', data);
-  
-      const parser = new XMLParser();
-      const result = parser.parse(data);
-  
-      if (result.ResultInfo?.Result === 'Success') {
-        console.log('✅ Quote updated successfully.');
-        console.log('✅ Dates Array: ', uniqueBlackoutDates);
-        setBlackoutDates(updatedBlackoutDates); // Update state after successful API response
-      } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
-      }
-    } catch (error) {
-      console.error('❌ Error updating quote:', error);
-      Alert.alert('Error', 'An error occurred while updating the quote.');
+  }
+
+  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
+    deviceInfo.id
+  )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${urgency}&MustCompleteBy=${
+    type === 'MustCompleteBy' ? updated : mustCompleteDate
+  }&NiceToHaveBy=${
+    type === 'NiceToHaveBy' ? updated : niceToHaveDate
+  }&BlackoutDate=${uniqueBlackoutDates || ''}&NotBefore=${
+    type === 'NotBefore' ? updated : notBefore
+  }&Hours=${ type === 'Hours' ? updated : quoteHours || ''}&Expense=${
+    type === 'Expense' ? expenseValue : expense || '0'
+  }&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+
+  console.log('Request URL:', url);
+
+  try {
+    const response = await fetch(url);
+    const data = await response.text();
+    console.log('API Response:', data);
+
+    const parser = new XMLParser();
+    const result = parser.parse(data);
+
+    if (result.ResultInfo?.Result === 'Success') {
+      console.log('✅ Quote updated successfully.');
+      console.log('✅ Dates Array: ', uniqueBlackoutDates);
+      setBlackoutDates(updatedBlackoutDates);
+    } else {
+      Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
     }
-  };
-  
+  } catch (error) {
+    console.error('❌ Error updating quote:', error);
+    Alert.alert('Error', 'An error occurred while updating the quote.');
+  }
+};
+
   // const handleRemoveResources = async (quoteWorkPackages:string) => {
   //   if (deviceInfo || location || authorizationCode || jobObj.Serial){
   //     Alert.alert('Error', 'Device info, location. authorization code, or quote serial is missing.');
@@ -869,9 +886,61 @@ const ProjectUpdate: React.FC = () => {
                 <Text style={styles.textValue}>{city || 'N/A'}</Text>
               </View>
               <View style={styles.row}>
+                <Text style={styles.label}>Amount:</Text>
+                <Text style={styles.textValue}>{amount || 'N/A'}</Text>
+              </View>
+              {/* <View style={styles.row}>
+                <Text style={styles.label}>Expense:</Text>
+                <Text style={styles.textValue}>{expense || 'N/A'}</Text>
+              </View> */}
+              <View style={styles.row}>
                 <Text style={styles.label}>Quote#:</Text>
                 <Text style={styles.textValue}>{serial +'-'+ quoteNum || '-'}</Text>
               </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+  <Text 
+    style={{
+      width: 80,
+      fontSize: 16,
+      marginRight: -5,
+      color: parseInt(expense) === 0 ? 'red' : 'black',
+    }}
+  >
+    Expense:
+  </Text>
+
+  <TextInput
+    value={expense}
+    onChangeText={(text) => {
+      setExpense(text); // always string
+    }}
+    onBlur={() => {
+      const inputValue = parseInt(expense);
+      if (!isNaN(inputValue)) {
+        const normalized = inputValue.toString();
+        setExpense(normalized);
+        handleSave(normalized, "Expense");
+      } else {
+        setExpense("0");
+        handleSave("0", "Expense");
+      }
+    }}
+    placeholder="0"
+    keyboardType="number-pad"
+    style={{
+      width: 218,
+      height: 40,
+      paddingHorizontal: 8,
+      borderColor: '#ccc',
+      borderWidth: 1,
+      borderRadius: 5,
+      marginLeft: 50,
+      color: parseInt(expense) === 0 ? 'red' : 'black',
+    }}
+  />
+</View>
+
+
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
   {/* Fixed width label */}
   <Text 

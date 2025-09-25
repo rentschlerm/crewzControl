@@ -9,7 +9,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define the Job type
 export interface Job {
-  notbefore?: string;
+  Expense: number,
+  NotBefore?: string;
   QuoteWorkPackages: any;
   Serial: any;
   QuoteNum: any;
@@ -31,12 +32,12 @@ export interface Job {
   address: string;
   city: string;
   status: string;
-  amount: string;
+  amount: number;
   urgency?: string;
   baseHours?: string;
-  mustCompleteDate?: string;
-  niceToHaveDate?: string;
-  blackoutDate?: string;
+  MustCompleteBy?: string;
+  NiceToHaveBy?: string;
+  BlackoutDate?: string;
   availableDate?: string;
 }
 
@@ -159,6 +160,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             customerName: quote.Name || '-',
             address: quote.Address || '-',
             city: quote.City || '-',
+            Expense: quote.Expense || '0',
             // JCM 01/15/2025: Replace - with 0 on quote amount. When quote.Amount is equal to 0, it should display 0 not - to avoid $NaN issue on the UI
             amount: quote.Amount || '0',
             status: quote.Status || '-',
