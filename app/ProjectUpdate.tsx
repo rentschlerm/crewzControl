@@ -88,6 +88,7 @@ const ProjectUpdate: React.FC = () => {
   const { updateJob, authorizationCode } = useContext(JobsContext)!;
   const { width: deviceWidth } = Dimensions.get('window');
   const [jobData, setJobData] = useState<Job | null>(null);
+  const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
   
   const [customerName, setName] = useState(jobObj?.Name);
   const [amount, setAmount] = useState(jobObj?.amount);
@@ -1254,59 +1255,58 @@ const ProjectUpdate: React.FC = () => {
                       const selectedAlternates = alternates.filter(
                         (alt) => alt.WPAlternateStatus === 1
                       );
-                       const pickerZ = 1000 - index;
-
-                      return (
-                        <View key={index} style={styles.workPackageContainer}>
-                          {/* <View style={styles.headerRow}> */}
-                            {/* <Text style={styles.workPackageTitle}>
-                              {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
-                            </Text> */}
-                            <View style={[styles.rowContainer, { alignItems: 'center' }]}>
-                              {/* LEFT: Day picker (conditionally) + label */}
-        <View style={styles.leftGroup}>
+                      const pickerZ = !!qwp.open ? 9999 : 1000 - index;
+  return (
+    <View key={index} style={[styles.workPackageContainer, { zIndex: pickerZ, overflow: 'visible' }]}>
+      <View style={[styles.rowContainer, { alignItems: 'center', zIndex: pickerZ, overflow: 'visible' }]}>
+        <View style={[styles.leftGroup, { zIndex: pickerZ, overflow: 'visible' }]}>
           {isMultiDay && (
-            <View style={[{ zIndex: 1000 }]}>
-              <View style={styles.dropdownWrapper}>
-              <DropDownPicker
-                open={!!qwp.open}
-                value={qwp.selectedNumber ?? 'DAY 1'}
-                items={[
-                  { label: 'DAY 1', value: 'DAY 1' },
-                  { label: 'DAY 2', value: 'DAY 2' },
-                  { label: 'DAY 3', value: 'DAY 3' },
-                  { label: 'DAY 4', value: 'DAY 4' },
-                  { label: 'DAY 5', value: 'DAY 5' },
-                ]}
-                setOpen={(openOrFn) => {
-                  const open = typeof openOrFn === 'function' ? openOrFn(qwp.open ?? false) : openOrFn;
-                  qwp.open = open;
-                  setQuoteWorkPackages([...quoteWorkPackages]);
-                  return open;
-                }}
-                // typed param: either a callback or a direct value
-                setValue={(valOrCb: ((prev?: string) => string) | string) => {
-                  const newValue =
-                    typeof valOrCb === 'function'
-                      ? valOrCb(qwp.selectedNumber)
-                      : valOrCb;
-                  qwp.selectedNumber = newValue;
-                  setQuoteWorkPackages([...quoteWorkPackages]);
-                }}
-                setItems={() => {}}
-                style={styles.dayPicker}
-                textStyle={styles.dayPickerText}
-                dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex:1000 }]}
-                listItemLabelStyle={styles.dayPickerListLabel}
-                zIndex= {1000}
-              />
-            </View>
+
+            <View style={[{ zIndex: pickerZ, overflow: 'visible' }]}>
+              <View style={[styles.dropdownWrapper, { zIndex: pickerZ, overflow: 'visible' }]}>
+                <DropDownPicker
+  open={openPickerIndex === index}
+                  value={qwp.selectedNumber ?? 'DAY 1'}
+                  items={[
+                    { label: 'DAY 1', value: 'DAY 1' },
+                    { label: 'DAY 2', value: 'DAY 2' },
+                    { label: 'DAY 3', value: 'DAY 3' },
+                    { label: 'DAY 4', value: 'DAY 4' },
+                    { label: 'DAY 5', value: 'DAY 5' },
+                  ]}
+                  setOpen={(openOrFn) => {
+  const open = typeof openOrFn === 'function' ? openOrFn(qwp.open ?? false) : openOrFn;
+  // Only allow one open at a time
+  if (open) {
+    setOpenPickerIndex(index);
+    quoteWorkPackages.forEach((pkg, i) => pkg.open = i === index);
+  } else {
+    setOpenPickerIndex(null);
+    qwp.open = false;
+  }
+  setQuoteWorkPackages([...quoteWorkPackages]);
+  return open;
+}}
+                  setValue={(valOrCb: ((prev?: string) => string) | string) => {
+                    const newValue =
+                      typeof valOrCb === 'function'
+                        ? valOrCb(qwp.selectedNumber)
+                        : valOrCb;
+                    qwp.selectedNumber = newValue;
+                    setQuoteWorkPackages([...quoteWorkPackages]);
+                  }}
+                  setItems={() => {}}
+                  style={[styles.dayPicker, { zIndex: pickerZ }]}
+                  textStyle={styles.dayPickerText}
+                  dropDownContainerStyle={[styles.dayPickerDropDown, { zIndex: pickerZ }]}
+                  listItemLabelStyle={styles.dayPickerListLabel}
+                  zIndex={pickerZ}
+                />
+              </View>
+
             </View>
           )}
-
-                              {/* Equipment label */}
-                              {/* keep the label right next to the picker, shrink when needed */}
-          <Text
+                   <Text
             style={styles.workPackageTitle}
             numberOfLines={1}
             ellipsizeMode="tail"
@@ -1620,6 +1620,7 @@ selectedAltItem: {
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 2,
+    overflow: 'hidden',
   },
   dateFieldContainer: {
     flexDirection: 'row',
@@ -1733,6 +1734,8 @@ selectedHours: {
   flex: 1,            // label can take the remaining space
   paddingRight: 8,    // small gap before the right-side buttons
   justifyContent: 'flex-start',
+  zIndex: 1000,           // <-- Add this
+  overflow: 'visible',    // <-- Add this
 },
   dayPicker: {
   height: 36,
