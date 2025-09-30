@@ -9,6 +9,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define the Job type
 export interface Job {
+  Amount: string;
+  MultiDayFlag?: string;
+  MultiDayHour?: string;
   Expense: number,
   NotBefore?: string;
   QuoteWorkPackages: any;
@@ -154,6 +157,9 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
           const normalizedQuotes = Array.isArray(quotes) ? quotes : [quotes]; // Normalize single object to array
 
           const fetchedJobs = normalizedQuotes.map((quote: any) => ({
+            Amount: quote.Amount || '0',
+            MultiDayFlag: quote.MultiDayFlag || '-',
+            MultiDayHour: quote.MultiDayHour || '-',
             id: parseInt(quote.Serial, 10) ,
             quoteName: quote.QName || '-',
             QuoteNum: quote.QuoteNum || '_',

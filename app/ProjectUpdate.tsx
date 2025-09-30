@@ -91,11 +91,30 @@ const ProjectUpdate: React.FC = () => {
   const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
   
   const [customerName, setName] = useState(jobObj?.Name);
-  const [amount, setAmount] = useState(jobObj?.amount);
+  const [amount, setAmount] = useState(jobObj?.Amount);
   // const [expense, setExpense] = useState(jobObj?.Expense);
   const [expense, setExpense] = useState<string>(
   jobObj?.Expense !== undefined ? String(jobObj.Expense) : "0"
 );
+  const [multidayhour, setMultidayhour] = useState(jobObj?.MultiDayHour);
+  const [multidayflag, setMultidayflag] = useState(jobObj?.MultiDayFlag);
+  const multiDayHoursObj: Record<number, string> = {};
+if (multidayhour) {
+  multidayhour.split("|").forEach(pair => {
+    const [day, hour] = pair.split("-");
+    multiDayHoursObj[parseInt(day, 10)] = hour;
+  });
+}
+const initialMultiDayHoursObj: Record<number, string> = {};
+if (multidayhour) {
+  multidayhour.split("|").forEach(pair => {
+    const [dayStr, hoursStr] = pair.split("-");
+    const dayNum = parseInt(dayStr, 10);
+    if (dayNum <= maxDaySelected) { // only include visible days
+      initialMultiDayHoursObj[dayNum] = hoursStr;
+    }
+  });
+}
   const [address, setAddress] = useState(jobObj?.Address);
   const [city, setCity] = useState(jobObj?.City);
   const [quoteNum, setQuoteNum] = useState(jobObj?.QuoteNum);
@@ -123,6 +142,29 @@ const ProjectUpdate: React.FC = () => {
   const { location, fetchLocation } = useLocation(); // custom hook
 
   const [isMultiDay, setIsMultiDay] = useState(false);//track Multi-Day button
+  const [multiDayFlag, setMultiDayFlag] = useState<0 | 1>(0);
+  const [multiDayHours, setMultiDayHours] = useState<{ [key: number]: string }>({});
+  const [selectedDays, setSelectedDays] = useState<number[]>([1]);
+  const getDayNumber = (val: string | undefined): number => {
+  if (!val) return 0;
+  const match = val.match(/DAY (\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+};
+const maxDaySelected = Math.max(
+  ...quoteWorkPackages.map(qwp => getDayNumber(qwp.selectedNumber)),
+  ...skills.map(skill => parseInt(skill.selectedNumber || "0")),
+  ...equipments.map(eq => parseInt(eq.selectedNumber || "0")),
+  0 // fallback
+);
+const safeMaxDaySelected = Math.max(1, maxDaySelected || 1);
+Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
+  // const [multiDayHours, setMultiDayHours] = useState<Record<string, string>>({
+  //   "1": "",
+  //   "2": "",
+  //   "3": "",
+  //   "4": "",
+  //   "5": ""
+  // });
 
   const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.MustCompleteBy);
   const [niceToHaveDate, setNiceToHaveDate] = useState(jobObj?.NiceToHaveBy);
@@ -287,6 +329,7 @@ const ProjectUpdate: React.FC = () => {
 
   const serial = jobObj.Serial;
 
+  // 🔹 Blackout Dates Handling
   const validBlackoutDates = blackoutDates.filter(date => date.trim() !== "");
   const formattedBlackoutDates = validBlackoutDates.length > 0 
     ? validBlackoutDates.join(",") 
@@ -298,31 +341,56 @@ const ProjectUpdate: React.FC = () => {
       ? [...blackoutDates, ...updated]
       : [...blackoutDates, updated];
   }
-
   const uniqueBlackoutDates = [...new Set(updatedBlackoutDates)].join(',');
 
-  // 🔹 Normalize Expense before sending
+  // 🔹 Expense Handling
   let expenseValue = expense;
   if (type === "Expense") {
     if (!updated || updated === "" || isNaN(Number(updated))) {
-      expenseValue = "0"; // fallback
+      expenseValue = "0";
     } else {
       expenseValue = updated.toString();
     }
   }
 
+  // 🔹 MultiDayHour + MultiDayFlag
+  let multiDayHourValue = multiDayHours; // keep state value
+  let multiDayFlagValue = multiDayFlag; // keep state value (0 or 1)
+
+  if (type === "MultiDayHour") {
+    multiDayHourValue = Array.isArray(updated) ? updated.join("|") : updated;
+  }
+  // if (type === "MultiDayFlag") {
+  //   multiDayFlagValue = updated === "1" || updated === 1 ? 1 : 0;
+  // }
+if (type === "MultiDayHour") {
+  // Convert multiDayHours object into "day-hour|day-hour" format
+  const dayHourPairs = Object.entries(multiDayHours)
+    .map(([day, hours]) => {
+      // parseFloat and round to 2 decimals
+      const h = !isNaN(parseFloat(hours)) ? parseFloat(hours).toFixed(2) : "0.00";
+      return `${day}-${h}`;
+    })
+    .join("|");
+
+  multiDayHourValue = dayHourPairs;
+}
+
   const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
     deviceInfo.id
-  )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${urgency}&MustCompleteBy=${
-    type === 'MustCompleteBy' ? updated : mustCompleteDate
-  }&NiceToHaveBy=${
-    type === 'NiceToHaveBy' ? updated : niceToHaveDate
-  }&BlackoutDate=${uniqueBlackoutDates || ''}&NotBefore=${
-    type === 'NotBefore' ? updated : notBefore
-  }&Hours=${ type === 'Hours' ? updated : quoteHours || ''}&Expense=${
-    type === 'Expense' ? expenseValue : expense || '0'
-  }&Longitude=${location.longitude}&Latitude=${location.latitude}`;
-
+  )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}
+  &Priority=${urgency}
+  &MustCompleteBy=${type === 'MustCompleteBy' ? updated : mustCompleteDate}
+  &NiceToHaveBy=${type === 'NiceToHaveBy' ? updated : niceToHaveDate}
+  &BlackoutDate=${uniqueBlackoutDates || ''}
+  &NotBefore=${type === 'NotBefore' ? updated : notBefore}
+  &Hours=${type === 'Hours' ? updated : quoteHours || ''}
+  &Expense=${type === 'Expense' ? expenseValue : expense || '0'}
+  &MultiDayHour=${multiDayHourValue || ''}
+  &MultiDayFlag=${multiDayFlagValue}
+  &Longitude=${location.longitude}
+  &Latitude=${location.latitude}`;
+  console.log('MukltidayHour Value:', multiDayHourValue);
   console.log('Request URL:', url);
 
   try {
@@ -337,6 +405,8 @@ const ProjectUpdate: React.FC = () => {
       console.log('✅ Quote updated successfully.');
       console.log('✅ Dates Array: ', uniqueBlackoutDates);
       setBlackoutDates(updatedBlackoutDates);
+      setMultiDayHours(multiDayHourValue);
+      setMultiDayFlag(multiDayFlagValue);
     } else {
       Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
     }
@@ -888,105 +958,138 @@ const ProjectUpdate: React.FC = () => {
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Amount:</Text>
-                <Text style={styles.textValue}>{amount || 'N/A'}</Text>
+                <Text style={styles.textValue}>${amount}</Text>
               </View>
-              {/* <View style={styles.row}>
-                <Text style={styles.label}>Expense:</Text>
-                <Text style={styles.textValue}>{expense || 'N/A'}</Text>
-              </View> */}
               <View style={styles.row}>
                 <Text style={styles.label}>Quote#:</Text>
                 <Text style={styles.textValue}>{serial +'-'+ quoteNum || '-'}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-  <Text 
-    style={{
-      width: 80,
-      fontSize: 16,
-      marginRight: -5,
-      color: parseInt(expense) === 0 ? 'red' : 'black',
-    }}
-  >
-    Expense:
-  </Text>
+              <Text 
+                style={{
+                  width: 80,
+                  fontSize: 16,
+                  marginRight: -15,
+                  // color: parseInt(expense) === 0 ? 'red' : 'black',
+                }}
+              >
+                Expense:
+              </Text>
 
-  <TextInput
-    value={expense}
-    onChangeText={(text) => {
-      setExpense(text); // always string
-    }}
-    onBlur={() => {
-      const inputValue = parseInt(expense);
-      if (!isNaN(inputValue)) {
-        const normalized = inputValue.toString();
-        setExpense(normalized);
-        handleSave(normalized, "Expense");
-      } else {
-        setExpense("0");
-        handleSave("0", "Expense");
-      }
-    }}
-    placeholder="0"
-    keyboardType="number-pad"
-    style={{
-      width: 218,
-      height: 40,
-      paddingHorizontal: 8,
-      borderColor: '#ccc',
-      borderWidth: 1,
-      borderRadius: 5,
-      marginLeft: 50,
-      color: parseInt(expense) === 0 ? 'red' : 'black',
-    }}
-  />
-</View>
-
-
+              <TextInput
+                value={expense}
+                onChangeText={(text) => {
+                  setExpense(text); // always string
+                }}
+                onBlur={() => {
+                  const inputValue = parseInt(expense);
+                  if (!isNaN(inputValue)) {
+                    const normalized = inputValue.toString();
+                    setExpense(normalized);
+                    handleSave(normalized, "Expense");
+                  } else {
+                    setExpense("0");
+                    handleSave("0", "Expense");
+                  }
+                }}
+                placeholder="0"
+                keyboardType="number-pad"
+                style={{
+                  width: 218,
+                  height: 40,
+                  paddingHorizontal: 8,
+                  borderColor: '#ccc',
+                  borderWidth: 1,
+                  borderRadius: 5,
+                  marginLeft: 50,
+                  // color: parseInt(expense) === 0 ? 'red' : 'black',
+                }}
+              />
+            </View> 
+            {Number(multidayflag) === 0 ? (
+              // 🔹 Single Hours input (default)
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-  {/* Fixed width label */}
-  <Text 
-    style={[
-      {
-        width: 60, // fixed width for label to prevent shifting
-        fontSize: 16,
-        marginRight: -5,
-        color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
-      }
-    ]}
-  >
-    Hours:
-  </Text>
+              {/* Fixed width label */}
+              <Text 
+                style={[
+                  {
+                    width: 60, // fixed width for label to prevent shifting
+                    fontSize: 16,
+                    marginRight: 5,
+                    color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
+                  }
+                ]}
+              >
+                Hours:
+              </Text>
 
-  {/* Fixed width and height TextInput */}
-  <TextInput
-    ref={hoursInputRef}
-    value={quoteHours}
-    onChangeText={(text) => {
-      setQuoteHours(text); // Store as string
-    }}
-    onBlur={() => {
-      const inputValue = parseFloat(quoteHours);
-      if (!isNaN(inputValue)) {
-        const rounded = Math.round(inputValue * 4) / 4;
-        const formatted = rounded.toFixed(2);
-        setQuoteHours(formatted);
-        handleSave(formatted, "Hours");
-      }
-    }}
-    placeholder="0.00"
-    keyboardType="decimal-pad"
-    style={{
-      width: 218,  // fixed width
-      height: 40,  // fixed height
-      paddingHorizontal: 8,
-      borderColor: '#ccc',
-      borderWidth: 1,
-      borderRadius: 5,
-      marginLeft: 50,
-      color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
-    }}
-  />
-</View>
+              {/* Fixed width and height TextInput */}
+              <TextInput
+                ref={hoursInputRef}
+                value={quoteHours}
+                onChangeText={(text) => {
+                  setQuoteHours(text); // Store as string
+                }}
+                onBlur={() => {
+                  const inputValue = parseFloat(quoteHours);
+                  if (!isNaN(inputValue)) {
+                    const rounded = Math.round(inputValue * 4) / 4;
+                    const formatted = rounded.toFixed(2);
+                    setQuoteHours(formatted);
+                    handleSave(formatted, "Hours");
+                  }
+                }}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+                style={{
+                  width: 218,  // fixed width
+                  height: 40,  // fixed height
+                  paddingHorizontal: 8,
+                  borderColor: '#ccc',
+                  borderWidth: 1,
+                  borderRadius: 5,
+                  marginLeft: 50,
+                  color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
+                }}
+              />
+            </View>
+            ) : (
+              // 🔹 Multi-day Hours inputs (Day 1 → Day N depending on dropdowns)
+              <View style={{ marginTop: 15 }}>
+                 {Array.from({ length: maxDaySelected }, (_, i) => i + 1).map(day => (
+                    <View key={day} style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+                      <Text style={{ width: 60, fontSize: 16, marginRight: 57 }}>Hours Day {day}:</Text>
+                      <TextInput
+                        value={multiDayHoursObj[day] || ""}
+                        onChangeText={(text) => {
+                          multiDayHoursObj[day] = text;
+                        }}
+                        onBlur={() => {
+                          // Build MultiDayHour string for only visible days
+                          const dayHourPairs = Array.from({ length: maxDaySelected }, (_, i) => {
+                            const d = i + 1;
+                            const h = multiDayHoursObj[d] || "0.00";
+                            return `${d}-${parseFloat(h).toFixed(2)}`;
+                          }).join("|");
+
+                          setMultidayhour(dayHourPairs);
+                          handleSave(dayHourPairs, "MultiDayHour");
+                        }}
+                        placeholder="0"
+                        keyboardType="decimal-pad"
+                        style={{
+                          width: 200,
+                          height: 40,
+                          paddingHorizontal: 8,
+                          borderColor: "#ccc",
+                          borderWidth: 1,
+                          borderRadius: 5,
+                        }}
+                      />
+                    </View>
+                  ))}
+                </View>
+              )}
               <View style={[styles.row, { zIndex: 1000 }]}>
                   <Text style={styles.label}>Priority:</Text>
                   <View style={styles.dropdownWrapper}>
@@ -1260,7 +1363,7 @@ const ProjectUpdate: React.FC = () => {
     <View key={index} style={[styles.workPackageContainer, { zIndex: pickerZ, overflow: 'visible' }]}>
       <View style={[styles.rowContainer, { alignItems: 'center', zIndex: pickerZ, overflow: 'visible' }]}>
         <View style={[styles.leftGroup, { zIndex: pickerZ, overflow: 'visible' }]}>
-          {isMultiDay && (
+          {multiDayFlag === 1 && (
 
             <View style={[{ zIndex: pickerZ, overflow: 'visible' }]}>
               <View style={[styles.dropdownWrapper, { zIndex: pickerZ, overflow: 'visible' }]}>
@@ -1547,8 +1650,13 @@ const ProjectUpdate: React.FC = () => {
             <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
               <Text style={styles.cancelButtonText}>Back</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setIsMultiDay(prev => !prev)} style={styles.cancelButton}>
-              <Text style={styles.cancelButtonText}>{isMultiDay ? ' Multi-Day' : ' Multi-Day'}</Text>
+            <TouchableOpacity 
+              onPress={() => setMultiDayFlag(prev => (prev === 1 ? 0 : 1))}
+              style={styles.cancelButton}>
+                <Text 
+                style={styles.cancelButtonText}>
+                    {multiDayFlag === 1 ? "Multi-Day" : "Multi-Day"}
+                </Text>
             </TouchableOpacity>
             {/* <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
               <Text style={styles.saveButtonText}>Save</Text>

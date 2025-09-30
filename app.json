@@ -2,7 +2,7 @@
   "expo": {
     "name": "CrewzControl",
     "slug": "crewzcontrol",
-    "version": "2.1.4",
+    "version": "2.1.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -21,7 +21,8 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location at all times.",
         "ITSAppUsesNonExemptEncryption": false,
         "deploymentTarget": "13.0"
-      }
+      },
+      "jsEngine": "jsc"
     },
     "android": {
       "adaptiveIcon": {
