@@ -64,15 +64,18 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
       <View style={styles.row}>
       <Text style={[styles.label, labelStyle]}>{label}</Text>
 
-      {/* 📅 Show Calendar Button */}
+      {/* Show Calendar Button */}
       <TouchableOpacity
         style={styles.showCalendarButton}
         onPress={() => setIsCalendarVisible(true)}
       >
-        <Text style={styles.showCalendarText}>Show Calendar</Text>
+        {/* <Text style={styles.showCalendarText}>Show Calendar</Text> */}
+        <Text style={styles.showCalendarText} numberOfLines={1} ellipsizeMode="tail">
+          Show Calendar
+        </Text>
       </TouchableOpacity>
       </View>
-      {/* 📅 Calendar Modal */}
+      {/* Calendar Modal */}
       {isCalendarVisible && (
         <Modal transparent animationType="slide" visible={isCalendarVisible}>
           <View style={styles.modalContainer}>
