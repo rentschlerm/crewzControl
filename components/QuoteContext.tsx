@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import * as Location from 'expo-location';
-import { useJobs } from './JobContext'; // deviceInfo + authorizationCode
+// import { useJobs } from './JobContext'; // deviceInfo + authorizationCode
 
 // ----------------------
 // Types
@@ -19,6 +19,13 @@ interface QuoteContextType {
   quotes: Record<string, Quote[] | null>; // store quotes per jobId
   fetchQuoteDetailsFromAPI : (jobId: string) => Promise<Quote[] | null>;
   loadingQuote: boolean;
+}
+
+interface DeviceInfo {
+  id: string;
+  type: string;
+  model: string;
+  version: string;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
@@ -38,8 +45,15 @@ const formatDate = (date: Date): string => {
 // ----------------------
 // Provider
 // ----------------------
-export const QuoteProvider = ({ children }: { children: ReactNode }) => {
-  const { deviceInfo, authorizationCode } = useJobs(); 
+export const QuoteProvider = ({ 
+  children, 
+  deviceInfo, 
+  authorizationCode 
+}: { 
+  children: ReactNode;
+  deviceInfo: DeviceInfo | null;
+  authorizationCode: string | null;
+}) => {
   const [quotes, setQuotes] = useState<Record<number, Quote[] | null>>({});
   const [loadingQuote, setLoadingQuote] = useState(false);
 

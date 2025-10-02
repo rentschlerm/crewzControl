@@ -3,7 +3,8 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "strict": true,
-    "esModuleInterop": true, 
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "paths": {
       "@/*": [
         "./*"
@@ -15,5 +16,9 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "app-example/**/*",
+    "components/__tests__/**/*"
   ]
 }

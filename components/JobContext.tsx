@@ -102,7 +102,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   
     const fetchJobs = async () => {
       // JCM 01/18/2025: Removed the !location condition as it was created separately
-      if (!deviceInfo || !authorizationCode || jobsFetched) return; // Exit if jobs are already fetched or data is missing
+      // M.G. 10/1/2025 - Removed jobsFetched check to allow refetching quotes every time screen opens
+      if (!deviceInfo || !authorizationCode) return; // Exit if data is missing (removed jobsFetched check to allow refetching)
 
       // JCM 01/18/2025: Make variables for location's longitude and latitude to be used for the API URL
       let longitude = location?.longitude;
@@ -198,7 +199,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
           setJobs(fetchedJobs);
           setJobsReady(true);
-          setJobsFetched(true); // Mark jobs as fetched
+          // M.G. 10/1/2025 - Removed setJobsFetched(true) to allow refetching
         } else {
           console.warn('Failed to fetch quotes:', resultInfo?.Message);
         }
