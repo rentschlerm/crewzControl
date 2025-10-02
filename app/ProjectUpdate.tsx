@@ -91,23 +91,23 @@ const ProjectUpdate: React.FC = () => {
   const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
   
   const [customerName, setName] = useState(jobObj?.Name);
-  const [amount, setAmount] = useState(jobObj?.Amount);
+  const [amount, setAmount] = useState(jobObj?.amount);
   // const [expense, setExpense] = useState(jobObj?.Expense);
   const [expense, setExpense] = useState<string>(
   jobObj?.Expense !== undefined ? String(jobObj.Expense) : "0"
 );
-  const [multidayhour, setMultidayhour] = useState(jobObj?.MultiDayHour);
-  const [multidayflag, setMultidayflag] = useState(jobObj?.MultiDayFlag);
+  const [multidayhour, setMultidayhour] = useState((jobObj as any)?.MultiDayHour);
+  const [multidayflag, setMultidayflag] = useState((jobObj as any)?.MultiDayFlag);
   const multiDayHoursObj: Record<number, string> = {};
 if (multidayhour) {
-  multidayhour.split("|").forEach(pair => {
+  multidayhour.split("|").forEach((pair: string) => {
     const [day, hour] = pair.split("-");
     multiDayHoursObj[parseInt(day, 10)] = hour;
   });
 }
 const initialMultiDayHoursObj: Record<number, string> = {};
 if (multidayhour) {
-  multidayhour.split("|").forEach(pair => {
+  multidayhour.split("|").forEach((pair: string) => {
     const [dayStr, hoursStr] = pair.split("-");
     const dayNum = parseInt(dayStr, 10);
     if (dayNum <= maxDaySelected) { // only include visible days
@@ -964,95 +964,57 @@ if (type === "MultiDayHour") {
                 <Text style={styles.label}>Quote#:</Text>
                 <Text style={styles.textValue}>{serial +'-'+ quoteNum || '-'}</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              <Text 
-                style={{
-                  width: 80,
-                  fontSize: 16,
-                  marginRight: -15,
-                  // color: parseInt(expense) === 0 ? 'red' : 'black',
-                }}
-              >
-                Expense:
-              </Text>
-
-              <TextInput
-                value={expense}
-                onChangeText={(text) => {
-                  setExpense(text); // always string
-                }}
-                onBlur={() => {
-                  const inputValue = parseInt(expense);
-                  if (!isNaN(inputValue)) {
-                    const normalized = inputValue.toString();
-                    setExpense(normalized);
-                    handleSave(normalized, "Expense");
-                  } else {
-                    setExpense("0");
-                    handleSave("0", "Expense");
-                  }
-                }}
-                placeholder="0"
-                keyboardType="number-pad"
-                style={{
-                  width: 218,
-                  height: 40,
-                  paddingHorizontal: 8,
-                  borderColor: '#ccc',
-                  borderWidth: 1,
-                  borderRadius: 5,
-                  marginLeft: 50,
-                  // color: parseInt(expense) === 0 ? 'red' : 'black',
-                }}
-              />
-            </View> 
+              <View style={styles.inputRow}>
+                <Text style={[styles.inputLabel, { color: parseInt(expense) === 0 ? 'red' : 'black' }]}>
+                  Expense:
+                </Text>
+                <TextInput
+                  value={expense}
+                  onChangeText={(text) => {
+                    setExpense(text); // always string
+                  }}
+                  onBlur={() => {
+                    const inputValue = parseInt(expense);
+                    if (!isNaN(inputValue)) {
+                      const normalized = inputValue.toString();
+                      setExpense(normalized);
+                      handleSave(normalized, "Expense");
+                    } else {
+                      setExpense("0");
+                      handleSave("0", "Expense");
+                    }
+                  }}
+                  placeholder="0"
+                  keyboardType="number-pad"
+                  style={[styles.inputField, { color: parseInt(expense) === 0 ? 'red' : 'black' }]}
+                />
+              </View> 
             {Number(multidayflag) === 0 ? (
               // 🔹 Single Hours input (default)
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              {/* Fixed width label */}
-              <Text 
-                style={[
-                  {
-                    width: 60, // fixed width for label to prevent shifting
-                    fontSize: 16,
-                    marginRight: 5,
-                    color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
-                  }
-                ]}
-              >
-                Hours:
-              </Text>
-
-              {/* Fixed width and height TextInput */}
-              <TextInput
-                ref={hoursInputRef}
-                value={quoteHours}
-                onChangeText={(text) => {
-                  setQuoteHours(text); // Store as string
-                }}
-                onBlur={() => {
-                  const inputValue = parseFloat(quoteHours);
-                  if (!isNaN(inputValue)) {
-                    const rounded = Math.round(inputValue * 4) / 4;
-                    const formatted = rounded.toFixed(2);
-                    setQuoteHours(formatted);
-                    handleSave(formatted, "Hours");
-                  }
-                }}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
-                style={{
-                  width: 218,  // fixed width
-                  height: 40,  // fixed height
-                  paddingHorizontal: 8,
-                  borderColor: '#ccc',
-                  borderWidth: 1,
-                  borderRadius: 5,
-                  marginLeft: 50,
-                  color: parseFloat(quoteHours) === 0 ? 'red' : 'black',
-                }}
-              />
-            </View>
+              <View style={styles.inputRow}>
+                <Text style={[styles.inputLabel, { color: parseFloat(quoteHours) === 0 ? 'red' : 'black' }]}>
+                  Hours:
+                </Text>
+                <TextInput
+                  ref={hoursInputRef}
+                  value={quoteHours}
+                  onChangeText={(text) => {
+                    setQuoteHours(text); // Store as string
+                  }}
+                  onBlur={() => {
+                    const inputValue = parseFloat(quoteHours);
+                    if (!isNaN(inputValue)) {
+                      const rounded = Math.round(inputValue * 4) / 4;
+                      const formatted = rounded.toFixed(2);
+                      setQuoteHours(formatted);
+                      handleSave(formatted, "Hours");
+                    }
+                  }}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  style={[styles.inputField, { color: parseFloat(quoteHours) === 0 ? 'red' : 'black' }]}
+                />
+              </View>
             ) : (
               // 🔹 Multi-day Hours inputs (Day 1 → Day N depending on dropdowns)
               <View style={{ marginTop: 15 }}>
@@ -1090,35 +1052,29 @@ if (type === "MultiDayHour") {
                   ))}
                 </View>
               )}
-              <View style={[styles.row, { zIndex: 1000 }]}>
-                  <Text style={styles.label}>Priority:</Text>
-                  <View style={styles.dropdownWrapper}>
-                    <DropDownPicker
-                      open={urgencyOpen}
-                      value={urgency}
-                      items={[
-                        { label: 'Emergency', value: 'Emergency' },
-                        { label: 'Urgent', value: 'Urgent' },
-                        { label: 'Normal', value: 'Normal' },
-                      ]}
-                      setOpen={setUrgencyOpen}
-                      setValue={setUrgency}
-                      style={[styles.dropdownStyle, { width: 220, marginLeft: -60, marginBottom: 20 }]}
-                      dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex: 1000 }]}
-                      // listMode="MODAL"
-                      // modalProps={{
-                      //   transparent: false, 
-                      // }}
-                      zIndex={1000}
-                    />
-                  </View>
-
+              <View style={[styles.inputRow, { zIndex: 1000 }]}>
+                <Text style={styles.inputLabel}>Priority:</Text>
+                <View style={styles.dropdownWrapper}>
+                  <DropDownPicker
+                    open={urgencyOpen}
+                    value={urgency}
+                    items={[
+                      { label: 'Emergency', value: 'Emergency' },
+                      { label: 'Urgent', value: 'Urgent' },
+                      { label: 'Normal', value: 'Normal' },
+                    ]}
+                    setOpen={setUrgencyOpen}
+                    setValue={setUrgency}
+                    style={[styles.dropdownStyle, styles.inputField]}
+                    dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex: 1000 }]}
+                    zIndex={1000}
+                  />
+                </View>
               </View>
               <View style={styles.dateSection}>
               <CustomDatePicker
                   label="Do Not Schedule Before:"
                   value={notBefore || ''} // Value from the state
-                  labelStyle={{ textAlign: 'right', fontSize: 16 }}
                   onChange={(date) => {
                     console.log('Not Before Updated:', date);
                     setNotBefore(date); // Updates the state
@@ -1128,7 +1084,6 @@ if (type === "MultiDayHour") {
                 <CustomDatePicker
                   label="Nice To Have By:"
                   value={niceToHaveDate || ''} // Value from the state
-                  labelStyle={{ textAlign: 'right', fontSize: 16 }}
                   onChange={(date) => {
                     console.log('NiceToHaveBy Updated:', date);
                     setNiceToHaveDate(date); // Updates the state
@@ -1138,7 +1093,6 @@ if (type === "MultiDayHour") {
                 <CustomDatePicker
                   label="Must Be Complete By:"
                   value={mustCompleteDate || ''} // Value from the state
-                  labelStyle={{ textAlign: 'right', fontSize: 16 }}
                   onChange={(date) => {
                     console.log('MustCompleteBy Updated:', date);
                     setMustCompleteDate(date); // Updates the state
@@ -1148,7 +1102,6 @@ if (type === "MultiDayHour") {
                             <DateTimePicker
                               label="Blackout Date(s): "
                               initialDates={blackoutDate} // 🔹 Persist blackout dates from API
-                              labelStyle={{ textAlign: 'right', fontSize: 16 }}
                               onChange={(updatedDates) => {
                                 const cleanedDates = updatedDates.filter(date => /^\d{2}\/\d{2}\/\d{4}$/.test(date)); // ✅ Filter valid dates
                                 
@@ -2059,9 +2012,17 @@ dayPickerListLabel: {
   workPackageContainer: { marginBottom: 10, padding: 10, backgroundColor: '#e9e9e9', borderRadius: 5 },
   alternateContainer: { marginTop: 5, paddingLeft: 10 },
   alternateTitle: { fontWeight: 'bold' },
-  dropdownStyle: { borderWidth: 1, borderColor: '#ccc', height: 40, borderRadius: 5, color:'white' },
+  dropdownStyle: { 
+    borderWidth: 1, 
+    borderColor: '#ccc', 
+    height: 40, 
+    borderRadius: 5, 
+    backgroundColor: '#fff',
+    minHeight: 40,
+  },
   dropDownContainerStyle: { backgroundColor: '#fafafa' },
-  dropdownWrapper: { flex: 1 }, 
+  // M.G. 10/1/2025 - Fixed dropdown width to match other input fields
+  dropdownWrapper: { flex: 0.65 }, 
   mainDiv: {
     flex: 1,
     width: '90%',
@@ -2081,11 +2042,9 @@ dayPickerListLabel: {
   },
   dateSection: {
     marginTop: 20,
-    padding: 15,
     marginBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
+    // M.G. 10/1/2025 - Removed padding to align date fields with main input fields
+    flexDirection: 'column',
   },
   sectionHeader: {
     fontSize: 16,
@@ -2130,6 +2089,29 @@ dayPickerListLabel: {
     fontWeight: 'bold',
     fontSize: 16,
     textAlign: 'left',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  inputLabel: {
+    // M.G. 10/1/2025 - Responsive flexbox layout for consistent alignment across all screen sizes
+    flex: 0.4, // Takes 40% of available width
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'left',
+    marginRight: 10,
+  },
+  inputField: {
+    // M.G. 10/1/2025 - Responsive flexbox layout for consistent alignment across all screen sizes
+    flex: 0.6, // Takes 60% of available width
+    height: 40,
+    paddingHorizontal: 8,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    backgroundColor: '#fff',
   },
   input: {
     flex: 2,

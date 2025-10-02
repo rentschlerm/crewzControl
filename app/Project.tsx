@@ -17,7 +17,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
-import { useRouter } from 'expo-router'; // Import useRouter
+import { useRouter, useFocusEffect } from 'expo-router'; // Import useRouter and useFocusEffect
 import LogoStyles from '../components/LogoStyles';
 import { getDeviceInfo } from '../components/DeviceUtils';
 import { XMLParser } from 'fast-xml-parser';
@@ -72,6 +72,24 @@ const Project: React.FC = () => {
     fetchDeviceInfo();
     fetchLocation();
   }, []);
+
+  // M.G. 10/1/2025
+  // Fetch quotes when the screen first loads
+  useEffect(() => {
+    if (jobsContext?.fetchJobs) {
+      jobsContext.fetchJobs();
+    }
+  }, []); // Empty dependency array - only runs once on mount
+
+  // M.G. 10/1/2025
+  // Fetch quotes every time the screen is focused (when user navigates back to this screen)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (jobsContext?.fetchJobs) {
+        jobsContext.fetchJobs();
+      }
+    }, []) // Empty dependency array to prevent infinite loop
+  );
   
   if (!jobsContext) {
     return <Text>Error: JobsContext not available</Text>;
@@ -243,10 +261,7 @@ return (
     keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} // Adjust based on your header height
   >
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={{ flex: 1 }}>
         <ImageBackground
           source={require('../assets/images/background.png')}
           style={styles.background}
@@ -270,7 +285,8 @@ return (
 
             <View style={styles.sectionDiv}>
               <Text style={styles.sectionTitle}>Recent:</Text>
-              {jobs.slice(1, 4).map((item) => (
+              {/* M.G. 10/1/2025 - Display up to 5 quotes in recent list */}
+              {jobs.slice(1, 6).map((item) => (
                 <JobListItem key={item.id.toString()} job={item} onPress={handleJobPress} />
               ))}
             </View>
@@ -297,7 +313,7 @@ return (
             </View>
           </View>
         </ImageBackground>
-      </ScrollView>
+      </View>
     </TouchableWithoutFeedback>
   </KeyboardAvoidingView>
 );
@@ -328,7 +344,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 15,
     marginBottom: 20, // Spacing for the sections
-    marginTop: 140
+    // M.G. 10/1/2025 - Adjusted marginTop to position quote container closer to header
+    marginTop: 110 // Adjusted to avoid covering the CREWZ CONTROL header
   },
   loadingText: {
     fontSize: 18,
@@ -341,7 +358,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   sectionDiv: {
-    marginBottom: 20, // Space between each section
+    // M.G. 10/1/2025 - Reduced spacing for more compact layout
+    marginBottom: 10, // Reduced space between each section
   },
   sectionTitle: {
     fontSize: 18,
@@ -351,12 +369,13 @@ const styles = StyleSheet.create({
   jobRow: {
     
     justifyContent: 'space-between',
-     paddingVertical: 10,
-    padding: 15,
+    // M.G. 10/1/2025 - Reduced padding and margins for more compact quote items
+     paddingVertical: 8, // Reduced from 10
+    padding: 12, // Reduced from 15
     backgroundColor: '#fff',
      borderBottomWidth: 1,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: 6, // Reduced from 10
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 5,
@@ -396,7 +415,8 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    // M.G. 10/1/2025 - Reduced marginTop for more compact layout
+    marginTop: 10, // Reduced from 20
   },
   searchInput: {
     flex: 1,

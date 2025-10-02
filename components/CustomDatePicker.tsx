@@ -214,38 +214,36 @@ const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
-    marginVertical: 8,
+    marginBottom: 10,
+    // M.G. 10/1/2025 - Added width: '100%' to make container occupy full width for proper alignment
+    width: '100%',
   },
   row: {
-    // flexDirection: 'row', // Arrange label and input horizontally
-    alignItems: 'center', // Vertically align elements
-    // marginBottom: 10,
-    flexDirection: 'row', // Keep the label and date picker in the same row
-    justifyContent: 'space-between', // Align the items to the right
-    width: '100%', // Ensure the row takes full width
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    // M.G. 10/1/2025 - Added width: '100%' for proper alignment with main input fields
+    width: '100%',
   },
   label: {
-    marginRight: 8, // Space between label and input
-    fontSize: 14,
+    // M.G. 10/1/2025 - Responsive flexbox layout to match main input fields alignment
+    flex: 0.4, // Takes 40% of available width
+    fontSize: 16,
     fontWeight: 'bold',
-    justifyContent: 'space-between',
-    flex: 1,
+    textAlign: 'left',
+    marginRight: 10,
   },
   input: {
+    // M.G. 10/1/2025 - Responsive flexbox layout to match main input fields alignment
+    flex: 0.6, // Takes 60% of available width
     height: 40,
-    minWidth: 30,
-    maxWidth: '40%',
-    width: 'auto',
-    borderColor: 'gray',
+    borderColor: '#ccc',
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    fontSize: 18,
-    textAlign: 'right',
-    paddingVertical: 8, 
-    lineHeight: 18,
-    flex: 1,
+    borderRadius: 5,
+    paddingHorizontal: 8,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   readOnly: {
     backgroundColor: '#f0f0f0',
