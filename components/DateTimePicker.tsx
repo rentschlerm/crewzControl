@@ -64,18 +64,15 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
       <View style={styles.row}>
       <Text style={[styles.label, labelStyle]}>{label}</Text>
 
-      {/* Show Calendar Button */}
+      {/* 📅 Show Calendar Button */}
       <TouchableOpacity
         style={styles.showCalendarButton}
         onPress={() => setIsCalendarVisible(true)}
       >
-        {/* <Text style={styles.showCalendarText}>Show Calendar</Text> */}
-        <Text style={styles.showCalendarText} numberOfLines={1} ellipsizeMode="tail">
-          Show Calendar
-        </Text>
+        <Text style={styles.showCalendarText}>Show Calendar</Text>
       </TouchableOpacity>
       </View>
-      {/* Calendar Modal */}
+      {/* 📅 Calendar Modal */}
       {isCalendarVisible && (
         <Modal transparent animationType="slide" visible={isCalendarVisible}>
           <View style={styles.modalContainer}>
@@ -106,37 +103,34 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { marginVertical: 10 },
+  // M.G. 10/1/2025 - Added width: '100%' to make container occupy full width for proper alignment
+  container: { marginBottom: 10, width: '100%' },
   label: { 
-    marginRight: 8, // Space between label and input
-    fontSize: 14,
+    // M.G. 10/1/2025 - Responsive flexbox layout to match main input fields alignment
+    flex: 0.4, // Takes 40% of available width
+    fontSize: 16,
     fontWeight: 'bold',
-    justifyContent: 'space-between',
-    flex: 1,
+    textAlign: 'left',
+    marginRight: 10,
   },
   showCalendarButton: {
-    backgroundColor: '#20D5FF',
-    borderColor: 'gray',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    fontSize: 18,
-    textAlign: 'right',
-    paddingVertical: 8, 
-    lineHeight: 18,
-    flex: 1,
+    // M.G. 10/1/2025 - Responsive flexbox layout to match main input fields alignment
+    flex: 0.6, // Takes 60% of available width
     height: 40,
-    minWidth: 30,
-    maxWidth: '40%',
-    width: 'auto',
+    backgroundColor: '#20D5FF',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   row: {
-    // flexDirection: 'row', // Arrange label and input horizontally
-    alignItems: 'center', // Vertically align elements
-    // marginBottom: 10,
-    flexDirection: 'row', // Keep the label and date picker in the same row
-    justifyContent: 'space-between', // Align the items to the right
-    width: '100%', // Ensure the row takes full width
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    // M.G. 10/1/2025 - Added width: '100%' and removed problematic justifyContent/width for proper alignment
+    width: '100%',
   },
   showCalendarText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
   modalContainer: {
