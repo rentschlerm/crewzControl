@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   Alert,
   ImageBackground,
@@ -74,6 +75,60 @@ interface Service {
   WorkPackages: WorkPackage | WorkPackage[] | undefined;
 }
 
+//M.G. 10/6/2025
+// Fixed Multi-Day functionality: replaced broken dropdowns with Alert dialogs, 
+// fixed text truncation and UI layout issues, added separate MultiDayButton component
+
+// Two separate buttons - no re-rendering, just show/hide
+const MultiDayOffButton: React.FC<{
+  isUpdatingMultiDay: boolean;
+  onPress: () => void;
+  style?: any;
+}> = ({ isUpdatingMultiDay, onPress, style }) => {
+  return (
+    <TouchableOpacity 
+      onPress={() => {
+        console.log('🚨 MultiDay OFF button pressed!');
+        onPress();
+      }}
+      disabled={isUpdatingMultiDay}
+      style={[
+        styles.cancelButton,
+        isUpdatingMultiDay && { opacity: 0.7 },
+        style
+      ]}>
+      <Text style={styles.cancelButtonText}>
+        {isUpdatingMultiDay ? "Updating..." : "Multi-Day OFF"}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
+const MultiDayOnButton: React.FC<{
+  isUpdatingMultiDay: boolean;
+  onPress: () => void;
+  style?: any;
+}> = ({ isUpdatingMultiDay, onPress, style }) => {
+  return (
+    <TouchableOpacity 
+      onPress={() => {
+        console.log('🚨 MultiDay ON button pressed!');
+        onPress();
+      }}
+      disabled={isUpdatingMultiDay}
+      style={[
+        styles.cancelButton,
+        { backgroundColor: '#007BFF' },
+        isUpdatingMultiDay && { opacity: 0.7 },
+        style
+      ]}>
+      <Text style={[styles.cancelButtonText, { color: 'white' }]}>
+        {isUpdatingMultiDay ? "Updating..." : "Multi-Day ON"}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
 const ProjectUpdate: React.FC = () => {
    const { fetchJobs } = useJobs();
   const router = useRouter();
@@ -97,7 +152,27 @@ const ProjectUpdate: React.FC = () => {
   jobObj?.Expense !== undefined ? String(jobObj.Expense) : "0"
 );
   const [multidayhour, setMultidayhour] = useState((jobObj as any)?.MultiDayHour);
-  const [multidayflag, setMultidayflag] = useState((jobObj as any)?.MultiDayFlag);
+  
+  // Initialize multi-day mode based on received MultiDayFlag
+  useEffect(() => {
+    const initialMultiDayFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
+    console.log('🔄 Initializing Multi-Day mode:', { 
+      jobObjMultiDayFlag: (jobObj as any)?.MultiDayFlag, 
+      initialMultiDayFlag,
+      currentLocalFlag: localMultiDayFlag,
+      isUpdatingMultiDay
+    });
+    
+    // Only initialize if we're not currently updating (to prevent overriding manual changes)
+    if (!isUpdatingMultiDay) {
+      setMultiDayFlag(initialMultiDayFlag);
+      // Only update localMultiDayFlag if it's different from the initial value
+      if (localMultiDayFlag !== initialMultiDayFlag) {
+        setLocalMultiDayFlag(initialMultiDayFlag);
+      }
+      setIsMultiDay(initialMultiDayFlag === 1);
+    }
+  }, [jobObj, isUpdatingMultiDay]);
   const multiDayHoursObj: Record<number, string> = {};
 if (multidayhour) {
   multidayhour.split("|").forEach((pair: string) => {
@@ -144,6 +219,43 @@ if (multidayhour) {
   const [isMultiDay, setIsMultiDay] = useState(false);//track Multi-Day button
   const [multiDayFlag, setMultiDayFlag] = useState<0 | 1>(0);
   const [multiDayHours, setMultiDayHours] = useState<{ [key: number]: string }>({});
+  const [isUpdatingMultiDay, setIsUpdatingMultiDay] = useState(false);
+  const [forceRender, setForceRender] = useState(0);
+  const [localMultiDayFlag, setLocalMultiDayFlag] = useState<0 | 1>(() => {
+    const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
+    console.log('🔄 Initializing localMultiDayFlag:', initialFlag);
+    return initialFlag;
+  });
+  const [buttonRenderKey, setButtonRenderKey] = useState(0);
+  const [forceUpdate, setForceUpdate] = useState(0);
+  const [componentKey, setComponentKey] = useState(0);
+  const [showMultiDayUI, setShowMultiDayUI] = useState(() => {
+    const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
+    return initialFlag === 1;
+  });
+  const buttonRef = useRef<any>(null);
+  const stateRef = useRef({ localMultiDayFlag, isUpdatingMultiDay });
+  const [buttonClickCount, setButtonClickCount] = useState(0);
+  const [buttonState, setButtonState] = useState(() => {
+    const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
+    return {
+      flag: initialFlag,
+      text: initialFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+      buttonStyle: initialFlag === 1 ? { backgroundColor: '#007BFF' } : {},
+      textStyle: initialFlag === 1 ? { color: 'white' } : {}
+    };
+  });
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('🔄 State changed - multiDayFlag:', multiDayFlag, 'isMultiDay:', isMultiDay);
+  }, [multiDayFlag, isMultiDay]);
+
+  // Keep ref updated with current state
+  useEffect(() => {
+    stateRef.current = { localMultiDayFlag, isUpdatingMultiDay };
+  }, [localMultiDayFlag, isUpdatingMultiDay]);
+
   const [selectedDays, setSelectedDays] = useState<number[]>([1]);
   const getDayNumber = (val: string | undefined): number => {
   if (!val) return 0;
@@ -360,9 +472,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   if (type === "MultiDayHour") {
     multiDayHourValue = Array.isArray(updated) ? updated.join("|") : updated;
   }
-  // if (type === "MultiDayFlag") {
-  //   multiDayFlagValue = updated === "1" || updated === 1 ? 1 : 0;
-  // }
+  if (type === "MultiDayFlag") {
+    const flagValue = Array.isArray(updated) ? updated[0] : updated;
+    multiDayFlagValue = (flagValue === "1" || flagValue === "1") ? 1 : 0;
+  }
 if (type === "MultiDayHour") {
   // Convert multiDayHours object into "day-hour|day-hour" format
   const dayHourPairs = Object.entries(multiDayHours)
@@ -467,7 +580,68 @@ if (type === "MultiDayHour") {
       Alert.alert('Error', 'An error occurred while removing Quote Work Package.');
     }
   };
-  
+
+  // Handle Multi-Day button press - simple function without useCallback
+  const handleMultiDayPress = async () => {
+    console.log('🚨 BUTTON CLICKED - handleMultiDayPress called!');
+    console.log('🚨 Current state:', { isUpdatingMultiDay, buttonState });
+    
+    if (isUpdatingMultiDay) {
+      console.log('🚨 Blocked - already updating');
+      return; // Prevent multiple clicks
+    }
+    
+    const newMultiDayFlag = buttonState.flag === 1 ? 0 : 1;
+    
+    console.log('🔄 Multi-Day button pressed:', { 
+      currentFlag: buttonState.flag, 
+      newFlag: newMultiDayFlag 
+    });
+    
+    // Update button state atomically
+    const newButtonState = {
+      flag: newMultiDayFlag,
+      text: newMultiDayFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+      buttonStyle: newMultiDayFlag === 1 ? { backgroundColor: '#007BFF' } : {},
+      textStyle: newMultiDayFlag === 1 ? { color: 'white' } : {}
+    };
+    
+    // Update button state immediately for instant UI feedback
+    setButtonState(newButtonState);
+    setLocalMultiDayFlag(newMultiDayFlag);
+    setMultiDayFlag(newMultiDayFlag); // This also controls some Multi-Day UI elements
+    setIsMultiDay(newMultiDayFlag === 1); // This controls other Multi-Day UI elements
+    setIsUpdatingMultiDay(true);
+    
+    // Delay the Multi-Day UI update to prevent scroll
+    setTimeout(() => {
+      setShowMultiDayUI(newMultiDayFlag === 1); // Direct control of Multi-Day UI visibility
+    }, 100);
+    
+    console.log('🔄 All states updated immediately:', newButtonState);
+    console.log('🔄 isMultiDay set to:', newMultiDayFlag === 1);
+    console.log('🔄 isUpdatingMultiDay set to true');
+    
+    // Add a delay to ensure "Updating..." is visible
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    try {
+      // Call UpdateQuote API with the new MultiDayFlag value
+      await handleSave(newMultiDayFlag.toString(), "MultiDayFlag");
+      console.log(`✅ Multi-Day flag updated to: ${newMultiDayFlag}`);
+    } catch (error) {
+      console.error('❌ Failed to update Multi-Day flag:', error);
+      // Revert both local and main state if API call fails
+      const revertedFlag = newMultiDayFlag === 1 ? 0 : 1;
+      setLocalMultiDayFlag(revertedFlag);
+      setMultiDayFlag(revertedFlag);
+      setIsMultiDay(revertedFlag === 1);
+      Alert.alert('Error', 'Failed to update Multi-Day setting. Please try again.');
+    } finally {
+      setIsUpdatingMultiDay(false);
+      console.log('🔄 isUpdatingMultiDay set to false');
+    }
+  };
 
   const handleRemoveSkill = async (skillSerial: number ) => {
     if (!deviceInfo || !location || !authorizationCode || !skillSerial || !jobObj.Serial) {
@@ -919,7 +1093,7 @@ if (type === "MultiDayHour") {
   }
   
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView key={`multiday-${componentKey}`} style={{ flex: 1, backgroundColor: '#fff' }}>
     <ImageBackground
       source={require('../assets/images/background.png')}
       style={styles.background}
@@ -989,7 +1163,7 @@ if (type === "MultiDayHour") {
                   style={[styles.inputField, { color: parseInt(expense) === 0 ? 'red' : 'black' }]}
                 />
               </View> 
-            {Number(multidayflag) === 0 ? (
+            {Number(multiDayFlag) === 0 ? (
               // 🔹 Single Hours input (default)
               <View style={styles.inputRow}>
                 <Text style={[styles.inputLabel, { color: parseFloat(quoteHours) === 0 ? 'red' : 'black' }]}>
@@ -1316,55 +1490,43 @@ if (type === "MultiDayHour") {
     <View key={index} style={[styles.workPackageContainer, { zIndex: pickerZ, overflow: 'visible' }]}>
       <View style={[styles.rowContainer, { alignItems: 'center', zIndex: pickerZ, overflow: 'visible' }]}>
         <View style={[styles.leftGroup, { zIndex: pickerZ, overflow: 'visible' }]}>
-          {multiDayFlag === 1 && (
-
-            <View style={[{ zIndex: pickerZ, overflow: 'visible' }]}>
-              <View style={[styles.dropdownWrapper, { zIndex: pickerZ, overflow: 'visible' }]}>
-                <DropDownPicker
-  open={openPickerIndex === index}
-                  value={qwp.selectedNumber ?? 'DAY 1'}
-                  items={[
-                    { label: 'DAY 1', value: 'DAY 1' },
-                    { label: 'DAY 2', value: 'DAY 2' },
-                    { label: 'DAY 3', value: 'DAY 3' },
-                    { label: 'DAY 4', value: 'DAY 4' },
-                    { label: 'DAY 5', value: 'DAY 5' },
-                  ]}
-                  setOpen={(openOrFn) => {
-  const open = typeof openOrFn === 'function' ? openOrFn(qwp.open ?? false) : openOrFn;
-  // Only allow one open at a time
-  if (open) {
-    setOpenPickerIndex(index);
-    quoteWorkPackages.forEach((pkg, i) => pkg.open = i === index);
-  } else {
-    setOpenPickerIndex(null);
-    qwp.open = false;
-  }
-  setQuoteWorkPackages([...quoteWorkPackages]);
-  return open;
-}}
-                  setValue={(valOrCb: ((prev?: string) => string) | string) => {
-                    const newValue =
-                      typeof valOrCb === 'function'
-                        ? valOrCb(qwp.selectedNumber)
-                        : valOrCb;
-                    qwp.selectedNumber = newValue;
-                    setQuoteWorkPackages([...quoteWorkPackages]);
-                  }}
-                  setItems={() => {}}
-                  style={[styles.dayPicker, { zIndex: pickerZ }]}
-                  textStyle={styles.dayPickerText}
-                  dropDownContainerStyle={[styles.dayPickerDropDown, { zIndex: pickerZ }]}
-                  listItemLabelStyle={styles.dayPickerListLabel}
-                  zIndex={pickerZ}
-                />
-              </View>
-
-            </View>
+          {showMultiDayUI && (
+            <TouchableOpacity 
+              style={{ 
+                marginRight: 8, 
+                minWidth: 80,
+                height: 30,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: '#f0f0f0',
+                borderRadius: 4,
+                paddingHorizontal: 4,
+                borderWidth: 1,
+                borderColor: '#ccc'
+              }}
+              onPress={() => {
+                Alert.alert(
+                  'Select Day',
+                  'Choose the day for this work package:',
+                  [
+                    { text: 'DAY 1', onPress: () => { qwp.selectedNumber = '1'; setQuoteWorkPackages([...quoteWorkPackages]); } },
+                    { text: 'DAY 2', onPress: () => { qwp.selectedNumber = '2'; setQuoteWorkPackages([...quoteWorkPackages]); } },
+                    { text: 'DAY 3', onPress: () => { qwp.selectedNumber = '3'; setQuoteWorkPackages([...quoteWorkPackages]); } },
+                    { text: 'DAY 4', onPress: () => { qwp.selectedNumber = '4'; setQuoteWorkPackages([...quoteWorkPackages]); } },
+                    { text: 'DAY 5', onPress: () => { qwp.selectedNumber = '5'; setQuoteWorkPackages([...quoteWorkPackages]); } },
+                    { text: 'Cancel', style: 'cancel' }
+                  ]
+                );
+              }}
+            >
+              <Text style={{ fontSize: 12, color: '#000' }}>
+                DAY {qwp.selectedNumber ?? '1'}
+              </Text>
+            </TouchableOpacity>
           )}
                    <Text
-            style={styles.workPackageTitle}
-            numberOfLines={1}
+            style={[styles.workPackageTitle, { flex: 1, marginRight: 8 }]}
+            numberOfLines={2}
             ellipsizeMode="tail"
           >
             {qwp.QuoteWorkPackageName || 'Unnamed Quote Work Package'}
@@ -1372,11 +1534,14 @@ if (type === "MultiDayHour") {
         </View>
                              
                             {/* Button Group */}
-                          <View style={styles.buttonGroup}>
+                          <View style={[styles.buttonGroup, { marginLeft: 0 }]}>
                             {/* Alternates Button */}
                             {alternates.length > 0 && (
-                              <TouchableOpacity
-                                style={styles.alternateButton}
+                              <Pressable
+                                style={({ pressed }) => [
+                                  styles.alternateButton,
+                                  { opacity: pressed ? 0.7 : 1 }
+                                ]}
                                 onPress={() =>
                                   router.push({
                                     pathname: '/AlternativeSelection',
@@ -1387,21 +1552,22 @@ if (type === "MultiDayHour") {
                                     },
                                   })
                                 }
+                                hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
                               >
                                 <Image
                                   source={require('@/assets/images/list-icon.png')}
                                   style={styles.icon}
                                 />
-                              </TouchableOpacity>
+                              </Pressable>
                             )}
                             {/* Remove Button */}
                             <TouchableOpacity
                               style={styles.removeButton}
                               onPress={() => handleRemoveQuoteWorkPackage(qwp.QuoteWorkPackageSerial)}
+                              activeOpacity={0.7}
+                              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                             >
-                                <Text>
-                                <Icon name="minus" size={24} color="#fff" />
-                              </Text>
+                                <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">−</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -1466,37 +1632,49 @@ if (type === "MultiDayHour") {
                   skills.map((skill, skillIndex) => (
                     <View key={skillIndex} style={styles.workPackageContainer}>
                       <View style={styles.rowContainer}>
-                        {isMultiDay && (
-                        <Picker
-                                selectedValue={skill.selectedNumber || '1'} // Add state for this if needed
-                                onValueChange={(value) => {
-                                skill.selectedNumber = value || '1'; // ← Update your state logic properly if using hooks or context
-                                // setQuoteWorkPackages([...quoteWorkPackages]); // force re-render (assuming you're using state)
-                              }}
-                                style={{
-                                  height: 30,
-                                  width: 60,
-                                  color: '#000',
-                                  marginRight: 8,
-                                  backgroundColor: '#f0f0f0',
-                                }}
-                                mode="dropdown"
-                              >
-                                {['1', '2', '3', '4', '5'].map((num) => (
-                                  <Picker.Item key={num} label={num} value={num} />
-                                ))}
-                              </Picker>
+                        {showMultiDayUI && (
+                        <TouchableOpacity 
+                          style={{ 
+                            marginRight: 8, 
+                            minWidth: 80,
+                            height: 30,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: '#f0f0f0',
+                            borderRadius: 4,
+                            paddingHorizontal: 4,
+                            borderWidth: 1,
+                            borderColor: '#ccc'
+                          }}
+                          onPress={() => {
+                            Alert.alert(
+                              'Select Day',
+                              'Choose the day for this skill:',
+                              [
+                                { text: 'DAY 1', onPress: () => { skill.selectedNumber = '1'; setSkills([...skills]); } },
+                                { text: 'DAY 2', onPress: () => { skill.selectedNumber = '2'; setSkills([...skills]); } },
+                                { text: 'DAY 3', onPress: () => { skill.selectedNumber = '3'; setSkills([...skills]); } },
+                                { text: 'DAY 4', onPress: () => { skill.selectedNumber = '4'; setSkills([...skills]); } },
+                                { text: 'DAY 5', onPress: () => { skill.selectedNumber = '5'; setSkills([...skills]); } },
+                                { text: 'Cancel', style: 'cancel' }
+                              ]
+                            );
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, color: '#000' }}>
+                            DAY {skill.selectedNumber || '1'}
+                          </Text>
+                        </TouchableOpacity>
                               )}
-                        <Text style={styles.workPackageTitle}>{skill.SkillName}</Text>
-                        <View style={styles.buttonGroup}>
+                        <Text style={[styles.workPackageTitle, { flex: 1, marginRight: 8 }]} numberOfLines={2} ellipsizeMode="tail">{skill.SkillName}</Text>
+                        <View style={[styles.buttonGroup, { marginLeft: 0 }]}>
                         {/* 🔻 Decrease Quantity or Remove Skill */}
                         <TouchableOpacity
                           style={styles.removeSkillsButton}
                           onPress={() => handleUpdateSkill(skill.SkillSerial, skill.SkillCount - 1)}
+                          activeOpacity={0.7}
                         >
-                          <Text>
-                            <Icon name="minus" size={24} color="#fff" />
-                          </Text>
+                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">−</Text>
                         </TouchableOpacity>
 
                         {/* 🔹 Quantity Display */}
@@ -1506,10 +1684,9 @@ if (type === "MultiDayHour") {
                         <TouchableOpacity
                           style={styles.addSkillsButton}
                           onPress={() => handleUpdateSkill(skill.SkillSerial, skill.SkillCount + 1)}
+                          activeOpacity={0.7}
                         >
-                          <Text>
-                            <Icon name="plus" size={16} color="#fff" /> {/* Icon only */}
-                          </Text>
+                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">+</Text>
                         </TouchableOpacity>
                       </View>
                       </View>
@@ -1542,37 +1719,49 @@ if (type === "MultiDayHour") {
                   equipments.map((equipment, equipmentIndex) => (
                     <View key={equipmentIndex} style={styles.workPackageContainer}>
                       <View style={styles.headerRow}>
-                        {isMultiDay && (
-                                <Picker
-                                  selectedValue={equipment.selectedNumber || '1'} // Add state for this if needed
-                                  onValueChange={(value) => {
-                                  equipment.selectedNumber = value || '1'; // ← Update your state logic properly if using hooks or context
-                                  // setQuoteWorkPackages([...quoteWorkPackages]); // force re-render (assuming you're using state)
-                                }}
-                                  style={{
-                                    height: 30,
-                                    width: 60,
-                                    color: '#000',
-                                    marginRight: 8,
-                                    backgroundColor: '#f0f0f0',
-                                  }}
-                                  mode="dropdown"
-                                >
-                                  {['1', '2', '3', '4', '5'].map((num) => (
-                                    <Picker.Item key={num} label={num} value={num} />
-                                  ))}
-                                </Picker>
+                        {showMultiDayUI && (
+                        <TouchableOpacity 
+                          style={{ 
+                            marginRight: 8, 
+                            minWidth: 80,
+                            height: 30,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: '#f0f0f0',
+                            borderRadius: 4,
+                            paddingHorizontal: 4,
+                            borderWidth: 1,
+                            borderColor: '#ccc'
+                          }}
+                          onPress={() => {
+                            Alert.alert(
+                              'Select Day',
+                              'Choose the day for this equipment:',
+                              [
+                                { text: 'DAY 1', onPress: () => { equipment.selectedNumber = '1'; setEquipments([...equipments]); } },
+                                { text: 'DAY 2', onPress: () => { equipment.selectedNumber = '2'; setEquipments([...equipments]); } },
+                                { text: 'DAY 3', onPress: () => { equipment.selectedNumber = '3'; setEquipments([...equipments]); } },
+                                { text: 'DAY 4', onPress: () => { equipment.selectedNumber = '4'; setEquipments([...equipments]); } },
+                                { text: 'DAY 5', onPress: () => { equipment.selectedNumber = '5'; setEquipments([...equipments]); } },
+                                { text: 'Cancel', style: 'cancel' }
+                              ]
+                            );
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, color: '#000' }}>
+                            DAY {equipment.selectedNumber || '1'}
+                          </Text>
+                        </TouchableOpacity>
                               )}
-                        <Text style={styles.workPackageTitle}>{equipment.EquipmentName}</Text>
-                        <View style={styles.buttonGroup}>
+                        <Text style={[styles.workPackageTitle, { flex: 1, marginRight: 8 }]} numberOfLines={2} ellipsizeMode="tail">{equipment.EquipmentName}</Text>
+                        <View style={[styles.buttonGroup, { marginLeft: 0 }]}>
                           {/*//🔻 Decrease Quantity or Remove Skill*/}
                         <TouchableOpacity
                           style={styles.removeSkillsButton}
                           onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount - 1)}
+                          activeOpacity={0.7}
                         >
-                          <Text>
-                            <Icon name="minus" size={24} color="#fff" />
-                          </Text>
+                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">−</Text>
                         </TouchableOpacity>
 
                         {/*//🔹 Quantity Display*/}
@@ -1582,10 +1771,9 @@ if (type === "MultiDayHour") {
                         <TouchableOpacity
                           style={styles.addEquipmentButton}
                           onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount + 1)}
+                          activeOpacity={0.7}
                         >
-                          <Text>
-                            <Icon name="plus" size={16} color="#fff" />{/*// Icon only*/}
-                          </Text>
+                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">+</Text>
                         </TouchableOpacity>
                         </View>
                       </View>
@@ -1604,12 +1792,19 @@ if (type === "MultiDayHour") {
               <Text style={styles.cancelButtonText}>Back</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              onPress={() => setMultiDayFlag(prev => (prev === 1 ? 0 : 1))}
-              style={styles.cancelButton}>
-                <Text 
-                style={styles.cancelButtonText}>
-                    {multiDayFlag === 1 ? "Multi-Day" : "Multi-Day"}
-                </Text>
+              onPress={() => {
+                console.log('🚨 Direct button pressed!');
+                handleMultiDayPress();
+              }}
+              disabled={isUpdatingMultiDay}
+              style={[
+                styles.cancelButton,
+                buttonState.buttonStyle,
+                isUpdatingMultiDay && { opacity: 0.7 }
+              ]}>
+              <Text style={[styles.cancelButtonText, buttonState.textStyle]}>
+                {isUpdatingMultiDay ? "Updating..." : buttonState.text}
+              </Text>
             </TouchableOpacity>
             {/* <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
               <Text style={styles.saveButtonText}>Save</Text>
@@ -1773,7 +1968,7 @@ selectedHours: {
     flex: 1, // Take up available space for wrapping
     fontSize: 16,
     color: '#000',
-    marginRight: -100, // Add space between text and buttons
+    marginRight: 8, // Proper spacing between text and buttons
     lineHeight: 20, // Add space between lines for better readability
     flexWrap: 'wrap', // Ensure text wraps properly
   },
@@ -1851,7 +2046,7 @@ dayPickerListLabel: {
   addSkillsButton: {
     padding: 8,
     backgroundColor: '#20D5FF',
-    borderRadius: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: -10
@@ -1859,7 +2054,7 @@ dayPickerListLabel: {
   addEquipmentButton: {
     padding: 8,
     backgroundColor: '#20D5FF',
-    borderRadius: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 2
