@@ -152,6 +152,7 @@ const ProjectUpdate: React.FC = () => {
   jobObj?.Expense !== undefined ? String(jobObj.Expense) : "0"
 );
   const [multidayhour, setMultidayhour] = useState((jobObj as any)?.MultiDayHour);
+  const [isUpdatingMultiDay, setIsUpdatingMultiDay] = useState(false);
   
   // Initialize multi-day mode based on received MultiDayFlag
   useEffect(() => {
@@ -219,7 +220,6 @@ if (multidayhour) {
   const [isMultiDay, setIsMultiDay] = useState(false);//track Multi-Day button
   const [multiDayFlag, setMultiDayFlag] = useState<0 | 1>(0);
   const [multiDayHours, setMultiDayHours] = useState<{ [key: number]: string }>({});
-  const [isUpdatingMultiDay, setIsUpdatingMultiDay] = useState(false);
   const [forceRender, setForceRender] = useState(0);
   const [localMultiDayFlag, setLocalMultiDayFlag] = useState<0 | 1>(() => {
     const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
@@ -1567,7 +1567,7 @@ if (type === "MultiDayHour") {
                               activeOpacity={0.7}
                               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                             >
-                                <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">−</Text>
+                                <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }}>−</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -1674,7 +1674,7 @@ if (type === "MultiDayHour") {
                           onPress={() => handleUpdateSkill(skill.SkillSerial, skill.SkillCount - 1)}
                           activeOpacity={0.7}
                         >
-                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">−</Text>
+                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }}>−</Text>
                         </TouchableOpacity>
 
                         {/* 🔹 Quantity Display */}
@@ -1686,7 +1686,7 @@ if (type === "MultiDayHour") {
                           onPress={() => handleUpdateSkill(skill.SkillSerial, skill.SkillCount + 1)}
                           activeOpacity={0.7}
                         >
-                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">+</Text>
+                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }}>+</Text>
                         </TouchableOpacity>
                       </View>
                       </View>
@@ -1761,7 +1761,7 @@ if (type === "MultiDayHour") {
                           onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount - 1)}
                           activeOpacity={0.7}
                         >
-                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">−</Text>
+                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }}>−</Text>
                         </TouchableOpacity>
 
                         {/*//🔹 Quantity Display*/}
@@ -1773,7 +1773,7 @@ if (type === "MultiDayHour") {
                           onPress={() => handleUpdateEquipment(equipment.EquipmentSerial, equipment.EquipmentCount + 1)}
                           activeOpacity={0.7}
                         >
-                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }} pointerEvents="none">+</Text>
+                          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }}>+</Text>
                         </TouchableOpacity>
                         </View>
                       </View>
