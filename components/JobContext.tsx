@@ -34,6 +34,7 @@ export interface Job {
   status: string;
   amount: number;
   urgency?: string;
+  Priority?: string;
   baseHours?: string;
   MustCompleteBy?: string;
   NiceToHaveBy?: string;
@@ -81,6 +82,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobsReady, setJobsReady] = useState<boolean>(false);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+  const [isFetchingJobs, setIsFetchingJobs] = useState<boolean>(false);
   const [authorizationCode, setAuthorizationCode] = useState<string | null>(null); 
   const [jobsFetched, setJobsFetched] = useState<boolean>(false); // Track if jobs are already fetched
   const { location, fetchLocation } = useLocation();
@@ -98,9 +100,12 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   
     const fetchJobs = async () => {
+      // console.log('🔍 fetchJobs called - deviceInfo:', !!deviceInfo, 'authorizationCode:', !!authorizationCode);
       // JCM 01/18/2025: Removed the !location condition as it was created separately
       // M.G. 10/1/2025 - Removed jobsFetched check to allow refetching quotes every time screen opens
-      if (!deviceInfo || !authorizationCode) return; // Exit if data is missing (removed jobsFetched check to allow refetching)
+      if (!deviceInfo || !authorizationCode || isFetchingJobs) return; // Exit if data is missing or already fetching
+      
+      setIsFetchingJobs(true);
 
       // JCM 01/18/2025: Make variables for location's longitude and latitude to be used for the API URL
       let longitude = location?.longitude;
@@ -183,7 +188,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             Serial: quote.Serial || '-',     
             Hour: quote.Hour || '0',         
             Equipments: quote.Equipments || '-', 
-            Skills: quote.Skills || '-',   
+            Skills: quote.Skills || '-',
+            Priority: quote.Priority || '',
           }));
 
           // Log `amount` for each job
@@ -199,22 +205,12 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (error) {
         console.error('Error fetching jobs:', error);
+      } finally {
+        setIsFetchingJobs(false);
       }
     };
 
-    useEffect(() => {
-      const initialize = async () => {
-        const info = await getDeviceInfo();
-        setDeviceInfo(info);
-      };
-      initialize();
-    }, []);
   
-    useEffect(() => {
-      if (deviceInfo && authorizationCode) {
-        fetchJobs();
-      }
-    }, [deviceInfo, authorizationCode]);
 
   const updateJob = (updatedJob: Job) => {
     setJobs((prevJobs) =>

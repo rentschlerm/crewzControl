@@ -146,7 +146,7 @@ const ProjectUpdate: React.FC = () => {
   const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
   
   const [customerName, setName] = useState(jobObj?.Name);
-  const [amount, setAmount] = useState(jobObj?.amount);
+  const [amount, setAmount] = useState(jobObj?.amount || '');
   // const [expense, setExpense] = useState(jobObj?.Expense);
   const [expense, setExpense] = useState<string>(
   jobObj?.Expense !== undefined ? String(jobObj.Expense) : "0"
@@ -422,7 +422,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   
 
   const handleSave = async (updated: string | string[], type: string) => {
-  if (!deviceInfo || !location || !jobObj.Serial) {
+  if (!deviceInfo || !location || (!jobObj.Serial && !quoteSerial)) {
     Alert.alert('Device, location, or quote serial information is missing');
     return;
   }
@@ -439,7 +439,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
   const key = CryptoJS.SHA1(keyString).toString();
 
-  const serial = jobObj.Serial;
+  const serial = jobObj.Serial || quoteSerial;
 
   // 🔹 Blackout Dates Handling
   const validBlackoutDates = blackoutDates.filter(date => date.trim() !== "");
@@ -492,7 +492,7 @@ if (type === "MultiDayHour") {
   const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
     deviceInfo.id
   )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}
-  &Priority=${urgency}
+  &Priority=${type === 'Priority' ? updated : urgency}
   &MustCompleteBy=${type === 'MustCompleteBy' ? updated : mustCompleteDate}
   &NiceToHaveBy=${type === 'NiceToHaveBy' ? updated : niceToHaveDate}
   &BlackoutDate=${uniqueBlackoutDates || ''}
@@ -789,7 +789,7 @@ if (type === "MultiDayHour") {
   };
   
   const fetchQuoteDetails = async () => {
-    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial || quoteSerial ) {
+    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
       return; // Exit early if prerequisites are not ready or API was already called
     }
 
@@ -822,11 +822,12 @@ if (type === "MultiDayHour") {
         console.log('Fetched Quote Data: ', quote);
 
         setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
+        setAmount(quote.Amount ? quote.Amount.toString() : '');
         setMustCompleteDate(quote.MustCompleteBy || '');
         setNiceToHaveDate(quote.NiceToHaveBy || '');
         setBlackoutDate(quote.BlackoutDate || '');
         setAvailableDate(quote.AvailableDate || '');
-        setUrgency(quote.Priority || 'Normal');
+        setUrgency(quote.Priority || '');
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
       }
@@ -1069,7 +1070,6 @@ if (type === "MultiDayHour") {
           {
             text: 'Yes',
             onPress: async () => {
-             await fetchJobs(); // Ensure jobs are refreshed
               router.push('/Project');
             },
           },
@@ -1077,14 +1077,11 @@ if (type === "MultiDayHour") {
         { cancelable: false }
       );
     } else {
-      fetchJobs().then(() => { // Ensure jobs are refreshed
-        router.push('/Project');
-      });
+      router.push('/Project');
     }
   };
 
   const handleCancel = async () => {
-    await fetchJobs(); // refresh before leaving
     router.back();
   };
   
@@ -1132,14 +1129,14 @@ if (type === "MultiDayHour") {
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Amount:</Text>
-                <Text style={styles.textValue}>${amount}</Text>
+                <Text style={styles.textValue}>{amount}</Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Quote#:</Text>
                 <Text style={styles.textValue}>{serial +'-'+ quoteNum || '-'}</Text>
               </View>
               <View style={styles.inputRow}>
-                <Text style={[styles.inputLabel, { color: parseInt(expense) === 0 ? 'red' : 'black' }]}>
+                <Text style={styles.inputLabel}>
                   Expense:
                 </Text>
                 <TextInput
@@ -1160,13 +1157,13 @@ if (type === "MultiDayHour") {
                   }}
                   placeholder="0"
                   keyboardType="number-pad"
-                  style={[styles.inputField, { color: parseInt(expense) === 0 ? 'red' : 'black' }]}
+                  style={styles.inputField}
                 />
               </View> 
             {Number(multiDayFlag) === 0 ? (
               // 🔹 Single Hours input (default)
               <View style={styles.inputRow}>
-                <Text style={[styles.inputLabel, { color: parseFloat(quoteHours) === 0 ? 'red' : 'black' }]}>
+                <Text style={styles.inputLabel}>
                   Hours:
                 </Text>
                 <TextInput
@@ -1186,15 +1183,15 @@ if (type === "MultiDayHour") {
                   }}
                   placeholder="0.00"
                   keyboardType="decimal-pad"
-                  style={[styles.inputField, { color: parseFloat(quoteHours) === 0 ? 'red' : 'black' }]}
+                  style={styles.inputField}
                 />
               </View>
             ) : (
               // 🔹 Multi-day Hours inputs (Day 1 → Day N depending on dropdowns)
               <View style={{ marginTop: 15 }}>
                  {Array.from({ length: maxDaySelected }, (_, i) => i + 1).map(day => (
-                    <View key={day} style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
-                      <Text style={{ width: 60, fontSize: 16, marginRight: 57 }}>Hours Day {day}:</Text>
+                    <View key={day} style={styles.inputRow}>
+                      <Text style={styles.inputLabel}>Hours Day {day}:</Text>
                       <TextInput
                         value={multiDayHoursObj[day] || ""}
                         onChangeText={(text) => {
@@ -1213,14 +1210,7 @@ if (type === "MultiDayHour") {
                         }}
                         placeholder="0"
                         keyboardType="decimal-pad"
-                        style={{
-                          width: 200,
-                          height: 40,
-                          paddingHorizontal: 8,
-                          borderColor: "#ccc",
-                          borderWidth: 1,
-                          borderRadius: 5,
-                        }}
+                        style={styles.inputField}
                       />
                     </View>
                   ))}
@@ -1230,6 +1220,7 @@ if (type === "MultiDayHour") {
                 <Text style={styles.inputLabel}>Priority:</Text>
                 <View style={styles.dropdownWrapper}>
                   <DropDownPicker
+                    key={`priority-${urgency}`}
                     open={urgencyOpen}
                     value={urgency}
                     items={[
@@ -1239,6 +1230,11 @@ if (type === "MultiDayHour") {
                     ]}
                     setOpen={setUrgencyOpen}
                     setValue={setUrgency}
+                    onChangeValue={(value) => {
+                      if (value) {
+                        handleSave(value, "Priority");
+                      }
+                    }}
                     style={[styles.dropdownStyle, styles.inputField]}
                     dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex: 1000 }]}
                     zIndex={1000}
@@ -1908,7 +1904,7 @@ selectedAltItem: {
   closeButton: {
     marginTop: 10,
     alignSelf: 'center',
-    backgroundColor: 'red',
+    backgroundColor: 'black',
     padding: 10,
     borderRadius: 5,
   },

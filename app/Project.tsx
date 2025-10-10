@@ -74,14 +74,6 @@ const Project: React.FC = () => {
   }, []);
 
   // M.G. 10/1/2025
-  // Fetch quotes when the screen first loads
-  useEffect(() => {
-    if (jobsContext?.fetchJobs) {
-      jobsContext.fetchJobs();
-    }
-  }, []); // Empty dependency array - only runs once on mount
-
-  // M.G. 10/1/2025
   // Fetch quotes every time the screen is focused (when user navigates back to this screen)
   useFocusEffect(
     React.useCallback(() => {
