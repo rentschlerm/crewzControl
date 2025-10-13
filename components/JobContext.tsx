@@ -1,4 +1,4 @@
-import React, { createContext, useState, ReactNode, useEffect, useContext } from 'react';
+import React, { createContext, useState, ReactNode, useEffect, useContext, useRef } from 'react';
 import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import { getDeviceInfo } from '../components/DeviceUtils';
@@ -83,7 +83,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   const [jobsReady, setJobsReady] = useState<boolean>(false);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [isFetchingJobs, setIsFetchingJobs] = useState<boolean>(false);
-  const [authorizationCode, setAuthorizationCode] = useState<string | null>(null); 
+  const [authorizationCode, setAuthorizationCode] = useState<string | null>(null);
+  const fetchJobsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); 
   const [jobsFetched, setJobsFetched] = useState<boolean>(false); // Track if jobs are already fetched
   const { location, fetchLocation } = useLocation();
 
@@ -98,14 +99,36 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     fetchLocation();
   }, []);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (fetchJobsTimeoutRef.current) {
+        clearTimeout(fetchJobsTimeoutRef.current);
+      }
+    };
+  }, []);
+
   
     const fetchJobs = async () => {
-      // console.log('🔍 fetchJobs called - deviceInfo:', !!deviceInfo, 'authorizationCode:', !!authorizationCode);
-      // JCM 01/18/2025: Removed the !location condition as it was created separately
-      // M.G. 10/1/2025 - Removed jobsFetched check to allow refetching quotes every time screen opens
-      if (!deviceInfo || !authorizationCode || isFetchingJobs) return; // Exit if data is missing or already fetching
+      console.log('🔍 fetchJobs called - deviceInfo:', !!deviceInfo, 'authorizationCode:', !!authorizationCode, 'isFetchingJobs:', isFetchingJobs);
       
-      setIsFetchingJobs(true);
+      // Clear any existing timeout
+      if (fetchJobsTimeoutRef.current) {
+        clearTimeout(fetchJobsTimeoutRef.current);
+        fetchJobsTimeoutRef.current = null;
+      }
+      
+      // Debounce the fetchJobs call by 300ms
+      fetchJobsTimeoutRef.current = setTimeout(async () => {
+        // JCM 01/18/2025: Removed the !location condition as it was created separately
+        // M.G. 10/1/2025 - Removed jobsFetched check to allow refetching quotes every time screen opens
+        if (!deviceInfo || !authorizationCode || isFetchingJobs) {
+          console.log('🚫 fetchJobs skipped - missing data or already fetching');
+          return; // Exit if data is missing or already fetching
+        }
+        
+        console.log('🚀 Starting GetQuoteList API call...');
+        setIsFetchingJobs(true);
 
       // JCM 01/18/2025: Make variables for location's longitude and latitude to be used for the API URL
       let longitude = location?.longitude;
@@ -208,6 +231,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       } finally {
         setIsFetchingJobs(false);
       }
+      }, 300); // 300ms debounce
     };
 
   

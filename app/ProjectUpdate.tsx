@@ -156,41 +156,24 @@ const ProjectUpdate: React.FC = () => {
   
   // Initialize multi-day mode based on received MultiDayFlag
   useEffect(() => {
-    const initialMultiDayFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
+      const initialMultiDayFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
     console.log('🔄 Initializing Multi-Day mode:', { 
-      jobObjMultiDayFlag: (jobObj as any)?.MultiDayFlag, 
+        jobObjMultiDayFlag: (jobObj as any)?.MultiDayFlag, 
       initialMultiDayFlag,
       currentLocalFlag: localMultiDayFlag,
       isUpdatingMultiDay
-    });
-    
+      });
+      
     // Only initialize if we're not currently updating (to prevent overriding manual changes)
     if (!isUpdatingMultiDay) {
       setMultiDayFlag(initialMultiDayFlag);
       // Only update localMultiDayFlag if it's different from the initial value
       if (localMultiDayFlag !== initialMultiDayFlag) {
-        setLocalMultiDayFlag(initialMultiDayFlag);
+      setLocalMultiDayFlag(initialMultiDayFlag);
       }
       setIsMultiDay(initialMultiDayFlag === 1);
     }
-  }, [jobObj, isUpdatingMultiDay]);
-  const multiDayHoursObj: Record<number, string> = {};
-if (multidayhour) {
-  multidayhour.split("|").forEach((pair: string) => {
-    const [day, hour] = pair.split("-");
-    multiDayHoursObj[parseInt(day, 10)] = hour;
-  });
-}
-const initialMultiDayHoursObj: Record<number, string> = {};
-if (multidayhour) {
-  multidayhour.split("|").forEach((pair: string) => {
-    const [dayStr, hoursStr] = pair.split("-");
-    const dayNum = parseInt(dayStr, 10);
-    if (dayNum <= maxDaySelected) { // only include visible days
-      initialMultiDayHoursObj[dayNum] = hoursStr;
-    }
-  });
-}
+  }, [jobObj?.Serial]); // Only depend on Serial to prevent loops
   const [address, setAddress] = useState(jobObj?.Address);
   const [city, setCity] = useState(jobObj?.City);
   const [quoteNum, setQuoteNum] = useState(jobObj?.QuoteNum);
@@ -220,6 +203,20 @@ if (multidayhour) {
   const [isMultiDay, setIsMultiDay] = useState(false);//track Multi-Day button
   const [multiDayFlag, setMultiDayFlag] = useState<0 | 1>(0);
   const [multiDayHours, setMultiDayHours] = useState<{ [key: number]: string }>({});
+  
+  // Parse multidayhour string into multiDayHours state when component loads
+  useEffect(() => {
+    if (multidayhour) {
+      const parsedHours: { [key: number]: string } = {};
+      multidayhour.split("|").forEach((pair: string) => {
+        const [day, hour] = pair.split("-");
+        parsedHours[parseInt(day, 10)] = hour;
+      });
+      setMultiDayHours(parsedHours);
+      console.log('🔄 Loaded saved MultiDayHours:', parsedHours);
+    }
+  }, [multidayhour]);
+  
   const [forceRender, setForceRender] = useState(0);
   const [localMultiDayFlag, setLocalMultiDayFlag] = useState<0 | 1>(() => {
     const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
@@ -266,7 +263,7 @@ const maxDaySelected = Math.max(
   ...quoteWorkPackages.map(qwp => getDayNumber(qwp.selectedNumber)),
   ...skills.map(skill => parseInt(skill.selectedNumber || "0")),
   ...equipments.map(eq => parseInt(eq.selectedNumber || "0")),
-  0 // fallback
+  1 // minimum 1 day
 );
 const safeMaxDaySelected = Math.max(1, maxDaySelected || 1);
 Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
@@ -300,10 +297,52 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   const [isCalendarVisible, setCalendarVisible] = useState(false);
   const [isLoadingServices, setIsLoadingServices] = useState(true);
   const [isPickerVisible, setIsPickerVisible] = useState(true);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFetchingRef = useRef<boolean>(false);
 
 
   const hoursInputRef = useRef<TextInput>(null);
+  const multiDayInputRefs = useRef<{ [key: number]: TextInput | null }>({});
+  const handleSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSavingRef = useRef<boolean>(false);
+
+  // Function to format a specific day's input
+  const formatDayInput = (day: number) => {
+    const currentValue = multiDayHours[day] || "";
+    if (currentValue.trim() !== "" && !isNaN(parseFloat(currentValue))) {
+      const numericValue = parseFloat(currentValue);
+      const formattedValue = numericValue.toFixed(2);
+      setMultiDayHours(prev => ({
+        ...prev,
+        [day]: formattedValue
+      }));
+    }
+  };
+
+  // Format all fields when multiDayHours changes (backup formatting)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Object.keys(multiDayHours).forEach(dayKey => {
+        const dayNum = parseInt(dayKey);
+        const value = multiDayHours[dayNum];
+        if (value && value.trim() !== "" && !isNaN(parseFloat(value)) && !value.includes('.')) {
+          // Only format if it's a whole number without decimals
+          formatDayInput(dayNum);
+        }
+      });
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [multiDayHours]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (handleSaveTimeoutRef.current) {
+        clearTimeout(handleSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useFocusEffect(
   useCallback(() => {
@@ -313,8 +352,15 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     // optional cleanup when screen loses focus
     return () => {
       console.log("👋 ProjectUpdate unfocused");
+      // Clear any pending timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      // Clear fetching flag
+      isFetchingRef.current = false;
     };
-  }, [jobObj?.Serial, deviceInfo, location, authorizationCode])
+  }, [jobObj?.Serial, deviceInfo, location, authorizationCode]) // Keep dependencies but use debouncing
 );
 
   useEffect(() => {
@@ -422,10 +468,29 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   
 
   const handleSave = async (updated: string | string[], type: string) => {
-  if (!deviceInfo || !location || (!jobObj.Serial && !quoteSerial)) {
-    Alert.alert('Device, location, or quote serial information is missing');
-    return;
+  console.log('🔍 handleSave called - type:', type, 'isSaving:', isSavingRef.current);
+  
+  // Clear any existing timeout
+  if (handleSaveTimeoutRef.current) {
+    clearTimeout(handleSaveTimeoutRef.current);
+    handleSaveTimeoutRef.current = null;
   }
+  
+  // Debounce the handleSave call by 200ms
+  handleSaveTimeoutRef.current = setTimeout(async () => {
+    if (!deviceInfo || !location || (!jobObj.Serial && !quoteSerial)) {
+      Alert.alert('Device, location, or quote serial information is missing');
+      return;
+    }
+
+    // Prevent multiple simultaneous saves
+    if (isSavingRef.current) {
+      console.log('🚫 handleSave skipped - already saving');
+      return;
+    }
+    
+    isSavingRef.current = true;
+    console.log('🚀 Starting UpdateQuote API call...');
 
   const crewzControlVersion = '1';
   const currentDate = new Date();
@@ -466,7 +531,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   }
 
   // 🔹 MultiDayHour + MultiDayFlag
-  let multiDayHourValue = multiDayHours; // keep state value
+  let multiDayHourValue = multidayhour; // keep state value (string)
   let multiDayFlagValue = multiDayFlag; // keep state value (0 or 1)
 
   if (type === "MultiDayHour") {
@@ -475,19 +540,28 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   if (type === "MultiDayFlag") {
     const flagValue = Array.isArray(updated) ? updated[0] : updated;
     multiDayFlagValue = (flagValue === "1" || flagValue === "1") ? 1 : 0;
+    // When toggling Multi-Day flag, ensure multiDayHourValue is a proper string
+    if (multiDayFlagValue === 0) {
+      multiDayHourValue = ""; // Clear MultiDayHour when disabling Multi-Day
+    }
   }
-if (type === "MultiDayHour") {
-  // Convert multiDayHours object into "day-hour|day-hour" format
-  const dayHourPairs = Object.entries(multiDayHours)
-    .map(([day, hours]) => {
-      // parseFloat and round to 2 decimals
-      const h = !isNaN(parseFloat(hours)) ? parseFloat(hours).toFixed(2) : "0.00";
-      return `${day}-${h}`;
-    })
-    .join("|");
 
-  multiDayHourValue = dayHourPairs;
-}
+  // 🔹 Day Selection Handling
+  if (type === "WorkPackageDay" || type === "SkillDay" || type === "EquipmentDay") {
+    // For day selections, we need to rebuild the MultiDayHour string
+    // The day selection is stored in local state and will be handled by the server
+    // when the quote is saved or when specific APIs are called
+    console.log(`📅 Day selection updated: ${type} = ${updated}`);
+    
+    // Rebuild MultiDayHour string from current state
+    const dayHourPairs = Object.entries(multiDayHours)
+      .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
+      .map(([day, hour]) => `${day}-${hour}`)
+      .join("|");
+    
+    multiDayHourValue = dayHourPairs;
+    setMultidayhour(dayHourPairs);
+  }
 
   const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
     deviceInfo.id
@@ -497,7 +571,7 @@ if (type === "MultiDayHour") {
   &NiceToHaveBy=${type === 'NiceToHaveBy' ? updated : niceToHaveDate}
   &BlackoutDate=${uniqueBlackoutDates || ''}
   &NotBefore=${type === 'NotBefore' ? updated : notBefore}
-  &Hours=${type === 'Hours' ? updated : quoteHours || ''}
+  &Hours=${type === 'Hours' ? updated : (quoteHours || '0.00')}
   &Expense=${type === 'Expense' ? expenseValue : expense || '0'}
   &MultiDayHour=${multiDayHourValue || ''}
   &MultiDayFlag=${multiDayFlagValue}
@@ -518,15 +592,20 @@ if (type === "MultiDayHour") {
       console.log('✅ Quote updated successfully.');
       console.log('✅ Dates Array: ', uniqueBlackoutDates);
       setBlackoutDates(updatedBlackoutDates);
-      setMultiDayHours(multiDayHourValue);
-      setMultiDayFlag(multiDayFlagValue);
+      // Only update MultiDayFlag if it's not already set by the button handler
+      if (type !== "MultiDayFlag") {
+        setMultiDayFlag(multiDayFlagValue);
+      }
     } else {
       Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
     }
   } catch (error) {
     console.error('❌ Error updating quote:', error);
     Alert.alert('Error', 'An error occurred while updating the quote.');
+  } finally {
+    isSavingRef.current = false;
   }
+  }, 200); // 200ms debounce
 };
 
   // const handleRemoveResources = async (quoteWorkPackages:string) => {
@@ -571,7 +650,7 @@ if (type === "MultiDayHour") {
         setQuoteWorkPackages((prev) =>
           prev.filter((qwp) => qwp.QuoteWorkPackageSerial !== quoteWorkPackageSerial)
         );
-        fetchQuoteDetails();
+        fetchQuoteDetails(true); // Immediate call after removing work package
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove Quote Work Package.');
       }
@@ -606,17 +685,13 @@ if (type === "MultiDayHour") {
       textStyle: newMultiDayFlag === 1 ? { color: 'white' } : {}
     };
     
-    // Update button state immediately for instant UI feedback
+    // Update all states immediately - simple and direct
     setButtonState(newButtonState);
     setLocalMultiDayFlag(newMultiDayFlag);
-    setMultiDayFlag(newMultiDayFlag); // This also controls some Multi-Day UI elements
-    setIsMultiDay(newMultiDayFlag === 1); // This controls other Multi-Day UI elements
+    setMultiDayFlag(newMultiDayFlag);
+    setIsMultiDay(newMultiDayFlag === 1);
+    setShowMultiDayUI(newMultiDayFlag === 1);
     setIsUpdatingMultiDay(true);
-    
-    // Delay the Multi-Day UI update to prevent scroll
-    setTimeout(() => {
-      setShowMultiDayUI(newMultiDayFlag === 1); // Direct control of Multi-Day UI visibility
-    }, 100);
     
     console.log('🔄 All states updated immediately:', newButtonState);
     console.log('🔄 isMultiDay set to:', newMultiDayFlag === 1);
@@ -627,15 +702,30 @@ if (type === "MultiDayHour") {
     
     try {
       // Call UpdateQuote API with the new MultiDayFlag value
+      // Also preserve existing hours when toggling Multi-Day
+      if (newMultiDayFlag === 1 && quoteHours && parseFloat(quoteHours) > 0) {
+        // If enabling Multi-Day and there are existing hours, preserve them
+        console.log(`🔄 Preserving existing hours: ${quoteHours}`);
+      }
       await handleSave(newMultiDayFlag.toString(), "MultiDayFlag");
       console.log(`✅ Multi-Day flag updated to: ${newMultiDayFlag}`);
     } catch (error) {
       console.error('❌ Failed to update Multi-Day flag:', error);
-      // Revert both local and main state if API call fails
+      // Simple revert - just flip the flag back
       const revertedFlag = newMultiDayFlag === 1 ? 0 : 1;
+      const revertedButtonState = {
+        flag: revertedFlag,
+        text: revertedFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+        buttonStyle: revertedFlag === 1 ? { backgroundColor: '#007BFF' } : {},
+        textStyle: revertedFlag === 1 ? { color: 'white' } : {}
+      };
+      
+      // Revert all states immediately
+      setButtonState(revertedButtonState);
       setLocalMultiDayFlag(revertedFlag);
       setMultiDayFlag(revertedFlag);
       setIsMultiDay(revertedFlag === 1);
+      setShowMultiDayUI(revertedFlag === 1);
       Alert.alert('Error', 'Failed to update Multi-Day setting. Please try again.');
     } finally {
       setIsUpdatingMultiDay(false);
@@ -675,7 +765,7 @@ if (type === "MultiDayHour") {
         setSkills((prev) =>
         prev.filter((Skill) => Skill.skillSerial !== skillSerial)
       );
-        fetchQuoteDetails();
+        fetchQuoteDetails(true); // Immediate call after removing skill
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove skill.');
       }
@@ -717,7 +807,7 @@ if (type === "MultiDayHour") {
         setEquipments((prev) =>
           prev.filter((equipment) => equipment.equipmentSerial !== equipmentSerial)
         );
-        fetchQuoteDetails();
+        fetchQuoteDetails(true); // Immediate call after removing equipment
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove equipment.');
       }
@@ -778,7 +868,7 @@ if (type === "MultiDayHour") {
         // );
         setSelectedWorkPackage(null);
         setModalVisible(false);
-        fetchQuoteDetails();
+        fetchQuoteDetails(true); // Immediate call after removing resource group
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove the Equipment.');
       }
@@ -788,10 +878,39 @@ if (type === "MultiDayHour") {
     }
   };
   
-  const fetchQuoteDetails = async () => {
+  const fetchQuoteDetails = async (immediate = false) => {
     if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
       return; // Exit early if prerequisites are not ready or API was already called
     }
+
+    // For immediate calls (like after removing items), skip debouncing
+    if (immediate) {
+      await performFetchQuoteDetails();
+      return;
+    }
+
+    // Debounce multiple rapid calls (for useFocusEffect)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(async () => {
+      if (isFetchingRef.current) {
+        console.log('🔄 Already fetching, skipping duplicate call');
+        return;
+      }
+      await performFetchQuoteDetails();
+    }, 500); // 500ms debounce to handle dependency changes
+  };
+
+  const performFetchQuoteDetails = async () => {
+    if (!deviceInfo || !location) {
+      return;
+    }
+
+    // Set fetching flag
+    isFetchingRef.current = true;
+    console.log('🔄 Starting GetQuote API call...');
 
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
@@ -828,12 +947,58 @@ if (type === "MultiDayHour") {
         setBlackoutDate(quote.BlackoutDate || '');
         setAvailableDate(quote.AvailableDate || '');
         setUrgency(quote.Priority || '');
+
+        // 🔄 Restore Skills with Day selections
+        if (quote.Skills) {
+          const fetchedSkills = normalizeToArray(quote.Skills.Skill);
+          console.log('📥 Restoring Skills - Raw data:', JSON.stringify(fetchedSkills, null, 2));
+          setSkills(fetchedSkills.map((skill: any) => {
+            const dayValue = skill.SkillDay || '';
+            console.log(`  Skill "${skill.SkillName}" - SkillDay: ${dayValue}`);
+            return {
+              ...skill,
+              selectedNumber: dayValue
+            };
+          }));
+        }
+
+        // 🔄 Restore Equipments with Day selections
+        if (quote.Equipments) {
+          const fetchedEquipments = normalizeToArray(quote.Equipments.Equipment);
+          console.log('📥 Restoring Equipments - Raw data:', JSON.stringify(fetchedEquipments, null, 2));
+          setEquipments(fetchedEquipments.map((equipment: any) => {
+            const dayValue = equipment.EquipmentDay || '';
+            console.log(`  Equipment "${equipment.EquipmentName}" - EquipmentDay: ${dayValue}`);
+            return {
+              ...equipment,
+              selectedNumber: dayValue
+            };
+          }));
+        }
+
+        // 🔄 Restore Work Packages with Day selections
+        if (quote.QuoteWorkPackages) {
+          const fetchedWorkPackages = normalizeToArray(quote.QuoteWorkPackages.QuoteWorkPackage);
+          console.log('📥 Restoring Work Packages - Raw data:', JSON.stringify(fetchedWorkPackages, null, 2));
+          setQuoteWorkPackages(fetchedWorkPackages.map((qwp: any) => {
+            const dayValue = qwp.QuoteWorkPackageDay || '';
+            console.log(`  WorkPackage "${qwp.QuoteWorkPackageName}" - QuoteWorkPackageDay: ${dayValue}`);
+            return {
+              ...qwp,
+              selectedNumber: dayValue
+            };
+          }));
+        }
       } else {
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
       }
     } catch (error) {
       console.error('Error fetching quote details:', error);
       Alert.alert('Error', 'An error occurred while fetching quote details.');
+    } finally {
+      // Clear fetching flag
+      isFetchingRef.current = false;
+      console.log('✅ GetQuote API call completed');
     }
   };
 
@@ -929,7 +1094,7 @@ if (type === "MultiDayHour") {
   
       if (result.ResultInfo?.Result === 'Success') {
         console.log('✅ Equipment updated successfully');
-        fetchQuoteDetails();
+        fetchQuoteDetails(true); // Immediate call after updating equipment
         // Update state for the UI
         setEquipments(prevEquipments =>
           prevEquipments.map(equipment =>
@@ -946,6 +1111,120 @@ if (type === "MultiDayHour") {
     } catch (error) {
       console.error('❌ Error updating equipment:', error);
       Alert.alert('Error', 'An error occurred while updating the equipment.');
+    }
+  };
+
+  // Update Equipment Day Selection using UpdateQuoteEquipment API
+  const handleUpdateEquipmentDay = async (equipmentSerial: number, day: string, count: number) => {
+    if (!deviceInfo || !location || !jobObj.Serial) {
+      Alert.alert('Missing Information', 'Device, location, or quote serial is missing');
+      return;
+    }
+  
+    // Ensure count has a valid value (default to 1 if undefined/zero)
+    const validCount = count && count > 0 ? count : 1;
+    console.log('📅 Equipment Day Update - Serial:', equipmentSerial, 'Day:', day, 'Count:', validCount);
+  
+    const crewzControlVersion = '1';
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+  
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+  
+    const serial = jobObj.Serial;
+  
+    // API expects: Action=update, List, Quote, Count, Day (not EquipmentDay)
+    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteEquipment.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=update&List=${equipmentSerial}&Quote=${serial}&Count=${validCount}&Day=${day}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+  
+    console.log('📅 UpdateQuoteEquipment Day URL:', url);
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      console.log('📅 Equipment API Response:', data);
+  
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+      
+      console.log('📅 Parsed Equipment Result:', JSON.stringify(result, null, 2));
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        console.log('✅ Equipment day selection updated successfully');
+      } else {
+        const errorCode = result.ResultInfo?.ErrorCode || 'Unknown';
+        const errorMessage = result.ResultInfo?.Message || 'Failed to update equipment day.';
+        console.error('❌ Equipment API Error Code:', errorCode);
+        console.error('❌ Equipment API Error Message:', errorMessage);
+        Alert.alert('Error', `Error ${errorCode}: ${errorMessage}`);
+      }
+    } catch (error) {
+      console.error('❌ Error updating equipment day:', error);
+      Alert.alert('Error', 'An error occurred while updating equipment day.');
+    }
+  };
+
+  // Update Skill Day Selection using UpdateQuoteSkill API
+  const handleUpdateSkillDay = async (skillSerial: number, day: string, count: number) => {
+    if (!deviceInfo || !location || !jobObj.Serial) {
+      Alert.alert('Missing Information', 'Device, location, or quote serial is missing');
+      return;
+    }
+  
+    // Ensure count has a valid value (default to 1 if undefined/zero)
+    const validCount = count && count > 0 ? count : 1;
+    console.log('📅 Skill Day Update - Serial:', skillSerial, 'Day:', day, 'Count:', validCount);
+  
+    const crewzControlVersion = '1';
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+  
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+  
+    const serial = jobObj.Serial;
+  
+    // API expects: Action=update, List, Quote, Count, Day (not SkillDay)
+    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteSkill.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=update&List=${skillSerial}&Quote=${serial}&Count=${validCount}&Day=${day}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+  
+    console.log('📅 UpdateQuoteSkill Day URL:', url);
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      console.log('📅 Skill API Response:', data);
+  
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+      
+      console.log('📅 Parsed Skill Result:', JSON.stringify(result, null, 2));
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        console.log('✅ Skill day selection updated successfully');
+      } else {
+        const errorCode = result.ResultInfo?.ErrorCode || 'Unknown';
+        const errorMessage = result.ResultInfo?.Message || 'Failed to update skill day.';
+        console.error('❌ Skill API Error Code:', errorCode);
+        console.error('❌ Skill API Error Message:', errorMessage);
+        Alert.alert('Error', `Error ${errorCode}: ${errorMessage}`);
+      }
+    } catch (error) {
+      console.error('❌ Error updating skill day:', error);
+      Alert.alert('Error', 'An error occurred while updating skill day.');
     }
   };
   
@@ -1053,6 +1332,20 @@ if (type === "MultiDayHour") {
 //   };
  //--------------------------------------------------------------------------------------
   const handleBackPress = () => {
+    // Save MultiDayHour data before navigating away
+    // Use multiDayFlag instead of isMultiDay to avoid timing issues
+    if (multiDayFlag === 1 && multiDayHours) {
+      const dayHourPairs = Object.entries(multiDayHours)
+        .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
+        .map(([day, hour]) => `${day}-${hour}`)
+        .join("|");
+      
+      if (dayHourPairs) {
+        setMultidayhour(dayHourPairs);
+        handleSave(dayHourPairs, "MultiDayHour");
+      }
+    }
+    
     if (parseFloat(quoteHours) === 0) {
       Alert.alert(
         'Warning',
@@ -1082,6 +1375,20 @@ if (type === "MultiDayHour") {
   };
 
   const handleCancel = async () => {
+    // Save MultiDayHour data before navigating away
+    // Use multiDayFlag instead of isMultiDay to avoid timing issues
+    if (multiDayFlag === 1 && multiDayHours) {
+      const dayHourPairs = Object.entries(multiDayHours)
+        .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
+        .map(([day, hour]) => `${day}-${hour}`)
+        .join("|");
+      
+      if (dayHourPairs) {
+        setMultidayhour(dayHourPairs);
+        handleSave(dayHourPairs, "MultiDayHour");
+      }
+    }
+    
     router.back();
   };
   
@@ -1193,17 +1500,51 @@ if (type === "MultiDayHour") {
                     <View key={day} style={styles.inputRow}>
                       <Text style={styles.inputLabel}>Hours Day {day}:</Text>
                       <TextInput
-                        value={multiDayHoursObj[day] || ""}
+                        ref={(ref) => {
+                          multiDayInputRefs.current[day] = ref;
+                        }}
+                        value={multiDayHours[day] || ""}
                         onChangeText={(text) => {
-                          multiDayHoursObj[day] = text;
+                          // Simple - just update the state, no formatting while typing
+                          setMultiDayHours(prev => ({
+                            ...prev,
+                            [day]: text
+                          }));
+                        }}
+                        onFocus={() => {
+                          // Format all other fields when focusing on this one
+                          Object.keys(multiDayHours).forEach(dayKey => {
+                            const dayNum = parseInt(dayKey);
+                            if (dayNum !== day) {
+                              formatDayInput(dayNum);
+                            }
+                          });
                         }}
                         onBlur={() => {
-                          // Build MultiDayHour string for only visible days
-                          const dayHourPairs = Array.from({ length: maxDaySelected }, (_, i) => {
-                            const d = i + 1;
-                            const h = multiDayHoursObj[d] || "0.00";
-                            return `${d}-${parseFloat(h).toFixed(2)}`;
-                          }).join("|");
+                          // Format the value to 2 decimal places when user finishes editing
+                          const currentValue = multiDayHours[day] || "";
+                          let formattedValue;
+                          
+                          if (currentValue.trim() === "") {
+                            // If empty, set to 0.00
+                            formattedValue = "0.00";
+                          } else {
+                            // Format the value to 2 decimal places
+                            const numericValue = parseFloat(currentValue);
+                            formattedValue = isNaN(numericValue) ? "0.00" : numericValue.toFixed(2);
+                          }
+
+                          // Update state with formatted value
+                          setMultiDayHours(prev => ({
+                            ...prev,
+                            [day]: formattedValue
+                          }));
+
+                          // Build MultiDayHour string for only days with values
+                          const dayHourPairs = Object.entries(multiDayHours)
+                            .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
+                            .map(([day, hour]) => `${day}-${hour}`)
+                            .join("|");
 
                           setMultidayhour(dayHourPairs);
                           handleSave(dayHourPairs, "MultiDayHour");
@@ -1505,11 +1846,31 @@ if (type === "MultiDayHour") {
                   'Select Day',
                   'Choose the day for this work package:',
                   [
-                    { text: 'DAY 1', onPress: () => { qwp.selectedNumber = '1'; setQuoteWorkPackages([...quoteWorkPackages]); } },
-                    { text: 'DAY 2', onPress: () => { qwp.selectedNumber = '2'; setQuoteWorkPackages([...quoteWorkPackages]); } },
-                    { text: 'DAY 3', onPress: () => { qwp.selectedNumber = '3'; setQuoteWorkPackages([...quoteWorkPackages]); } },
-                    { text: 'DAY 4', onPress: () => { qwp.selectedNumber = '4'; setQuoteWorkPackages([...quoteWorkPackages]); } },
-                    { text: 'DAY 5', onPress: () => { qwp.selectedNumber = '5'; setQuoteWorkPackages([...quoteWorkPackages]); } },
+                    { text: 'DAY 1', onPress: () => { 
+                      qwp.selectedNumber = '1'; 
+                      setQuoteWorkPackages([...quoteWorkPackages]);
+                      handleSave('1', 'WorkPackageDay');
+                    } },
+                    { text: 'DAY 2', onPress: () => { 
+                      qwp.selectedNumber = '2'; 
+                      setQuoteWorkPackages([...quoteWorkPackages]);
+                      handleSave('2', 'WorkPackageDay');
+                    } },
+                    { text: 'DAY 3', onPress: () => { 
+                      qwp.selectedNumber = '3'; 
+                      setQuoteWorkPackages([...quoteWorkPackages]);
+                      handleSave('3', 'WorkPackageDay');
+                    } },
+                    { text: 'DAY 4', onPress: () => { 
+                      qwp.selectedNumber = '4'; 
+                      setQuoteWorkPackages([...quoteWorkPackages]);
+                      handleSave('4', 'WorkPackageDay');
+                    } },
+                    { text: 'DAY 5', onPress: () => { 
+                      qwp.selectedNumber = '5'; 
+                      setQuoteWorkPackages([...quoteWorkPackages]);
+                      handleSave('5', 'WorkPackageDay');
+                    } },
                     { text: 'Cancel', style: 'cancel' }
                   ]
                 );
@@ -1647,11 +2008,31 @@ if (type === "MultiDayHour") {
                               'Select Day',
                               'Choose the day for this skill:',
                               [
-                                { text: 'DAY 1', onPress: () => { skill.selectedNumber = '1'; setSkills([...skills]); } },
-                                { text: 'DAY 2', onPress: () => { skill.selectedNumber = '2'; setSkills([...skills]); } },
-                                { text: 'DAY 3', onPress: () => { skill.selectedNumber = '3'; setSkills([...skills]); } },
-                                { text: 'DAY 4', onPress: () => { skill.selectedNumber = '4'; setSkills([...skills]); } },
-                                { text: 'DAY 5', onPress: () => { skill.selectedNumber = '5'; setSkills([...skills]); } },
+                                { text: 'DAY 1', onPress: () => { 
+                                  skill.selectedNumber = '1'; 
+                                  setSkills([...skills]);
+                                  handleUpdateSkillDay(skill.SkillSerial, '1', skill.SkillCount);
+                                } },
+                                { text: 'DAY 2', onPress: () => { 
+                                  skill.selectedNumber = '2'; 
+                                  setSkills([...skills]);
+                                  handleUpdateSkillDay(skill.SkillSerial, '2', skill.SkillCount);
+                                } },
+                                { text: 'DAY 3', onPress: () => { 
+                                  skill.selectedNumber = '3'; 
+                                  setSkills([...skills]);
+                                  handleUpdateSkillDay(skill.SkillSerial, '3', skill.SkillCount);
+                                } },
+                                { text: 'DAY 4', onPress: () => { 
+                                  skill.selectedNumber = '4'; 
+                                  setSkills([...skills]);
+                                  handleUpdateSkillDay(skill.SkillSerial, '4', skill.SkillCount);
+                                } },
+                                { text: 'DAY 5', onPress: () => { 
+                                  skill.selectedNumber = '5'; 
+                                  setSkills([...skills]);
+                                  handleUpdateSkillDay(skill.SkillSerial, '5', skill.SkillCount);
+                                } },
                                 { text: 'Cancel', style: 'cancel' }
                               ]
                             );
@@ -1734,11 +2115,31 @@ if (type === "MultiDayHour") {
                               'Select Day',
                               'Choose the day for this equipment:',
                               [
-                                { text: 'DAY 1', onPress: () => { equipment.selectedNumber = '1'; setEquipments([...equipments]); } },
-                                { text: 'DAY 2', onPress: () => { equipment.selectedNumber = '2'; setEquipments([...equipments]); } },
-                                { text: 'DAY 3', onPress: () => { equipment.selectedNumber = '3'; setEquipments([...equipments]); } },
-                                { text: 'DAY 4', onPress: () => { equipment.selectedNumber = '4'; setEquipments([...equipments]); } },
-                                { text: 'DAY 5', onPress: () => { equipment.selectedNumber = '5'; setEquipments([...equipments]); } },
+                                { text: 'DAY 1', onPress: () => { 
+                                  equipment.selectedNumber = '1'; 
+                                  setEquipments([...equipments]);
+                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '1', equipment.EquipmentCount);
+                                } },
+                                { text: 'DAY 2', onPress: () => { 
+                                  equipment.selectedNumber = '2'; 
+                                  setEquipments([...equipments]);
+                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '2', equipment.EquipmentCount);
+                                } },
+                                { text: 'DAY 3', onPress: () => { 
+                                  equipment.selectedNumber = '3'; 
+                                  setEquipments([...equipments]);
+                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '3', equipment.EquipmentCount);
+                                } },
+                                { text: 'DAY 4', onPress: () => { 
+                                  equipment.selectedNumber = '4'; 
+                                  setEquipments([...equipments]);
+                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '4', equipment.EquipmentCount);
+                                } },
+                                { text: 'DAY 5', onPress: () => { 
+                                  equipment.selectedNumber = '5'; 
+                                  setEquipments([...equipments]);
+                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '5', equipment.EquipmentCount);
+                                } },
                                 { text: 'Cancel', style: 'cancel' }
                               ]
                             );
@@ -1880,7 +2281,7 @@ selectedAltItem: {
     marginBottom: 10,
   },
   addButton: {
-    marginLeft: 10,
+    marginLeft: 10,   
     backgroundColor: '#20D5FF',
     borderRadius: 20,
     padding: 10,
