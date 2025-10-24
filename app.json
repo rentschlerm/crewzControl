@@ -2,7 +2,7 @@
   "expo": {
     "name": "CrewzControl",
     "slug": "crewzcontrol",
-    "version": "2.1.9",
+    "version": "2.1.10",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
