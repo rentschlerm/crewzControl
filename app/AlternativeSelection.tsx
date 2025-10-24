@@ -114,13 +114,27 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
   };
 
   const [alternatives, setAlternatives] = useState<Alternative[]>(alternativesData);
+  const [isDataReady, setIsDataReady] = useState(false);
   
     useEffect(() => {
+      console.log("🔄 AlternativeSelection - useEffect starting...");
       console.log("Serial:", quoteSerial);
       const fetchDeviceInfo = async () => {
+        console.log("📱 Fetching device info...");
+        
+        // 🧪 TEST: Add 5 second delay to test API validation
+        // await new Promise(resolve => setTimeout(resolve, 5000));
+        
         const info = await getDeviceInfo();
+        console.log("✅ Device info fetched:", info);
         setDeviceInfo(info);
-        fetchLocation();
+        
+        console.log("📍 Fetching location...");
+        await fetchLocation();  // ✅ NOW AWAITING!
+        
+        // Mark data as ready
+        setIsDataReady(true);
+        console.log("✅ All required data loaded");
       };
       fetchDeviceInfo();
     
@@ -149,11 +163,6 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
   //---------------------------------------Start of-----------------------------------------------
   const handleSave = async () => {
   try {
-    if (!alternatives || !parsedAlternates || !authorizationCode || !deviceInfo || !location) {
-      Alert.alert("Error", "Missing required data: alternatives, parsedAlternates, or authorization code.");
-      return;
-    }
-
     console.log("Parsed Alternates:", parsedAlternates);
 
     // 🔹 Format selected alternatives
@@ -181,13 +190,8 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
 
     console.log("Hour Param:", hourParam);
 
-    if (!listParam) {
-      Alert.alert("Error", "No valid alternatives selected.");
-      return;
-    }
-
     // 🔹 Device info and version
-    const deviceId = deviceInfo.id || "defaultDeviceId";
+    const deviceId = deviceInfo?.id || "defaultDeviceId";
     const crewzControlVersion = "1";
 
     // 🔹 Format date
@@ -205,7 +209,7 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
     // 🔹 Build Update URL
     const updateUrl = `https://CrewzControl.com/dev/CCService/UpdateResourceOption.php?DeviceID=${encodeURIComponent(
       deviceId
-    )}&Date=${encodeURIComponent(formattedDate)}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=add&List=${listParam}&Hour=${hourParam}`;
+    )}&Date=${encodeURIComponent(formattedDate)}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location?.longitude || ''}&Latitude=${location?.latitude || ''}&Action=add&List=${listParam}&Hour=${hourParam}`;
 
     console.log("Update Resource Option URL:", updateUrl);
 
@@ -224,7 +228,7 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
       console.log("🔄 Fetching updated quote...");
       const fetchUrl = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
         deviceId
-      )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${quoteSerial}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+      )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Serial=${quoteSerial}&Longitude=${location?.longitude || ''}&Latitude=${location?.latitude || ''}`;
 
       console.log("GetQuote URL:", fetchUrl);
 
@@ -362,10 +366,16 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.saveButton} 
+              style={[
+                styles.saveButton,
+                !isDataReady && styles.disabledButton
+              ]}
               onPress={handleSave}
+              disabled={!isDataReady}
             >
-              <Text style={styles.saveButtonText}>Save</Text>
+              <Text style={styles.saveButtonText}>
+                {isDataReady ? 'Save' : 'Loading...'}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -499,6 +509,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
   },
   cancelButtonText: {
     color: 'white',
