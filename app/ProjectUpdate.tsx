@@ -563,27 +563,19 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     setMultidayhour(dayHourPairs);
   }
 
-  // Ensure all values are properly encoded to remove carriage returns and special characters
-  const priorityValue = String((type === 'Priority' ? updated : urgency) || '');
-  const mustCompleteValue = String((type === 'MustCompleteBy' ? updated : mustCompleteDate) || '');
-  const niceToHaveValue = String((type === 'NiceToHaveBy' ? updated : niceToHaveDate) || '');
-  const notBeforeValue = String((type === 'NotBefore' ? updated : notBefore) || '');
-  const hoursValue = String((type === 'Hours' ? updated : (quoteHours || '0.00')));
+  // Strip out carriage returns and newlines from all values
+  const cleanValue = (val: any) => String(val || '').replace(/[\r\n]/g, '');
   
-  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${encodeURIComponent(
-    deviceInfo.id
-  )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}` +
-  `&Priority=${encodeURIComponent(priorityValue)}` +
-  `&MustCompleteBy=${encodeURIComponent(mustCompleteValue)}` +
-  `&NiceToHaveBy=${encodeURIComponent(niceToHaveValue)}` +
-  `&BlackoutDate=${encodeURIComponent(uniqueBlackoutDates || '')}` +
-  `&NotBefore=${encodeURIComponent(notBeforeValue)}` +
-  `&Hours=${encodeURIComponent(hoursValue)}` +
-  `&Expense=${encodeURIComponent(String((type === 'Expense' ? expenseValue : expense || '0')))}` +
-  `&MultiDayHour=${encodeURIComponent(multiDayHourValue || '')}` +
-  `&MultiDayFlag=${multiDayFlagValue}` +
-  `&Longitude=${location.longitude}` +
-  `&Latitude=${location.latitude}`;
+  const priorityValue = cleanValue(type === 'Priority' ? updated : urgency);
+  const mustCompleteValue = cleanValue(type === 'MustCompleteBy' ? updated : mustCompleteDate);
+  const niceToHaveValue = cleanValue(type === 'NiceToHaveBy' ? updated : niceToHaveDate);
+  const notBeforeValue = cleanValue(type === 'NotBefore' ? updated : notBefore);
+  const hoursValue = cleanValue(type === 'Hours' ? updated : (quoteHours || '0.00'));
+  const blackoutValue = cleanValue(uniqueBlackoutDates);
+  const expenseClean = cleanValue(type === 'Expense' ? expense : expense || '0');
+  const multiDayHourClean = cleanValue(multiDayHourValue);
+  
+  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${deviceInfo.id}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${priorityValue}&MustCompleteBy=${mustCompleteValue}&NiceToHaveBy=${niceToHaveValue}&BlackoutDate=${blackoutValue}&NotBefore=${notBeforeValue}&Hours=${hoursValue}&Expense=${expenseClean}&MultiDayHour=${multiDayHourClean}&MultiDayFlag=${multiDayFlagValue}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
   console.log('MukltidayHour Value:', multiDayHourValue);
   console.log('Request URL:', url);
 
