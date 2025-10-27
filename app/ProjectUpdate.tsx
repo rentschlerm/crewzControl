@@ -1572,6 +1572,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     setValue={setUrgency}
                     onChangeValue={(value) => {
                       if (value) {
+                        setUrgency(value); // Update state first
                         handleSave(value, "Priority");
                       }
                     }}

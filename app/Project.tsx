@@ -15,6 +15,7 @@ import {
   ScrollView,
   Keyboard,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
 import { useRouter, useFocusEffect } from 'expo-router'; // Import useRouter and useFocusEffect
@@ -61,6 +62,10 @@ const Project: React.FC = () => {
 
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Modal state for search popup
+  const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
+  const [modalSearchTerm, setModalSearchTerm] = useState<string>('');
 
 
   useEffect(() => {
@@ -174,12 +179,23 @@ const Project: React.FC = () => {
     }
   };
 
-  const handleSearch = async () => {
+  const handleOpenSearchModal = () => {
+    setModalSearchTerm(searchTerm); // Pre-fill with current search term if any
+    setIsSearchModalVisible(true);
+  };
+
+  const handleCloseSearchModal = () => {
+    setIsSearchModalVisible(false);
+    Keyboard.dismiss();
+  };
+
+  const handleSearchFromModal = async () => {
     if (!deviceInfo || !location) {
       return null;
     }
   
-    setLoading(true); // Start loading spinner
+    setLoading(true); // Start loading spinner immediately
+    setSearchTerm(modalSearchTerm); // Save the search term
   
     try {
       const crewzControlVersion = '10'; // Hard-coded as per specification
@@ -188,7 +204,7 @@ const Project: React.FC = () => {
       const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
       const key = CryptoJS.SHA1(keyString).toString();
   
-      const search = encodeURIComponent(searchTerm);
+      const search = encodeURIComponent(modalSearchTerm);
       const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&Search=${search}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
       console.log(`${url}`);
   
@@ -217,18 +233,23 @@ const Project: React.FC = () => {
           QuoteNum: quote.QuoteNum,
         }));
         
+        // Close modal before navigating
+        setIsSearchModalVisible(false);
+        
         // Navigate to SearchResults screen with results
         router.push({
           pathname: '/SearchResults',
-          params: { searchTerm, jobs: JSON.stringify(enrichedJobs) },
+          params: { searchTerm: modalSearchTerm, jobs: JSON.stringify(enrichedJobs) },
         });
       } else {
+        setIsSearchModalVisible(false);
         Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch search results.');
       }
     } catch (error) {
       // JCM 03/21/2025: Corrected the error message when no quotes is found on the list based on the provided term.
       //console.error('Error performing search:', error);
       // Alert.alert('Error', 'An error occurred while searching. Please try again.');
+      setIsSearchModalVisible(false);
       Alert.alert('', 'No matching quotes found.');
     } finally {
       setLoading(false); // Stop loading spinner
@@ -247,11 +268,7 @@ const Project: React.FC = () => {
   }
 };
 return (
-  <KeyboardAvoidingView
-    style={{ flex: 1 }}
-    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} // Adjust based on your header height
-  >
+  <View style={{ flex: 1 }}>
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={{ flex: 1 }}>
         <ImageBackground
@@ -284,30 +301,66 @@ return (
             </View>
 
             <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Enter quote customer name"
-                value={searchTerm}
-                onChangeText={setSearchTerm}
-                editable={!loading} // disable input while loading
-              />
-              <TouchableOpacity
-                style={[styles.searchButton, loading && { opacity: 0.6 }]}
-                onPress={handleSearch}
+              <TouchableOpacity 
+                style={styles.searchInputTouchable}
+                onPress={handleOpenSearchModal}
                 disabled={loading}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.searchButtonText}>Search</Text>
-                )}
+                <Text style={[styles.searchInputText, !searchTerm && styles.placeholderText]}>
+                  {searchTerm || 'Enter quote customer name'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Search Modal */}
+          <Modal
+            visible={isSearchModalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={handleCloseSearchModal}
+          >
+            <TouchableWithoutFeedback onPress={handleCloseSearchModal}>
+              <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback>
+                  <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.modalContent}
+                  >
+                    <Text style={styles.modalTitle}>Search Quote</Text>
+                    
+                    <View style={styles.modalInputContainer}>
+                      <TextInput
+                        style={styles.modalInput}
+                        placeholder="Enter quote customer name"
+                        placeholderTextColor="#999"
+                        value={modalSearchTerm}
+                        onChangeText={setModalSearchTerm}
+                        autoFocus={true}
+                        returnKeyType="search"
+                        onSubmitEditing={handleSearchFromModal}
+                      />
+                      <TouchableOpacity
+                        style={[styles.modalSearchButton, loading && { opacity: 0.6 }]}
+                        onPress={handleSearchFromModal}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <Text style={styles.searchButtonText}>Search</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </KeyboardAvoidingView>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
         </ImageBackground>
       </View>
     </TouchableWithoutFeedback>
-  </KeyboardAvoidingView>
+  </View>
 );
 };
 
@@ -320,7 +373,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-   loadingContainer: {
+  loadingContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -410,6 +463,23 @@ const styles = StyleSheet.create({
     // M.G. 10/1/2025 - Reduced marginTop for more compact layout
     marginTop: 10, // Reduced from 20
   },
+  searchInputTouchable: {
+    flex: 1,
+    height: 40,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingLeft: 10,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  searchInputText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  placeholderText: {
+    color: '#999',
+  },
   searchInput: {
     flex: 1,
     height: 40,
@@ -427,6 +497,60 @@ const styles = StyleSheet.create({
   searchButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  modalInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalInput: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    backgroundColor: 'transparent',
+    color: '#000',
+  },
+  modalSearchButton: {
+    backgroundColor: '#1E90FF',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 80,
+    height: 50,
   },
 });
 
