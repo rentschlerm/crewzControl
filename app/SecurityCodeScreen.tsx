@@ -16,7 +16,7 @@ const SecurityCodeScreen: React.FC = () => {
 
   useEffect(() => {
     if (!deviceInfo || !location || Array.isArray(deviceInfo) || Array.isArray(location)) {
-      Alert.alert('Error', 'Device information is missing.');
+      console.error('Error', 'Device information is missing.');
       router.back();
     }
   }, [deviceInfo, location]);
@@ -58,14 +58,13 @@ const SecurityCodeScreen: React.FC = () => {
           setAuthorizationCode(authorizationCode); // Update the context
           router.push('/Project');
         } else {
-          Alert.alert('Authorization Failed', message || 'An unknown error occurred');
+          console.error('Authorization Failed', message || 'An unknown error occurred');
         }
       } else {
-        Alert.alert('Authorization Failed', 'The server response was not in the expected format.');
+        console.error('Authorization Failed', 'The server response was not in the expected format.');
       }
     } catch (error) {
       console.error('Error during authorization:', error);
-      Alert.alert('Authorization Failed', 'An error occurred during authorization');
     } finally {
       setIsLoading(false);
     }

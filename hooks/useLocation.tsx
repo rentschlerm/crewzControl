@@ -9,7 +9,7 @@ interface LocationData {
   accuracy: string;
 }
 
-const useLocation = () => {
+const useLocation = (accuracy: Location.Accuracy = Location.Accuracy.Lowest) => {
   const [location, setLocation] = useState<LocationData | null>(null);
 
   const fetchLocation = async (): Promise<void> => {
@@ -17,13 +17,13 @@ const useLocation = () => {
       // Request location permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permissions are required to sign in.');
+        console.error('Permission Denied', 'Location permissions are required to sign in.');
         return;
       }
 
       // Get location
       const locationData = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: accuracy,
       });
      
       setLocation({
@@ -33,7 +33,6 @@ const useLocation = () => {
       });
     } catch (error) {
       console.error('Error fetching location:', error);
-      Alert.alert('Location Error', 'Failed to get location.');
     }
   };
 

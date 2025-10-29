@@ -97,11 +97,10 @@ const AddEquipmentsGroup: React.FC = () => {
   
           setResourcePackages(equipments);
         } else {
-          Alert.alert("Error", result.ResultInfo?.Message || "Failed to fetch equipment list.");
+          console.error("Error", result.ResultInfo?.Message || "Failed to fetch equipment list.");
         }
       } catch (error) {
         console.error("Error fetching equipment list:", error);
-        Alert.alert("Error", "An error occurred while fetching equipment list.");
       } finally {
         setLoading(false); // Stop loading
       }
@@ -124,7 +123,7 @@ const AddEquipmentsGroup: React.FC = () => {
 
   const handleProceed = async () => {
     if (!deviceInfo || !authorizationCode || !location) {
-      Alert.alert("Error", "Device info, location, or authorization code is missing.");
+      console.error("Error", "Device info, location, or authorization code is missing.");
       return;
     }
   
@@ -173,15 +172,14 @@ const AddEquipmentsGroup: React.FC = () => {
             params: { job: JSON.stringify(fetchResult.ResultInfo.Selections.Quote) },
           });
         } else {
-          Alert.alert("Error", fetchResult.ResultInfo?.Message || "Failed to fetch updated quote details.");
+          console.error("Error", fetchResult.ResultInfo?.Message || "Failed to fetch updated quote details.");
         }
 
       } else {
-        Alert.alert("Error", updateResult.ResultInfo?.Message || "Failed to update Skills.");
+        console.error("Error", updateResult.ResultInfo?.Message || "Failed to update Skills.");
       }
     } catch (error) {
       console.error("Error updating Skills:", error);
-      Alert.alert("Error", "An error occurred while updating Skills.");
     }
   };
 

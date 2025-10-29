@@ -135,19 +135,18 @@ const Project: React.FC = () => {
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
         return null;
       }
     } catch (error) {
       console.error('Error fetching quote details:', error);
-      Alert.alert('Error', 'An error occurred while fetching quote details.');
       return null;
     }
   };
 
   const fetchQuoteList = async () => {
     if (!deviceInfo || !location) {
-      Alert.alert('Device or location information is loading');
+      console.error('Device or location information is loading');
       return null;
     }
   
@@ -169,12 +168,11 @@ const Project: React.FC = () => {
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
         return null;
       }
     } catch (error) {
       console.error('Error fetching quote details:', error);
-      Alert.alert('Error', 'An error occurred while fetching quote details.');
       return null;
     }
   };
@@ -243,14 +241,14 @@ const Project: React.FC = () => {
         });
       } else {
         setIsSearchModalVisible(false);
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch search results.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch search results.');
       }
     } catch (error) {
       // JCM 03/21/2025: Corrected the error message when no quotes is found on the list based on the provided term.
       //console.error('Error performing search:', error);
       // Alert.alert('Error', 'An error occurred while searching. Please try again.');
       setIsSearchModalVisible(false);
-      Alert.alert('', 'No matching quotes found.');
+      console.error('', 'No matching quotes found.');
     } finally {
       setLoading(false); // Stop loading spinner
     }

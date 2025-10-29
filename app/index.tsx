@@ -24,6 +24,7 @@ import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import LogoStyles from '../components/LogoStyles';
 import useLocation from '../hooks/useLocation'; // Import the custom hook
+import * as Location from 'expo-location';
 
 // JCM 01/17/2025: Import AsyncStorage to be used for user redirection
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,7 +41,7 @@ const SignIn: React.FC = () => {
     model: string;
     version: string;
   } | null>(null);
-  const { location, fetchLocation } = useLocation(); // Use the custom hook
+  const { location, fetchLocation } = useLocation(Location.Accuracy.Low); // Use the custom hook with Low accuracy
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isInvalid, setIsInvalid] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
@@ -106,18 +107,7 @@ const SignIn: React.FC = () => {
     if (!location) {
       setIsLoading(false);
       // Alert.alert('Error', 'CrewzControl is still fetching your location. Please try again');
-      Alert.alert(
-        'Error',
-        'CrewzControl is still fetching your location. Please try again.',
-        [
-          {
-            text: 'Try Again',
-            // onPress: () => fetchLocation(), // Retry fetching location
-            style: 'default'
-          }
-        ],
-        { cancelable: true }
-      );
+      console.error('Error', 'CrewzControl is still fetching your location. Please try again');
       return;
     }
   }
@@ -149,7 +139,7 @@ const SignIn: React.FC = () => {
         const name = resultInfo.Name;
 
         if (resultCode === 'Success') {
-          Alert.alert(`Welcome, ${name}!`, message);
+          console.log(`Welcome, ${name}!`, message);
           setIsInvalid(false);
           router.push({
             pathname: '/SecurityCodeScreen',
@@ -159,15 +149,14 @@ const SignIn: React.FC = () => {
             },
           });
         } else {
-          Alert.alert('Login Failed', message || 'An unknown error occurred');
+          console.error('Login Failed', message || 'An unknown error occurred');
           setIsInvalid(true);
         }
       } else {
-        Alert.alert('Error', 'Unexpected response structure from the server.');
+        console.error('Error', 'Unexpected response structure from the server.');
       }
     } catch (error) {
       console.error('Error during login:', error);
-      Alert.alert('Login Failed', 'An error occurred during login');
       setIsInvalid(true);
     } finally {
       setIsLoading(false);
