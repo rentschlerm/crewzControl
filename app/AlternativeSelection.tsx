@@ -248,14 +248,13 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
           params: { job: JSON.stringify(fetchResult.ResultInfo.Selections.Quote) },
         });
       } else {
-        Alert.alert("Error", fetchResult.ResultInfo?.Message || "Failed to fetch updated quote details.");
+        console.error("Error", fetchResult.ResultInfo?.Message || "Failed to fetch updated quote details.");
       }
     } else {
-      Alert.alert("Error", updateResult.ResultInfo?.Message || "Failed to update resource options.");
+      console.error("Error", updateResult.ResultInfo?.Message || "Failed to update resource options.");
     }
   } catch (error) {
     console.error("❌ Save failed:", error);
-    Alert.alert("Error", "An unexpected error occurred while saving.");
   }
 };
   //-------------------------------------End of---------------------------------------------------

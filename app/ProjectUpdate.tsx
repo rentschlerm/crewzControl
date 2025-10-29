@@ -479,7 +479,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   // Debounce the handleSave call by 200ms
   handleSaveTimeoutRef.current = setTimeout(async () => {
     if (!deviceInfo || !location || (!jobObj.Serial && !quoteSerial)) {
-      Alert.alert('Device, location, or quote serial information is missing');
+      console.error('Device, location, or quote serial information is missing');
       return;
     }
 
@@ -596,11 +596,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setMultiDayFlag(multiDayFlagValue);
       }
     } else {
-      Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
+      console.error('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
     }
   } catch (error) {
     console.error('❌ Error updating quote:', error);
-    Alert.alert('Error', 'An error occurred while updating the quote.');
   } finally {
     isSavingRef.current = false;
   }
@@ -617,7 +616,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   
   const handleRemoveQuoteWorkPackage = async (quoteWorkPackageSerial: number) => {
     if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
-      Alert.alert('Error', 'Device info, location, authorization code, or quote serial is missing.');
+      console.error('Error', 'Device info, location, authorization code, or quote serial is missing.');
       return;
     }
   
@@ -651,11 +650,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         fetchQuoteDetails(true); // Immediate call after removing work package
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove Quote Work Package.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to remove Quote Work Package.');
       }
     } catch (error) {
       console.error('Error removing Quote Work Package:', error);
-      Alert.alert('Error', 'An error occurred while removing Quote Work Package.');
     }
   };
 
@@ -725,7 +723,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       setMultiDayFlag(revertedFlag);
       setIsMultiDay(revertedFlag === 1);
       setShowMultiDayUI(revertedFlag === 1);
-      Alert.alert('Error', 'Failed to update Multi-Day setting. Please try again.');
+      console.error('Error', 'Failed to update Multi-Day setting. Please try again.');
     } finally {
       setIsUpdatingMultiDay(false);
       console.log('🔄 isUpdatingMultiDay set to false');
@@ -734,7 +732,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
   const handleRemoveSkill = async (skillSerial: number ) => {
     if (!deviceInfo || !location || !authorizationCode || !skillSerial || !jobObj.Serial) {
-      Alert.alert('Error', 'Device info, location, authorization code, or quote serial is missing.');
+      console.error('Error', 'Device info, location, authorization code, or quote serial is missing.');
       return;
     }
   
@@ -766,18 +764,17 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       );
         fetchQuoteDetails(true); // Immediate call after removing skill
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove skill.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to remove skill.');
       }
     } catch (error) {
       console.error('Error removing skill:', error);
-      Alert.alert('Error', 'An error occurred while removing the skill.');
     }
   };
   
   
   const handleRemoveEquipment = async (equipmentSerial: number) => {
     if (!deviceInfo || !location || !authorizationCode || !equipmentSerial || !jobObj.Serial) {
-      Alert.alert('Error', 'Device info, location, authorization code, or quote serial is missing.');
+      console.error('Error', 'Device info, location, authorization code, or quote serial is missing.');
       return;
     }
   
@@ -808,11 +805,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         fetchQuoteDetails(true); // Immediate call after removing equipment
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove equipment.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to remove equipment.');
       }
     } catch (error) {
       console.error('Error removing equipment:', error);
-      Alert.alert('Error', 'An error occurred while removing the equipment.');
     }
   };
   
@@ -830,7 +826,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
   const handleProceed = async (ResourceGroupSerial: string | undefined) => {
     if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial ||!ResourceGroupSerial) {
-      Alert.alert('Error', 'Device, location, authorization code, or quote serial information is missing.');
+      console.error('Error', 'Device, location, authorization code, or quote serial information is missing.');
       return;
     }
   
@@ -869,11 +865,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setModalVisible(false);
         fetchQuoteDetails(true); // Immediate call after removing resource group
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to remove the Equipment.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to remove the Equipment.');
       }
     } catch (error) {
       console.error('Error removing Equipment:', error);
-      Alert.alert('Error', 'An error occurred while removing the Equipment.');
     }
   };
   
@@ -989,11 +984,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
           }));
         }
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
       }
     } catch (error) {
       console.error('Error fetching quote details:', error);
-      Alert.alert('Error', 'An error occurred while fetching quote details.');
     } finally {
       // Clear fetching flag
       isFetchingRef.current = false;
@@ -1003,7 +997,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
   const handleUpdateSkill = async (skillSerial: number, newCount: number) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
-      Alert.alert('Missing Information', 'Device, location, or quote serial is missing');
+      console.error('Missing Information', 'Device, location, or quote serial is missing');
       return;
     }
   
@@ -1047,18 +1041,17 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
           ).filter(skill => skill.SkillCount > 0) //  Remove if quantity is 0
         );
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the skill.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to update the skill.');
       }
     } catch (error) {
       console.error('❌ Error updating skill:', error);
-      Alert.alert('Error', 'An error occurred while updating the skill.');
     }
   };
 
 
   const handleUpdateEquipment = async (equipmentSerial: number, newCount: number) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
-      Alert.alert('Missing Information', 'Device, location, or quote serial is missing');
+      console.error('Missing Information', 'Device, location, or quote serial is missing');
       return;
     }
   
@@ -1105,18 +1098,17 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to update the equipment.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to update the equipment.');
       }
     } catch (error) {
       console.error('❌ Error updating equipment:', error);
-      Alert.alert('Error', 'An error occurred while updating the equipment.');
     }
   };
 
   // Update Equipment Day Selection using UpdateQuoteEquipment API
   const handleUpdateEquipmentDay = async (equipmentSerial: number, day: string, count: number) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
-      Alert.alert('Missing Information', 'Device, location, or quote serial is missing');
+      console.error('Missing Information', 'Device, location, or quote serial is missing');
       return;
     }
   
@@ -1162,18 +1154,16 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         const errorMessage = result.ResultInfo?.Message || 'Failed to update equipment day.';
         console.error('❌ Equipment API Error Code:', errorCode);
         console.error('❌ Equipment API Error Message:', errorMessage);
-        Alert.alert('Error', `Error ${errorCode}: ${errorMessage}`);
       }
     } catch (error) {
       console.error('❌ Error updating equipment day:', error);
-      Alert.alert('Error', 'An error occurred while updating equipment day.');
     }
   };
 
   // Update Skill Day Selection using UpdateQuoteSkill API
   const handleUpdateSkillDay = async (skillSerial: number, day: string, count: number) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
-      Alert.alert('Missing Information', 'Device, location, or quote serial is missing');
+      console.error('Missing Information', 'Device, location, or quote serial is missing');
       return;
     }
   
@@ -1219,11 +1209,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         const errorMessage = result.ResultInfo?.Message || 'Failed to update skill day.';
         console.error('❌ Skill API Error Code:', errorCode);
         console.error('❌ Skill API Error Message:', errorMessage);
-        Alert.alert('Error', `Error ${errorCode}: ${errorMessage}`);
       }
     } catch (error) {
       console.error('❌ Error updating skill day:', error);
-      Alert.alert('Error', 'An error occurred while updating skill day.');
     }
   };
   
@@ -1345,32 +1333,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       }
     }
     
-    if (parseFloat(quoteHours) === 0) {
-      Alert.alert(
-        'Warning',
-        'A quote with 0 hours will not be scheduled. Do you wish to leave this quote with 0 Hours?',
-        [
-          {
-            text: 'No',
-            onPress: () => {
-              if (hoursInputRef.current) {
-                hoursInputRef.current.focus();
-              }
-            },
-            style: 'cancel',
-          },
-          {
-            text: 'Yes',
-            onPress: async () => {
-              router.push('/Project');
-            },
-          },
-        ],
-        { cancelable: false }
-      );
-    } else {
-      router.push('/Project');
-    }
+    // Removed validation alert - let API handle validation
+    router.push('/Project');
   };
 
   const handleCancel = async () => {

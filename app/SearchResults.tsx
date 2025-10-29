@@ -79,7 +79,6 @@ useEffect(() => {
       router.back(); // Navigate back
     } catch (error) {
       console.error('Error refreshing jobs:', error);
-      Alert.alert('Error', 'Failed to refresh jobs.');
     }
   };
 
@@ -106,7 +105,7 @@ useEffect(() => {
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
         return null;
       }
     } catch (error) {
