@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
 import { useRouter, useFocusEffect } from 'expo-router'; // Import useRouter and useFocusEffect
 import LogoStyles from '../components/LogoStyles';
@@ -29,23 +30,36 @@ import useLocation from '@/hooks/useLocation';
 interface JobListItemProps {
   job: Job;
   onPress: (job: Job) => void;
+  isLoading?: boolean;
 }
 
-const JobListItem: React.FC<JobListItemProps> = ({ job, onPress }) => (
-  <TouchableOpacity onPress={() => onPress(job)} style={styles.jobRow}>
+const JobListItem: React.FC<JobListItemProps> = ({ job, onPress, isLoading = false }) => (
+  <TouchableOpacity 
+    onPress={() => onPress(job)} 
+    style={[styles.jobRow, isLoading && styles.jobRowLoading]}
+    disabled={isLoading}
+    activeOpacity={0.7}
+  >
     {/* First row for Quote and Customer Name */}
     <View style={styles.firstRow}>
-      <Text style={styles.column1}>{job.customerName || '-'}</Text>
-      <Text style={styles.column2}>{job.serial +'-'+ job.QuoteNum || '-'}</Text>
-      <Text style={styles.column2}>{job.status || '-'}</Text>
+      <Text style={[styles.column1, isLoading && styles.textLoading]}>{job.customerName || '-'}</Text>
+      <Text style={[styles.column2, isLoading && styles.textLoading]}>{job.serial +'-'+ job.QuoteNum || '-'}</Text>
+      <Text style={[styles.column2, isLoading && styles.textLoading]}>{job.status || '-'}</Text>
     </View>
 
     {/* Second row for Address, City, and Amount */}
     <View style={styles.secondRow}>
-      <Text style={styles.column3}>{job.address || '-'}</Text>
-      <Text style={styles.column4}>{job.city || '-'}</Text>
-      <Text style={styles.column4}>${job.amount ? Number(job.amount).toLocaleString() : '-'}</Text>
+      <Text style={[styles.column3, isLoading && styles.textLoading]}>{job.address || '-'}</Text>
+      <Text style={[styles.column4, isLoading && styles.textLoading]}>{job.city || '-'}</Text>
+      <Text style={[styles.column4, isLoading && styles.textLoading]}>${job.amount ? Number(job.amount).toLocaleString() : '-'}</Text>
     </View>
+    
+    {/* Loading indicator */}
+    {isLoading && (
+      <View style={styles.loadingOverlay}>
+        <ActivityIndicator size="small" color="#007AFF" />
+      </View>
+    )}
   </TouchableOpacity>
 );
 
@@ -62,6 +76,7 @@ const Project: React.FC = () => {
 
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingQuoteId, setLoadingQuoteId] = useState<number | null>(null);
   
   // Modal state for search popup
   const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
@@ -257,16 +272,32 @@ const Project: React.FC = () => {
   
 
   const handleJobPress = async (job: Job) => {
-  const quoteDetails = await fetchQuoteDetails(job.id);
-  if (quoteDetails) {
-    router.push({
-      pathname: '/ProjectUpdate',
-      params: { job: JSON.stringify(quoteDetails), quoteSerial: job.id.toString() },
-    });
+  // Prevent multiple taps
+  if (loadingQuoteId !== null) {
+    return;
+  }
+  
+  setLoadingQuoteId(job.id);
+  
+  try {
+    const quoteDetails = await fetchQuoteDetails(job.id);
+    if (quoteDetails) {
+      router.push({
+        pathname: '/ProjectUpdate',
+        params: { job: JSON.stringify(quoteDetails), quoteSerial: job.id.toString() },
+      });
+    }
+  } catch (error) {
+    console.error('Error loading quote:', error);
+  } finally {
+    // Reset loading state after a short delay to prevent rapid re-tapping
+    setTimeout(() => {
+      setLoadingQuoteId(null);
+    }, 500);
   }
 };
 return (
-  <View style={{ flex: 1 }}>
+  <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top']}>
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={{ flex: 1 }}>
         <ImageBackground
@@ -287,14 +318,23 @@ return (
           <View style={styles.mainDiv}>
             <View style={styles.sectionDiv}>
               <Text style={styles.sectionTitle}>Close to:</Text>
-              <JobListItem job={jobs[0]} onPress={handleJobPress} />
+              <JobListItem 
+                job={jobs[0]} 
+                onPress={handleJobPress} 
+                isLoading={loadingQuoteId === jobs[0].id}
+              />
             </View>
 
             <View style={styles.sectionDiv}>
               <Text style={styles.sectionTitle}>Recent:</Text>
               {/* M.G. 10/1/2025 - Display up to 5 quotes in recent list */}
               {jobs.slice(1, 6).map((item) => (
-                <JobListItem key={item.id.toString()} job={item} onPress={handleJobPress} />
+                <JobListItem 
+                  key={item.id.toString()} 
+                  job={item} 
+                  onPress={handleJobPress}
+                  isLoading={loadingQuoteId === item.id}
+                />
               ))}
             </View>
 
@@ -358,7 +398,7 @@ return (
         </ImageBackground>
       </View>
     </TouchableWithoutFeedback>
-  </View>
+  </SafeAreaView>
 );
 };
 
@@ -388,7 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginBottom: 20, // Spacing for the sections
     // M.G. 10/1/2025 - Adjusted marginTop to position quote container closer to header
-    marginTop: 110 // Adjusted to avoid covering the CREWZ CONTROL header
+    marginTop: 85 // Adjusted to avoid covering the CREWZ CONTROL header
   },
   loadingText: {
     fontSize: 18,
@@ -549,6 +589,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 80,
     height: 50,
+  },
+  jobRowLoading: {
+    opacity: 0.6,
+    backgroundColor: '#f0f0f0',
+  },
+  textLoading: {
+    color: '#999',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
   },
 });
 
