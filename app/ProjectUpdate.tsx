@@ -1352,7 +1352,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       }
     }
     
-    router.back();
+    router.push('/Project');
   };
   
   if (!job) {

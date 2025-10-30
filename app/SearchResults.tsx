@@ -8,6 +8,7 @@ import {
   Alert,
   ImageBackground,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { JobsContext, Job } from '@/components/JobContext';
@@ -33,23 +34,36 @@ import { getDeviceInfo } from '@/components/DeviceUtils';
 interface JobListItemProps {
   job: Job;
   onPress: (job: Job) => void;
+  isLoading?: boolean;
 }
 
-const JobListItem: React.FC<JobListItemProps> = ({ job, onPress }) => (
-  <TouchableOpacity onPress={() => onPress(job)} style={styles.jobRow}>
+const JobListItem: React.FC<JobListItemProps> = ({ job, onPress, isLoading = false }) => (
+  <TouchableOpacity 
+    onPress={() => onPress(job)} 
+    style={[styles.jobRow, isLoading && styles.jobRowLoading]}
+    disabled={isLoading}
+    activeOpacity={0.7}
+  >
     {/* First row for Quote and Customer Name */}
     <View style={styles.firstRow}>
-         <Text style={styles.column1}>{job.quoteName || '-'}</Text>
-         <Text style={styles.column2}>{job.serial +'-'+ job.QuoteNum || '-'}</Text>
-         <Text style={styles.column2}>{job.status || '-'}</Text>
+         <Text style={[styles.column1, isLoading && styles.textLoading]}>{job.quoteName || '-'}</Text>
+         <Text style={[styles.column2, isLoading && styles.textLoading]}>{job.serial +'-'+ job.QuoteNum || '-'}</Text>
+         <Text style={[styles.column2, isLoading && styles.textLoading]}>{job.status || '-'}</Text>
        </View>
    
        {/* Second row for Address, City, and Amount */}
        <View style={styles.secondRow}>
-         <Text style={styles.column3}>{job.address || '-'}</Text>
-         <Text style={styles.column4}>{job.city || '-'}</Text>
-         <Text style={styles.column4}>${job.amount ? Number(job.amount).toLocaleString() : '-'}</Text>
+         <Text style={[styles.column3, isLoading && styles.textLoading]}>{job.address || '-'}</Text>
+         <Text style={[styles.column4, isLoading && styles.textLoading]}>{job.city || '-'}</Text>
+         <Text style={[styles.column4, isLoading && styles.textLoading]}>${job.amount ? Number(job.amount).toLocaleString() : '-'}</Text>
        </View>
+       
+    {/* Loading indicator */}
+    {isLoading && (
+      <View style={styles.loadingOverlay}>
+        <ActivityIndicator size="small" color="#007AFF" />
+      </View>
+    )}
   </TouchableOpacity>
 );
 
@@ -63,6 +77,7 @@ const SearchResults: React.FC = () => {
     softwareVersion: string | number | boolean; id: string; type: string; model: string; version: string 
 } | null>(null);
   const { location, fetchLocation } = useLocation();
+  const [loadingQuoteId, setLoadingQuoteId] = useState<number | null>(null);
 console.log(jobList);
 useEffect(() => {
   const fetchDeviceInfo = async () => {
@@ -117,15 +132,31 @@ useEffect(() => {
 
 
   const handleJobPress = async (job: Job) => {
-    const quoteDetails = await fetchQuoteDetails(job.id);
-    if (quoteDetails) {
-      // Navigate with pre-fetched details
-      router.push({
-        pathname: '/ProjectUpdate',
-        params: { job: JSON.stringify(quoteDetails) },
-      });
-    } else {
-      // Alert.alert('No additional details', 'This job has no extra details available.');
+    // Prevent multiple taps
+    if (loadingQuoteId !== null) {
+      return;
+    }
+    
+    setLoadingQuoteId(job.id);
+    
+    try {
+      const quoteDetails = await fetchQuoteDetails(job.id);
+      if (quoteDetails) {
+        // Navigate with pre-fetched details
+        router.push({
+          pathname: '/ProjectUpdate',
+          params: { job: JSON.stringify(quoteDetails) },
+        });
+      } else {
+        // Alert.alert('No additional details', 'This job has no extra details available.');
+      }
+    } catch (error) {
+      console.error('Error loading quote:', error);
+    } finally {
+      // Reset loading state after a short delay to prevent rapid re-tapping
+      setTimeout(() => {
+        setLoadingQuoteId(null);
+      }, 500);
     }
   };
 
@@ -150,7 +181,11 @@ useEffect(() => {
           <FlatList
             data={jobList}
             renderItem={({ item }) => (
-              <JobListItem job={item} onPress={handleJobPress} />
+              <JobListItem 
+                job={item} 
+                onPress={handleJobPress}
+                isLoading={loadingQuoteId === item.id}
+              />
             )}
             keyExtractor={(item, index) => `${item.id}-${index}`}
             contentContainerStyle={styles.flatListContent} // For padding/margin
@@ -242,6 +277,24 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  jobRowLoading: {
+    opacity: 0.6,
+    backgroundColor: '#f0f0f0',
+  },
+  textLoading: {
+    color: '#999',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
   },
 });
 

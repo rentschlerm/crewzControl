@@ -11,6 +11,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
 } from "react-native";
 import { JobsContext } from "@/components/JobContext";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -200,6 +201,7 @@ const AddResourceGroup: React.FC = () => {
   
   
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
     <KeyboardAvoidingView
       style={styles.container}
       // behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -285,6 +287,7 @@ const AddResourceGroup: React.FC = () => {
         </View>
       </ImageBackground>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
   
 };

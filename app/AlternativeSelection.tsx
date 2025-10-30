@@ -9,6 +9,7 @@ import {
   Image,
   ImageBackground,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { Checkbox } from 'react-native-paper'; // Using react-native-paper for checkboxes
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -268,6 +269,7 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
   
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
     <ImageBackground
       source={require('../assets/images/background.png')}
       style={styles.background}
@@ -380,6 +382,7 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
         </ScrollView>
       </View>
     </ImageBackground>
+    </SafeAreaView>
   );
 };
 
