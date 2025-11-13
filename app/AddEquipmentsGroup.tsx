@@ -42,7 +42,7 @@ const AddEquipmentsGroup: React.FC = () => {
   const [resourcePackages, setResourcePackages] = useState<ResourcePackage[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<Set<number>>(new Set());
   const [proceedEnabled, setProceedEnabled] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const { job } = useLocalSearchParams(); // Fetch the job parameter
   const jobObj = job ? (typeof job === "string" ? JSON.parse(job) : job) : null; // Parse job into jobObj
 

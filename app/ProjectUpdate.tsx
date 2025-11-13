@@ -98,7 +98,7 @@ const MultiDayOffButton: React.FC<{
         style
       ]}>
       <Text style={styles.cancelButtonText}>
-        {isUpdatingMultiDay ? "Updating..." : "Multi-Day OFF"}
+        {isUpdatingMultiDay ? "Updating..." : "Add Multi-Day"}
       </Text>
     </TouchableOpacity>
   );
@@ -123,7 +123,7 @@ const MultiDayOnButton: React.FC<{
         style
       ]}>
       <Text style={[styles.cancelButtonText, { color: 'white' }]}>
-        {isUpdatingMultiDay ? "Updating..." : "Multi-Day ON"}
+        {isUpdatingMultiDay ? "Updating..." : "Remove Multi-Day"}
       </Text>
     </TouchableOpacity>
   );
@@ -237,7 +237,7 @@ const ProjectUpdate: React.FC = () => {
     const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
     return {
       flag: initialFlag,
-      text: initialFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+      text: initialFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
       buttonStyle: initialFlag === 1 ? { backgroundColor: '#007BFF' } : {},
       textStyle: initialFlag === 1 ? { color: 'white' } : {}
     };
@@ -677,7 +677,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     // Update button state atomically
     const newButtonState = {
       flag: newMultiDayFlag,
-      text: newMultiDayFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+      text: newMultiDayFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
       buttonStyle: newMultiDayFlag === 1 ? { backgroundColor: '#007BFF' } : {},
       textStyle: newMultiDayFlag === 1 ? { color: 'white' } : {}
     };
@@ -712,7 +712,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       const revertedFlag = newMultiDayFlag === 1 ? 0 : 1;
       const revertedButtonState = {
         flag: revertedFlag,
-        text: revertedFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+        text: revertedFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
         buttonStyle: revertedFlag === 1 ? { backgroundColor: '#007BFF' } : {},
         textStyle: revertedFlag === 1 ? { color: 'white' } : {}
       };
@@ -1918,7 +1918,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
         })
                     ) : (
-                      <Text style={styles.emptyText}>No Equipment available.</Text>
+                      <Text style={styles.emptyText}>No Equipment Groups Selected.</Text>
                     )}
                     </View>
               {/* Skills Section */}
@@ -2034,7 +2034,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.emptyText}>No skills available.</Text>
+                  <Text style={styles.emptyText}>No Skills Selected.</Text>
                 )}
               
 
@@ -2141,7 +2141,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.emptyText}>No equipment available.</Text>
+                  <Text style={styles.emptyText}>No Equipment Selected.</Text>
                 )}
               
               </View>
