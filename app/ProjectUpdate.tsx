@@ -2149,7 +2149,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
           {/* Footer (Buttons) */}
           <View style={styles.footer}>
-            <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+            <TouchableOpacity onPress={handleCancel} style={[styles.cancelButton, { flex: 0.4 }]}>
               <Text style={styles.cancelButtonText}>Back</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -2161,7 +2161,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
               style={[
                 styles.cancelButton,
                 buttonState.buttonStyle,
-                isUpdatingMultiDay && { opacity: 0.7 }
+                isUpdatingMultiDay && { opacity: 0.7 },
+                { flex: 0.6 }
               ]}>
               <Text style={[styles.cancelButtonText, buttonState.textStyle]}>
                 {isUpdatingMultiDay ? "Updating..." : buttonState.text}
@@ -2524,7 +2525,8 @@ dayPickerListLabel: {
     borderTopWidth: 1,
     borderTopColor: '#ddd',
     backgroundColor: '#f9f9f9',
-    marginBottom: 50
+    marginBottom: 50,
+    gap: 10,
   },
   serviceSection: {
     marginTop: 20,
@@ -2585,7 +2587,8 @@ dayPickerListLabel: {
     backgroundColor: '#ffffff',
     borderRadius: 15,
     padding: 20,
-    marginTop: 150, // Space for the logo
+    marginTop: 75, // Space for the logo
+    overflow: 'hidden',
   }, 
   column: {
     flex: 1, // Ensures each column takes up equal space
@@ -2738,8 +2741,10 @@ dayPickerListLabel: {
   cancelButton: {
     backgroundColor: '#20D5FF',
     paddingVertical: 10,
-    paddingHorizontal: 50,
+    paddingHorizontal: 20,
     borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButtonText: {
     color: '#fff',

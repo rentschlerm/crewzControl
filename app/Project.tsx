@@ -58,7 +58,7 @@ const JobListItem: React.FC<JobListItemProps> = ({ job, onPress, isLoading = fal
     {isLoading && (
       <View style={styles.loadingOverlay}>
         <ActivityIndicator size="small" color="#007AFF" />
-      </View>
+    </View>
     )}
   </TouchableOpacity>
 );
@@ -280,12 +280,12 @@ const Project: React.FC = () => {
   setLoadingQuoteId(job.id);
   
   try {
-    const quoteDetails = await fetchQuoteDetails(job.id);
-    if (quoteDetails) {
-      router.push({
-        pathname: '/ProjectUpdate',
-        params: { job: JSON.stringify(quoteDetails), quoteSerial: job.id.toString() },
-      });
+  const quoteDetails = await fetchQuoteDetails(job.id);
+  if (quoteDetails) {
+    router.push({
+      pathname: '/ProjectUpdate',
+      params: { job: JSON.stringify(quoteDetails), quoteSerial: job.id.toString() },
+    });
     }
   } catch (error) {
     console.error('Error loading quote:', error);
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginBottom: 20, // Spacing for the sections
     // M.G. 10/1/2025 - Adjusted marginTop to position quote container closer to header
-    marginTop: 85 // Adjusted to avoid covering the CREWZ CONTROL header
+    marginTop: 60 // Adjusted to avoid covering the CREWZ CONTROL header
   },
   loadingText: {
     fontSize: 18,

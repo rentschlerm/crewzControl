@@ -208,7 +208,8 @@ const AddSkillsGroup: React.FC = () => {
             <TouchableOpacity onPress={() => router.back()}>
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>  Add Skill</Text>
+            <Text style={styles.title}>Add Skill</Text>
+            <View style={{ width: 50 }} />
           </View>
   
           {/* Conditional Loading */}
@@ -303,7 +304,9 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     alignSelf: "center",
     justifyContent: "space-between",
-    marginTop: 150, 
+    marginTop: 75, 
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
   },
   footer: {
     flexDirection: "row",
@@ -359,7 +362,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
     alignItems: "center",
-    marginRight: 100,
   },
   backText: {
     fontSize: 16,
