@@ -3,7 +3,7 @@
 // Set `debug_flag` to 1 to enable logs, 0 to disable.
 // Import and call `initDebug()` early (e.g., in app/_layout.tsx).
 
-export let debug_flag = 0; // 1 = enabled, 0 = disabled
+export let debug_flag = 1; // 1 = enabled, 0 = disabled
 
 const originalConsole = {
   log: console.log,
