@@ -276,7 +276,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   // });
 
   const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.MustCompleteBy);
-  const [niceToHaveDate, setNiceToHaveDate] = useState(jobObj?.NiceToHaveBy);
+  const [minCrew, setMinCrew] = useState<string>(
+    jobObj?.MinCrew !== undefined ? String(jobObj.MinCrew) : '0'
+  );
   const [blackoutDate, setBlackoutDate] = useState<string | undefined>(jobObj?.BlackoutDate);
   const [notBefore, setNotBefore] = useState(jobObj?.NotBefore);
   
@@ -565,17 +567,27 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
   // Strip out carriage returns and newlines from all values
   const cleanValue = (val: any) => String(val || '').replace(/[\r\n]/g, '');
-  
+
   const priorityValue = cleanValue(type === 'Priority' ? updated : urgency);
   const mustCompleteValue = cleanValue(type === 'MustCompleteBy' ? updated : mustCompleteDate);
-  const niceToHaveValue = cleanValue(type === 'NiceToHaveBy' ? updated : niceToHaveDate);
   const notBeforeValue = cleanValue(type === 'NotBefore' ? updated : notBefore);
   const hoursValue = cleanValue(type === 'Hours' ? updated : (quoteHours || '0.00'));
   const blackoutValue = cleanValue(uniqueBlackoutDates);
   const expenseClean = cleanValue(type === 'Expense' ? expense : expense || '0');
   const multiDayHourClean = cleanValue(multiDayHourValue);
-  
-  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${deviceInfo.id}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${priorityValue}&MustCompleteBy=${mustCompleteValue}&NiceToHaveBy=${niceToHaveValue}&BlackoutDate=${blackoutValue}&NotBefore=${notBeforeValue}&Hours=${hoursValue}&Expense=${expenseClean}&MultiDayHour=${multiDayHourClean}&MultiDayFlag=${multiDayFlagValue}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+
+  // Minimum Crew handling
+  let minCrewValue = minCrew;
+  if (type === 'MinCrew') {
+    if (!updated || updated === '' || isNaN(Number(updated))) {
+      minCrewValue = '0';
+    } else {
+      minCrewValue = String(parseInt(String(updated), 10));
+    }
+  }
+  const minCrewClean = cleanValue(minCrewValue);
+
+  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${deviceInfo.id}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${priorityValue}&MustCompleteBy=${mustCompleteValue}&MinCrew=${minCrewClean}&BlackoutDate=${blackoutValue}&NotBefore=${notBeforeValue}&Hours=${hoursValue}&Expense=${expenseClean}&MultiDayHour=${multiDayHourClean}&MultiDayFlag=${multiDayFlagValue}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
   console.log('MukltidayHour Value:', multiDayHourValue);
   console.log('Request URL:', url);
 
@@ -937,7 +949,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
         setAmount(quote.Amount ? quote.Amount.toString() : '');
         setMustCompleteDate(quote.MustCompleteBy || '');
-        setNiceToHaveDate(quote.NiceToHaveBy || '');
+        setMinCrew(quote.MinCrew !== undefined ? String(quote.MinCrew) : '0');
         setBlackoutDate(quote.BlackoutDate || '');
         setAvailableDate(quote.AvailableDate || '');
         setUrgency(quote.Priority || '');
@@ -1429,7 +1441,31 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   keyboardType="number-pad"
                   style={styles.inputField}
                 />
-              </View> 
+              </View>
+
+              <View style={styles.inputRow}>
+                <Text style={styles.inputLabel}>
+                  Minimum Crew:
+                </Text>
+                <TextInput
+                  value={minCrew}
+                  onChangeText={(text) => setMinCrew(text)}
+                  onBlur={() => {
+                    const inputValue = parseInt(minCrew);
+                    if (!isNaN(inputValue)) {
+                      const normalized = inputValue.toString();
+                      setMinCrew(normalized);
+                      handleSave(normalized, 'MinCrew');
+                    } else {
+                      setMinCrew('0');
+                      handleSave('0', 'MinCrew');
+                    }
+                  }}
+                  placeholder="0"
+                  keyboardType="number-pad"
+                  style={styles.inputField}
+                />
+              </View>
             {Number(multiDayFlag) === 0 ? (
               // 🔹 Single Hours input (default)
               <View style={styles.inputRow}>
@@ -1556,15 +1592,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     handleSave(date, 'NotBefore');
                   }}
                 />
-                <CustomDatePicker
-                  label="Nice To Have By:"
-                  value={niceToHaveDate || ''} // Value from the state
-                  onChange={(date) => {
-                    console.log('NiceToHaveBy Updated:', date);
-                    setNiceToHaveDate(date); // Updates the state
-                    handleSave(date, 'NiceToHaveBy');
-                  }}
-                />
+                {/* Removed Nice To Have By field per API update */}
                 <CustomDatePicker
                   label="Must Be Complete By:"
                   value={mustCompleteDate || ''} // Value from the state

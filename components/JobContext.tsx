@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Define the Job type
 export interface Job {
   Expense: number,
+  MinCrew?: number;
   NotBefore?: string;
   QuoteWorkPackages: any;
   Serial: any;
@@ -98,6 +99,14 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     initializeDeviceInfo();
     fetchLocation();
   }, []);
+
+  // Automatically fetch jobs once deviceInfo and authorizationCode are available
+  useEffect(() => {
+    if (deviceInfo && authorizationCode) {
+      // Fire-and-forget: fetchJobs has its own debounce and guards
+      fetchJobs();
+    }
+  }, [deviceInfo, authorizationCode]);
 
   // Cleanup timeout on unmount
   useEffect(() => {

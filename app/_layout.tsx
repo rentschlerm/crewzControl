@@ -1,8 +1,11 @@
 import { Stack } from "expo-router";
 import { JobsProvider } from "../components/JobContext"; 
 import { QuoteProvider } from "../components/QuoteContext";
+import { initDebug } from '../components/Debug';
 
 export default function RootLayout() {
+  // Initialize debug behavior (overrides console methods when flagged off)
+  initDebug();
   return (
 
 

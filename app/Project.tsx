@@ -100,26 +100,24 @@ const Project: React.FC = () => {
       if (jobsContext?.fetchJobs) {
         jobsContext.fetchJobs();
       }
-    }, []) // Empty dependency array to prevent infinite loop
+    }, [jobsContext]) // Re-run callback when jobsContext changes
   );
   
   if (!jobsContext) {
     return <Text>Error: JobsContext not available</Text>;
   }
 
+  // Debug: log context and loading state
+  console.log('JobsContext:', jobsContext);
+  console.log('jobsReady, jobs.length:', jobsContext?.jobsReady, jobsContext?.jobs?.length);
+  console.log('deviceInfo, location:', deviceInfo, location);
+
   const { jobs, jobsReady } = jobsContext; // Destructure jobs and jobsReady from context
 
-  // Show a loading state while jobs are being loaded
-  if (!jobsReady) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading quotes...</Text>
-      </View>
-    );
-  }
+  const showLoading = !jobsReady;
 
-  // Handle the case where no jobs are available
-  if (jobs.length === 0) {
+  // Handle the case where no jobs are available (only after jobsReady)
+  if (jobsReady && jobs.length === 0) {
     return (
       <View style={styles.container}>
         <Text style={styles.noQuotesText}>No quotes available</Text>
@@ -309,6 +307,13 @@ return (
             style={LogoStyles.logo}
             resizeMode="contain"
           />
+          {/* Loading overlay when jobs are still being prepared */}
+          {showLoading && (
+            <View style={styles.centeredLoading} pointerEvents="none">
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={{ marginTop: 8 }}>Loading quotes...</Text>
+            </View>
+          )}
           {isLoadingQuote && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#007AFF" />
@@ -318,11 +323,15 @@ return (
           <View style={styles.mainDiv}>
             <View style={styles.sectionDiv}>
               <Text style={styles.sectionTitle}>Close to:</Text>
-              <JobListItem 
-                job={jobs[0]} 
-                onPress={handleJobPress} 
-                isLoading={loadingQuoteId === jobs[0].id}
-              />
+              {jobs.length > 0 ? (
+                <JobListItem 
+                  job={jobs[0]} 
+                  onPress={handleJobPress} 
+                  isLoading={loadingQuoteId === jobs[0].id}
+                />
+              ) : (
+                <Text style={styles.loadingText}>Preparing quotes...</Text>
+              )}
             </View>
 
             <View style={styles.sectionDiv}>
@@ -421,6 +430,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 999,
+  },
+  centeredLoading: {
+    position: 'absolute',
+    top: '40%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000,
   },
   mainDiv: {
     padding: 10,
