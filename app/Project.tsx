@@ -100,7 +100,8 @@ const Project: React.FC = () => {
       if (jobsContext?.fetchJobs) {
         jobsContext.fetchJobs();
       }
-    }, []) // Empty dependency array to prevent infinite loop
+    //}, []) // Empty dependency array to prevent infinite loop
+    }, [jobsContext?.fetchJobs]) // Only depend on the specific function, not entire context
   );
   
   if (!jobsContext) {

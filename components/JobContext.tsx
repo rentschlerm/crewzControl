@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Define the Job type
 export interface Job {
   Expense: number,
+  MinCrew?: number;
   NotBefore?: string;
   QuoteWorkPackages: any;
   Serial: any;
@@ -101,19 +102,6 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     fetchLocation();
   }, []);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (fetchJobsTimeoutRef.current) {
-        clearTimeout(fetchJobsTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  
-    const fetchJobs = async () => {
-      console.log('🔍 fetchJobs called - deviceInfo:', !!deviceInfo, 'authorizationCode:', !!authorizationCode, 'isFetchingJobs:', isFetchingJobs);
-      
   // Define fetchJobs before using it in useEffect
   const fetchJobs = useCallback(async () => {
       // Clear any existing timeout
@@ -126,12 +114,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       fetchJobsTimeoutRef.current = setTimeout(async () => {
         // JCM 01/18/2025: Removed the !location condition as it was created separately
         // M.G. 10/1/2025 - Removed jobsFetched check to allow refetching quotes every time screen opens
-          console.log('🚫 fetchJobs skipped - missing data or already fetching');
         if (!deviceInfo || !authorizationCode || isFetchingJobsRef.current) {
           return; // Exit if data is missing or already fetching
         }
         
-        console.log('🚀 Starting GetQuoteList API call...');
         isFetchingJobsRef.current = true;
         setIsFetchingJobs(true);
 
@@ -167,15 +153,16 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         // const keyString = `${deviceInfo.id}${formattedDate}`;
         const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
         const key = CryptoJS.SHA1(keyString).toString();
-        console.log(`Authorization Code: ${authorizationCode}`)
         
         //  JCM 01/18/2025: Updated the URL value for Longitude and Latitude from location.longitude and location.latitude to longittude and latitude
         const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${longitude}&Latitude=${latitude}&Language=EN`;
-        console.log(`Request URL: ${url}`);
+        // Reduced logging - uncomment for debugging
+        // console.log(`Request URL: ${url}`);
 
         const response = await fetch(url);
         const data = await response.text();
-        console.log(`Response Data: ${data}`);
+        // Reduced logging - uncomment for debugging
+        // console.log(`Response Data: ${data}`);
 
         // Parse XML response
         const parser = new XMLParser();
@@ -227,6 +214,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
           setJobs(fetchedJobs);
           setJobsReady(true);
+          console.log(`✅ Loaded ${fetchedJobs.length} quotes`);
           // M.G. 10/1/2025 - Removed setJobsFetched(true) to allow refetching
         } else {
           // MG 12-29-2025
