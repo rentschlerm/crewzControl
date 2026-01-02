@@ -297,6 +297,7 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
             <Text style={styles.title}>
               {workPackageName || 'Work Package'}
             </Text>
+            <View style={{ width: 50 }} />
           </View>
 
           <Text style={styles.subtitle}>Available Alternatives:</Text>
@@ -457,11 +458,13 @@ const styles = StyleSheet.create({
     width: '90%',
     padding: 20,
     backgroundColor: 'white',
-    borderRadius: 10,
-    marginTop: 40
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    marginTop: 75
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },

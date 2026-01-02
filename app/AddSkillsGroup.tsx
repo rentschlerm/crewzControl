@@ -42,7 +42,7 @@ const AddSkillsGroup: React.FC = () => {
   const [resourcePackages, setResourcePackages] = useState<ResourcePackage[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<Set<number>>(new Set());
   const [proceedEnabled, setProceedEnabled] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const { job } = useLocalSearchParams(); // Fetch the job parameter
   const jobObj = job ? (typeof job === "string" ? JSON.parse(job) : job) : null; // Parse job into jobObj
 
@@ -220,7 +220,8 @@ const AddSkillsGroup: React.FC = () => {
             <TouchableOpacity onPress={() => router.back()}>
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>  Add Skill</Text>
+            <Text style={styles.title}>Add Skill</Text>
+            <View style={{ width: 50 }} />
           </View>
   
           {/* Conditional Loading */}
@@ -315,7 +316,9 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     alignSelf: "center",
     justifyContent: "space-between",
-    marginTop: 150, 
+    marginTop: 75, 
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
   },
   footer: {
     flexDirection: "row",
@@ -371,7 +374,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
     alignItems: "center",
-    marginRight: 100,
   },
   backText: {
     fontSize: 16,

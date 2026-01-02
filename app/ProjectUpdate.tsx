@@ -98,7 +98,7 @@ const MultiDayOffButton: React.FC<{
         style
       ]}>
       <Text style={styles.cancelButtonText}>
-        {isUpdatingMultiDay ? "Updating..." : "Multi-Day OFF"}
+        {isUpdatingMultiDay ? "Updating..." : "Add Multi-Day"}
       </Text>
     </TouchableOpacity>
   );
@@ -123,7 +123,7 @@ const MultiDayOnButton: React.FC<{
         style
       ]}>
       <Text style={[styles.cancelButtonText, { color: 'white' }]}>
-        {isUpdatingMultiDay ? "Updating..." : "Multi-Day ON"}
+        {isUpdatingMultiDay ? "Updating..." : "Remove Multi-Day"}
       </Text>
     </TouchableOpacity>
   );
@@ -237,7 +237,7 @@ const ProjectUpdate: React.FC = () => {
     const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
     return {
       flag: initialFlag,
-      text: initialFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+      text: initialFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
       buttonStyle: initialFlag === 1 ? { backgroundColor: '#007BFF' } : {},
       textStyle: initialFlag === 1 ? { color: 'white' } : {}
     };
@@ -276,7 +276,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   // });
 
   const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.MustCompleteBy);
-  const [niceToHaveDate, setNiceToHaveDate] = useState(jobObj?.NiceToHaveBy);
+  const [minCrew, setMinCrew] = useState<string>(
+    jobObj?.MinCrew !== undefined ? String(jobObj.MinCrew) : '0'
+  );
   const [blackoutDate, setBlackoutDate] = useState<string | undefined>(jobObj?.BlackoutDate);
   const [notBefore, setNotBefore] = useState(jobObj?.NotBefore);
   
@@ -594,17 +596,27 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
   // Strip out carriage returns and newlines from all values
   const cleanValue = (val: any) => String(val || '').replace(/[\r\n]/g, '');
-  
+
   const priorityValue = cleanValue(type === 'Priority' ? updated : urgency);
   const mustCompleteValue = cleanValue(type === 'MustCompleteBy' ? updated : mustCompleteDate);
-  const niceToHaveValue = cleanValue(type === 'NiceToHaveBy' ? updated : niceToHaveDate);
   const notBeforeValue = cleanValue(type === 'NotBefore' ? updated : notBefore);
   const hoursValue = cleanValue(type === 'Hours' ? updated : (quoteHours || '0.00'));
   const blackoutValue = cleanValue(uniqueBlackoutDates);
   const expenseClean = cleanValue(type === 'Expense' ? expense : expense || '0');
   const multiDayHourClean = cleanValue(multiDayHourValue);
-  
-  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${deviceInfo.id}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${priorityValue}&MustCompleteBy=${mustCompleteValue}&NiceToHaveBy=${niceToHaveValue}&BlackoutDate=${blackoutValue}&NotBefore=${notBeforeValue}&Hours=${hoursValue}&Expense=${expenseClean}&MultiDayHour=${multiDayHourClean}&MultiDayFlag=${multiDayFlagValue}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+
+  // Minimum Crew handling
+  let minCrewValue = minCrew;
+  if (type === 'MinCrew') {
+    if (!updated || updated === '' || isNaN(Number(updated))) {
+      minCrewValue = '0';
+    } else {
+      minCrewValue = String(parseInt(String(updated), 10));
+    }
+  }
+  const minCrewClean = cleanValue(minCrewValue);
+
+  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${deviceInfo.id}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${priorityValue}&MustCompleteBy=${mustCompleteValue}&MinCrew=${minCrewClean}&BlackoutDate=${blackoutValue}&NotBefore=${notBeforeValue}&Hours=${hoursValue}&Expense=${expenseClean}&MultiDayHour=${multiDayHourClean}&MultiDayFlag=${multiDayFlagValue}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
   console.log('MukltidayHour Value:', multiDayHourValue);
   console.log('Request URL:', url);
 
@@ -710,7 +722,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     // Update button state atomically
     const newButtonState = {
       flag: newMultiDayFlag,
-      text: newMultiDayFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+      text: newMultiDayFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
       buttonStyle: newMultiDayFlag === 1 ? { backgroundColor: '#007BFF' } : {},
       textStyle: newMultiDayFlag === 1 ? { color: 'white' } : {}
     };
@@ -745,7 +757,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       const revertedFlag = newMultiDayFlag === 1 ? 0 : 1;
       const revertedButtonState = {
         flag: revertedFlag,
-        text: revertedFlag === 1 ? "Multi-Day ON" : "Multi-Day OFF",
+        text: revertedFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
         buttonStyle: revertedFlag === 1 ? { backgroundColor: '#007BFF' } : {},
         textStyle: revertedFlag === 1 ? { color: 'white' } : {}
       };
@@ -976,7 +988,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
         setAmount(quote.Amount ? quote.Amount.toString() : '');
         setMustCompleteDate(quote.MustCompleteBy || '');
-        setNiceToHaveDate(quote.NiceToHaveBy || '');
+        setMinCrew(quote.MinCrew !== undefined ? String(quote.MinCrew) : '0');
         setBlackoutDate(quote.BlackoutDate || '');
         setAvailableDate(quote.AvailableDate || '');
         setUrgency(quote.Priority || '');
@@ -1457,7 +1469,31 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   keyboardType="number-pad"
                   style={styles.inputField}
                 />
-              </View> 
+              </View>
+
+              <View style={styles.inputRow}>
+                <Text style={styles.inputLabel}>
+                  Minimum Crew:
+                </Text>
+                <TextInput
+                  value={minCrew}
+                  onChangeText={(text) => setMinCrew(text)}
+                  onBlur={() => {
+                    const inputValue = parseInt(minCrew);
+                    if (!isNaN(inputValue)) {
+                      const normalized = inputValue.toString();
+                      setMinCrew(normalized);
+                      handleSave(normalized, 'MinCrew');
+                    } else {
+                      setMinCrew('0');
+                      handleSave('0', 'MinCrew');
+                    }
+                  }}
+                  placeholder="0"
+                  keyboardType="number-pad"
+                  style={styles.inputField}
+                />
+              </View>
             {Number(multiDayFlag) === 0 ? (
               // 🔹 Single Hours input (default)
               <View style={styles.inputRow}>
@@ -1584,15 +1620,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     handleSave(date, 'NotBefore');
                   }}
                 />
-                <CustomDatePicker
-                  label="Nice To Have By:"
-                  value={niceToHaveDate || ''} // Value from the state
-                  onChange={(date) => {
-                    console.log('NiceToHaveBy Updated:', date);
-                    setNiceToHaveDate(date); // Updates the state
-                    handleSave(date, 'NiceToHaveBy');
-                  }}
-                />
+                {/* Removed Nice To Have By field per API update */}
                 <CustomDatePicker
                   label="Must Be Complete By:"
                   value={mustCompleteDate || ''} // Value from the state
@@ -1946,7 +1974,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
         })
                     ) : (
-                      <Text style={styles.emptyText}>No Equipment available.</Text>
+                      <Text style={styles.emptyText}>No Equipment Groups Selected.</Text>
                     )}
                     </View>
               {/* Skills Section */}
@@ -2062,7 +2090,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.emptyText}>No skills available.</Text>
+                  <Text style={styles.emptyText}>No Skills Selected.</Text>
                 )}
               
 
@@ -2169,7 +2197,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.emptyText}>No equipment available.</Text>
+                  <Text style={styles.emptyText}>No Equipment Selected.</Text>
                 )}
               
               </View>
@@ -2177,7 +2205,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
           {/* Footer (Buttons) */}
           <View style={styles.footer}>
-            <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+            <TouchableOpacity onPress={handleCancel} style={[styles.cancelButton, { flex: 0.4 }]}>
               <Text style={styles.cancelButtonText}>Back</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -2189,7 +2217,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
               style={[
                 styles.cancelButton,
                 buttonState.buttonStyle,
-                isUpdatingMultiDay && { opacity: 0.7 }
+                isUpdatingMultiDay && { opacity: 0.7 },
+                { flex: 0.6 }
               ]}>
               <Text style={[styles.cancelButtonText, buttonState.textStyle]}>
                 {isUpdatingMultiDay ? "Updating..." : buttonState.text}
@@ -2552,7 +2581,8 @@ dayPickerListLabel: {
     borderTopWidth: 1,
     borderTopColor: '#ddd',
     backgroundColor: '#f9f9f9',
-    marginBottom: 50
+    marginBottom: 50,
+    gap: 10,
   },
   serviceSection: {
     marginTop: 20,
@@ -2613,7 +2643,8 @@ dayPickerListLabel: {
     backgroundColor: '#ffffff',
     borderRadius: 15,
     padding: 20,
-    marginTop: 150, // Space for the logo
+    marginTop: 75, // Space for the logo
+    overflow: 'hidden',
   }, 
   column: {
     flex: 1, // Ensures each column takes up equal space
@@ -2766,8 +2797,10 @@ dayPickerListLabel: {
   cancelButton: {
     backgroundColor: '#20D5FF',
     paddingVertical: 10,
-    paddingHorizontal: 50,
+    paddingHorizontal: 20,
     borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButtonText: {
     color: '#fff',
