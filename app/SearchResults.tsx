@@ -120,7 +120,11 @@ useEffect(() => {
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        // MG 12-29-2025
+        // Display API error message to user only if API provides a message
+        if (result.ResultInfo?.Message) {
+          Alert.alert('Error', result.ResultInfo.Message, [{ text: 'OK' }]);
+        }
         return null;
       }
     } catch (error) {

@@ -99,7 +99,11 @@ const AddSkillsGroup: React.FC = () => {
                 ];
           setResourcePackages(skills);
         } else {
-          console.error("Error", result.ResultInfo?.Message || "Failed to fetch skills.");
+          // MG 12-29-2025
+          // Display API error message to user only if API provides a message
+          if (result.ResultInfo?.Message) {
+            Alert.alert("Error", result.ResultInfo.Message, [{ text: "OK" }]);
+          }
         }
       } catch (error) {
         console.error("Error fetching skills:", error);
@@ -174,11 +178,19 @@ const AddSkillsGroup: React.FC = () => {
             params: { job: JSON.stringify(fetchResult.ResultInfo.Selections.Quote) },
           });
         } else {
-          console.error("Error", fetchResult.ResultInfo?.Message || "Failed to fetch updated quote details.");
+          // MG 12-29-2025
+          // Display API error message to user only if API provides a message
+          if (fetchResult.ResultInfo?.Message) {
+            Alert.alert("Error", fetchResult.ResultInfo.Message, [{ text: "OK" }]);
+          }
         }
 
       } else {
-        console.error("Error", updateResult.ResultInfo?.Message || "Failed to update Skills.");
+        // MG 12-29-2025
+        // Display API error message to user only if API provides a message
+        if (updateResult.ResultInfo?.Message) {
+          Alert.alert("Error", updateResult.ResultInfo.Message, [{ text: "OK" }]);
+        }
       }
     } catch (error) {
       console.error("Error updating Skills:", error);

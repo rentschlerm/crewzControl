@@ -1,8 +1,9 @@
-import React, { createContext, useState, ReactNode, useEffect, useContext, useRef } from 'react';
+import React, { createContext, useState, ReactNode, useEffect, useContext, useRef, useMemo, useCallback } from 'react';
 import CryptoJS from 'crypto-js';
 import { XMLParser } from 'fast-xml-parser';
 import { getDeviceInfo } from '../components/DeviceUtils';
 import useLocation from '../hooks/useLocation';
+import { Alert } from 'react-native';
 
 // JCM 01/17/2025: Import AsyncStorage to be used for getting the user's location if null once Project screen is redirected automatically (if has autorizationCode already)
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -84,7 +85,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [isFetchingJobs, setIsFetchingJobs] = useState<boolean>(false);
   const [authorizationCode, setAuthorizationCode] = useState<string | null>(null);
-  const fetchJobsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); 
+  const fetchJobsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFetchingJobsRef = useRef<boolean>(false); // Use ref to avoid dependency loop
   const [jobsFetched, setJobsFetched] = useState<boolean>(false); // Track if jobs are already fetched
   const { location, fetchLocation } = useLocation();
 
@@ -112,6 +114,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     const fetchJobs = async () => {
       console.log('🔍 fetchJobs called - deviceInfo:', !!deviceInfo, 'authorizationCode:', !!authorizationCode, 'isFetchingJobs:', isFetchingJobs);
       
+  // Define fetchJobs before using it in useEffect
+  const fetchJobs = useCallback(async () => {
       // Clear any existing timeout
       if (fetchJobsTimeoutRef.current) {
         clearTimeout(fetchJobsTimeoutRef.current);
@@ -122,12 +126,13 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       fetchJobsTimeoutRef.current = setTimeout(async () => {
         // JCM 01/18/2025: Removed the !location condition as it was created separately
         // M.G. 10/1/2025 - Removed jobsFetched check to allow refetching quotes every time screen opens
-        if (!deviceInfo || !authorizationCode || isFetchingJobs) {
           console.log('🚫 fetchJobs skipped - missing data or already fetching');
+        if (!deviceInfo || !authorizationCode || isFetchingJobsRef.current) {
           return; // Exit if data is missing or already fetching
         }
         
         console.log('🚀 Starting GetQuoteList API call...');
+        isFetchingJobsRef.current = true;
         setIsFetchingJobs(true);
 
       // JCM 01/18/2025: Make variables for location's longitude and latitude to be used for the API URL
@@ -224,28 +229,59 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
           setJobsReady(true);
           // M.G. 10/1/2025 - Removed setJobsFetched(true) to allow refetching
         } else {
-          console.warn('Failed to fetch quotes:', resultInfo?.Message);
+          // MG 12-29-2025
+          // Display API error message to user only if API provides a message
+          // This ensures users see actual errors from the backend, not hardcoded messages
+          if (resultInfo?.Message) {
+            Alert.alert('Error', resultInfo.Message, [{ text: 'OK' }]);
+          }
         }
       } catch (error) {
         console.error('Error fetching jobs:', error);
       } finally {
+        isFetchingJobsRef.current = false;
         setIsFetchingJobs(false);
       }
       }, 300); // 300ms debounce
+    }, [deviceInfo, authorizationCode]); // Removed 'isFetchingJobs' and 'location' to prevent infinite loop
+
+  // Automatically fetch jobs once deviceInfo and authorizationCode are available
+  useEffect(() => {
+    if (deviceInfo && authorizationCode) {
+      // Fire-and-forget: fetchJobs has its own debounce and guards
+      fetchJobs();
+    }
+  }, [deviceInfo, authorizationCode, fetchJobs]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (fetchJobsTimeoutRef.current) {
+        clearTimeout(fetchJobsTimeoutRef.current);
+      }
     };
+  }, []);
 
-  
-
-  const updateJob = (updatedJob: Job) => {
+  const updateJob = useCallback((updatedJob: Job) => {
     setJobs((prevJobs) =>
       prevJobs.map((job) => (job.id === updatedJob.id ? updatedJob : job))
     );
-  };
+  }, []); // No dependencies needed as it uses functional setState
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    jobs,
+    updateJob,
+    jobsReady,
+    deviceInfo,
+    authorizationCode,
+    setAuthorizationCode,
+    refreshJobs: fetchJobs,
+    fetchJobs,
+  }), [jobs, updateJob, jobsReady, deviceInfo, authorizationCode, fetchJobs]);
 
   return (
-    <JobsContext.Provider
-      value={{ jobs, updateJob, jobsReady, deviceInfo, authorizationCode, setAuthorizationCode,  refreshJobs: fetchJobs, fetchJobs,   }}
-    >
+    <JobsContext.Provider value={contextValue}>
       {children}
     </JobsContext.Provider>
   );

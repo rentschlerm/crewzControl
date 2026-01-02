@@ -45,7 +45,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchQuoteDetailsFromAPI  = async (jobId: string): Promise<Quote[] | null> => {
     if (!deviceInfo || !authorizationCode) {
-      Alert.alert('Error', 'Missing device information or authorization code.');
+      console.error('Missing device information or authorization code');
       return null;
     }
 
@@ -87,12 +87,16 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         setQuotes((prev) => ({ ...prev, [jobId]: parsedQuotes }));
         return parsedQuotes;
       } else {
-        Alert.alert('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        // MG 12-29-2025
+        // Display API error message to user only if API provides a message
+        // This ensures users see actual errors from the backend, not hardcoded messages
+        if (result.ResultInfo?.Message) {
+          Alert.alert('Error', result.ResultInfo.Message, [{ text: 'OK' }]);
+        }
         return null;
       }
     } catch (error) {
       console.error('❌ Error fetching quote details:', error);
-      Alert.alert('Error', 'An error occurred while fetching quote details.');
       return null;
     } finally {
       setLoadingQuote(false);
