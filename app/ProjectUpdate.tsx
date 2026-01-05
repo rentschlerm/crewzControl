@@ -307,6 +307,23 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   const multiDayInputRefs = useRef<{ [key: number]: TextInput | null }>({});
   const handleSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSavingRef = useRef<boolean>(false);
+  const shownErrorsRef = useRef<Set<string>>(new Set());
+  const isScreenActiveRef = useRef<boolean>(true);
+  const currentQuoteSerialRef = useRef<string | number | null>(null);
+
+  // MG 12-29-2025
+  // Helper function to show error only once per quote per screen session
+  const showErrorOnce = (message: string) => {
+    const messageKey = `${jobObj?.Serial}_${message.trim()}`;
+    
+    if (!isScreenActiveRef.current || shownErrorsRef.current.has(messageKey)) {
+      console.log('⏭️ Skipping error message (screen inactive or already shown for this quote)');
+      return;
+    }
+    
+    Alert.alert('Error', message, [{ text: 'OK' }]);
+    shownErrorsRef.current.add(messageKey);
+  };
 
   // Function to format a specific day's input
   const formatDayInput = (day: number) => {
@@ -346,14 +363,26 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     };
   }, []);
 
+  // MG 12-29-2025
+  // Fixed duplicate GetQuote API calls on mount by removing deviceInfo, location, and authorizationCode 
+  // from dependencies. These were causing the effect to fire 2-3 times as each dependency loaded.
+  // Now only depends on jobObj?.Serial to fetch quote details once per quote.
   useFocusEffect(
   useCallback(() => {
     console.log("🔄 ProjectUpdate focused, refreshing quote...");
+    
+    // Mark screen as active and clear error history for new session
+    isScreenActiveRef.current = true;
+    shownErrorsRef.current.clear();
+    
     fetchQuoteDetails();
 
     // optional cleanup when screen loses focus
     return () => {
       console.log("👋 ProjectUpdate unfocused");
+      // Mark screen as inactive to prevent errors from showing
+      isScreenActiveRef.current = false;
+      
       // Clear any pending timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -362,7 +391,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       // Clear fetching flag
       isFetchingRef.current = false;
     };
-  }, [jobObj?.Serial, deviceInfo, location, authorizationCode]) // Keep dependencies but use debouncing
+  }, [jobObj?.Serial])
 );
 
   useEffect(() => {
@@ -608,7 +637,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setMultiDayFlag(multiDayFlagValue);
       }
     } else {
-      console.error('Error', result.ResultInfo?.Message || 'Failed to update the quote.');
+      if (result.ResultInfo?.Message) {
+        showErrorOnce(result.ResultInfo.Message);
+      }
     }
   } catch (error) {
     console.error('❌ Error updating quote:', error);
@@ -662,7 +693,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         fetchQuoteDetails(true); // Immediate call after removing work package
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to remove Quote Work Package.');
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
       }
     } catch (error) {
       console.error('Error removing Quote Work Package:', error);
@@ -776,7 +809,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       );
         fetchQuoteDetails(true); // Immediate call after removing skill
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to remove skill.');
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
       }
     } catch (error) {
       console.error('Error removing skill:', error);
@@ -817,7 +852,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         fetchQuoteDetails(true); // Immediate call after removing equipment
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to remove equipment.');
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
       }
     } catch (error) {
       console.error('Error removing equipment:', error);
@@ -877,7 +914,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setModalVisible(false);
         fetchQuoteDetails(true); // Immediate call after removing resource group
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to remove the Equipment.');
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
       }
     } catch (error) {
       console.error('Error removing Equipment:', error);
@@ -996,7 +1035,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
           }));
         }
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        // Don't show errors when just loading/viewing the quote
+        console.log('GetQuote returned error (silent):', result.ResultInfo?.Message);
       }
     } catch (error) {
       console.error('Error fetching quote details:', error);
@@ -1053,7 +1093,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
           ).filter(skill => skill.SkillCount > 0) //  Remove if quantity is 0
         );
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to update the skill.');
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
       }
     } catch (error) {
       console.error('❌ Error updating skill:', error);
@@ -1110,7 +1152,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to update the equipment.');
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
       }
     } catch (error) {
       console.error('❌ Error updating equipment:', error);
@@ -1162,10 +1206,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       if (result.ResultInfo?.Result === 'Success') {
         console.log('✅ Equipment day selection updated successfully');
       } else {
-        const errorCode = result.ResultInfo?.ErrorCode || 'Unknown';
-        const errorMessage = result.ResultInfo?.Message || 'Failed to update equipment day.';
-        console.error('❌ Equipment API Error Code:', errorCode);
-        console.error('❌ Equipment API Error Message:', errorMessage);
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
       }
     } catch (error) {
       console.error('❌ Error updating equipment day:', error);
@@ -1217,10 +1260,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       if (result.ResultInfo?.Result === 'Success') {
         console.log('✅ Skill day selection updated successfully');
       } else {
-        const errorCode = result.ResultInfo?.ErrorCode || 'Unknown';
-        const errorMessage = result.ResultInfo?.Message || 'Failed to update skill day.';
-        console.error('❌ Skill API Error Code:', errorCode);
-        console.error('❌ Skill API Error Message:', errorMessage);
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
       }
     } catch (error) {
       console.error('❌ Error updating skill day:', error);
@@ -1330,39 +1372,25 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 //     router.back()
 //   };
  //--------------------------------------------------------------------------------------
-  const handleBackPress = () => {
-    // Save MultiDayHour data before navigating away
-    // Use multiDayFlag instead of isMultiDay to avoid timing issues
-    if (multiDayFlag === 1 && multiDayHours) {
-      const dayHourPairs = Object.entries(multiDayHours)
-        .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
-        .map(([day, hour]) => `${day}-${hour}`)
-        .join("|");
-      
-      if (dayHourPairs) {
-        setMultidayhour(dayHourPairs);
-        handleSave(dayHourPairs, "MultiDayHour");
-      }
-    }
+  // MG 12-29-2025
+  // Added delays to prevent duplicate UpdateQuote API calls from race conditions.
+  // If user edits a field and immediately clicks back/submit, both onBlur and this button could fire handleSave.
+  // Added 250ms wait for pending onBlur saves to complete.
+  const handleBackPress = async () => {
+    // Wait a bit for any pending onBlur saves to complete
+    await new Promise(resolve => setTimeout(resolve, 250));
     
     // Removed validation alert - let API handle validation
     router.push('/Project');
   };
 
+  // MG 12-29-2025
+  // Added delays to prevent duplicate UpdateQuote API calls from race conditions.
+  // If user edits a field and immediately clicks cancel, both onBlur and this button could fire handleSave.
+  // Added 250ms wait for pending onBlur saves to complete.
   const handleCancel = async () => {
-    // Save MultiDayHour data before navigating away
-    // Use multiDayFlag instead of isMultiDay to avoid timing issues
-    if (multiDayFlag === 1 && multiDayHours) {
-      const dayHourPairs = Object.entries(multiDayHours)
-        .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
-        .map(([day, hour]) => `${day}-${hour}`)
-        .join("|");
-      
-      if (dayHourPairs) {
-        setMultidayhour(dayHourPairs);
-        handleSave(dayHourPairs, "MultiDayHour");
-      }
-    }
+    // Wait a bit for any pending onBlur saves to complete
+    await new Promise(resolve => setTimeout(resolve, 250));
     
     router.push('/Project');
   };

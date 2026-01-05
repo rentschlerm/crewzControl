@@ -106,7 +106,6 @@ const SignIn: React.FC = () => {
 
     if (!location) {
       setIsLoading(false);
-      // Alert.alert('Error', 'CrewzControl is still fetching your location. Please try again');
       console.error('Error', 'CrewzControl is still fetching your location. Please try again');
       return;
     }
@@ -149,7 +148,11 @@ const SignIn: React.FC = () => {
             },
           });
         } else {
-          console.error('Login Failed', message || 'An unknown error occurred');
+          // MG 12-29-2025
+          // Display API error message to user only if API provides a message
+          if (resultInfo?.Message) {
+            Alert.alert('Error', resultInfo.Message, [{ text: 'OK' }]);
+          }
           setIsInvalid(true);
         }
       } else {

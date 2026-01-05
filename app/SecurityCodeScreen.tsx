@@ -58,7 +58,11 @@ const SecurityCodeScreen: React.FC = () => {
           setAuthorizationCode(authorizationCode); // Update the context
           router.push('/Project');
         } else {
-          console.error('Authorization Failed', message || 'An unknown error occurred');
+          // MG 12-29-2025
+          // Display API error message to user only if API provides a message
+          if (resultInfo?.Message) {
+            Alert.alert('Error', resultInfo.Message, [{ text: 'OK' }]);
+          }
         }
       } else {
         console.error('Authorization Failed', 'The server response was not in the expected format.');

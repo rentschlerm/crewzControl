@@ -100,7 +100,8 @@ const Project: React.FC = () => {
       if (jobsContext?.fetchJobs) {
         jobsContext.fetchJobs();
       }
-    }, [jobsContext]) // Re-run callback when jobsContext changes
+    //}, []) // Empty dependency array to prevent infinite loop
+    }, [jobsContext?.fetchJobs]) // Only depend on the specific function, not entire context
   );
   
   if (!jobsContext) {
@@ -148,7 +149,11 @@ const Project: React.FC = () => {
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        // MG 12-29-2025
+        // Display API error message to user only if API provides a message
+        if (result.ResultInfo?.Message) {
+          Alert.alert('Error', result.ResultInfo.Message, [{ text: 'OK' }]);
+        }
         return null;
       }
     } catch (error) {
@@ -181,7 +186,11 @@ const Project: React.FC = () => {
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
-        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch quote details.');
+        // MG 12-29-2025
+        // Display API error message to user only if API provides a message
+        if (result.ResultInfo?.Message) {
+          Alert.alert('Error', result.ResultInfo.Message, [{ text: 'OK' }]);
+        }
         return null;
       }
     } catch (error) {
@@ -254,7 +263,11 @@ const Project: React.FC = () => {
         });
       } else {
         setIsSearchModalVisible(false);
-        console.error('Error', result.ResultInfo?.Message || 'Failed to fetch search results.');
+        // MG 12-29-2025
+        // Display API error message to user only if API provides a message
+        if (result.ResultInfo?.Message) {
+          Alert.alert('Error', result.ResultInfo.Message, [{ text: 'OK' }]);
+        }
       }
     } catch (error) {
       // JCM 03/21/2025: Corrected the error message when no quotes is found on the list based on the provided term.
