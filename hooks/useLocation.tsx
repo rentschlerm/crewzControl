@@ -36,7 +36,7 @@ const useLocation = (accuracy: Location.Accuracy = Location.Accuracy.Lowest) => 
     }
   };
 
-  return { location, fetchLocation };
+  return { location,  fetchLocation };
 };
 
 export default useLocation;
