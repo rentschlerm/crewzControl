@@ -187,7 +187,9 @@ const ProjectUpdate: React.FC = () => {
   return !isNaN(initial) ? initial.toFixed(2) : '';
 });
   
-  const [urgency, setUrgency] = useState('');
+  // MG 1-8-2026: Initialize urgency from jobObj.Priority to avoid blank dropdown on load
+  // Project.tsx already fetches this data before navigation, so use it immediately
+  const [urgency, setUrgency] = useState((jobObj as any)?.Priority || '');
   const [urgencyOpen, setUrgencyOpen] = useState(false);
   const [multiDayOpen, setMultiDayOpen] = useState(false);
   const [quoteWorkPackages, setQuoteWorkPackages] = useState<any[]>([]);
@@ -318,6 +320,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   const previousSerialRef = useRef<string | number | null>(null);
   // MG 12-26-2025: Track if user made any edits to show errors only for user actions
   const userEditedRef = useRef<boolean>(false);
+  // MG 1-8-2026: Track when data is being loaded from API to prevent dropdown onChange from triggering saves
+  const isLoadingDataRef = useRef<boolean>(false);
 
   // MG 12-26-2025: Helper function to show error only once per session and only for user edits
   const showErrorOnce = (message: string) => {
@@ -385,6 +389,146 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     };
   }, []);
 
+  // MG 1-8-2026: Moved before useFocusEffect and wrapped in useCallback
+  // This prevents function recreation and ensures stable reference for useFocusEffect dependency
+  const performFetchQuoteDetails = useCallback(async () => {
+    if (!deviceInfo || !location) {
+      return;
+    }
+
+    // Set fetching flag
+    isFetchingRef.current = true;
+    // MG 1-8-2026: Set loading flag to prevent dropdown onChange from triggering saves
+    isLoadingDataRef.current = true;
+    console.log('🔄 Starting GetQuote API call...');
+
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+    const crewzControlVersion = '1';
+    // const serial = jobObj.Serial || quoteSerial
+    const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+
+    console.log('Fetching Quote on Focus: ', url);
+
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+      console.log('GetQuote Data from ProjectUpdate: ', data);
+      if (result.ResultInfo?.Result === 'Success') {
+        const quote = result.ResultInfo.Selections?.Quote || {};
+
+        console.log('Fetched Quote Data: ', quote);
+
+        // MG 1-6-2026: Use parseFloat().toFixed(2) instead of .toString() to preserve decimal places
+        // This ensures hours display as "2.00" instead of "2" when refetching data
+        setQuoteHours(quote.Hour ? parseFloat(quote.Hour).toFixed(2) : '0.00');
+        setAmount(quote.Amount ? quote.Amount.toString() : '');
+        setMustCompleteDate(quote.MustCompleteBy || '');
+        setMinCrew(quote.MinCrew !== undefined ? String(quote.MinCrew) : '0');
+        setBlackoutDate(quote.BlackoutDate || '');
+        setAvailableDate(quote.AvailableDate || '');
+        setUrgency(quote.Priority || '');
+
+        // 🔄 Restore Skills with Day selections
+        if (quote.Skills) {
+          const fetchedSkills = normalizeToArray(quote.Skills.Skill);
+          console.log('📥 Restoring Skills - Raw data:', JSON.stringify(fetchedSkills, null, 2));
+          setSkills(fetchedSkills.map((skill: any) => {
+            const dayValue = skill.SkillDay || '';
+            console.log(`  Skill "${skill.SkillName}" - SkillDay: ${dayValue}`);
+            return {
+              ...skill,
+              selectedNumber: dayValue
+            };
+          }));
+        }
+
+        // 🔄 Restore Equipments with Day selections
+        if (quote.Equipments) {
+          const fetchedEquipments = normalizeToArray(quote.Equipments.Equipment);
+          console.log('📥 Restoring Equipments - Raw data:', JSON.stringify(fetchedEquipments, null, 2));
+          setEquipments(fetchedEquipments.map((equipment: any) => {
+            const dayValue = equipment.EquipmentDay || '';
+            console.log(`  Equipment "${equipment.EquipmentName}" - EquipmentDay: ${dayValue}`);
+            return {
+              ...equipment,
+              selectedNumber: dayValue
+            };
+          }));
+        }
+
+        // 🔄 Restore Work Packages with Day selections
+        if (quote.QuoteWorkPackages) {
+          const fetchedWorkPackages = normalizeToArray(quote.QuoteWorkPackages.QuoteWorkPackage);
+          console.log('📥 Restoring Work Packages - Raw data:', JSON.stringify(fetchedWorkPackages, null, 2));
+          setQuoteWorkPackages(fetchedWorkPackages.map((qwp: any) => {
+            const dayValue = qwp.QuoteWorkPackageDay || '';
+            console.log(`  WorkPackage "${qwp.QuoteWorkPackageName}" - QuoteWorkPackageDay: ${dayValue}`);
+            return {
+              ...qwp,
+              selectedNumber: dayValue
+            };
+          }));
+        }
+      } else {
+        // MG 12-26-2025
+        // Display API error message only once (prevents duplicate alerts)
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching quote details:', error);
+    } finally {
+      // Clear fetching flag
+      isFetchingRef.current = false;
+      console.log('✅ GetQuote API call completed');
+      // MG 1-8-2026: Clear loading flag after state updates complete
+      // Use setTimeout to ensure React has processed all state updates (including setUrgency)
+      setTimeout(() => {
+        isLoadingDataRef.current = false;
+      }, 100);
+    }
+  }, [deviceInfo, location, authorizationCode, jobObj.Serial]);
+
+  // MG 1-8-2026: Wrapped in useCallback to prevent function recreation on every render
+  // This ensures useFocusEffect cleanup properly removes old handlers and prevents handler accumulation
+  const fetchQuoteDetails = useCallback(async (immediate = false) => {
+    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
+      return; // Exit early if prerequisites are not ready or API was already called
+    }
+
+    // For immediate calls (like after removing items), skip debouncing
+    if (immediate) {
+      await performFetchQuoteDetails();
+      return;
+    }
+
+    // Debounce multiple rapid calls (for useFocusEffect)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(async () => {
+      if (isFetchingRef.current) {
+        console.log('🔄 Already fetching, skipping duplicate call');
+        return;
+      }
+      await performFetchQuoteDetails();
+    }, 100); // MG 1-6-2026: Reduced debounce from 500ms to 100ms for faster data loading when refetching
+  }, [deviceInfo, location, authorizationCode, jobObj.Serial, performFetchQuoteDetails]);
+
   // MG 1-6-2026: Modified useFocusEffect to prevent duplicate API call on initial load
   // Project.tsx already fetched the data, so we use that until user leaves and returns
   useFocusEffect(
@@ -414,8 +558,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       // Clear fetching flag
       isFetchingRef.current = false;
     };
-  }, [jobObj?.Serial, deviceInfo, location, authorizationCode]) // Keep dependencies but use debouncing
-);
+  }, [jobObj?.Serial, deviceInfo, location, authorizationCode, fetchQuoteDetails]) // MG 1-8-2026: Added fetchQuoteDetails to dependencies to prevent handler accumulation
+  );
 
   useEffect(() => {
     if (jobObj?.BlackoutDate) {
@@ -960,135 +1104,6 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       console.error('Error removing Equipment:', error);
     }
   };
-  
-  const fetchQuoteDetails = async (immediate = false) => {
-    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
-      return; // Exit early if prerequisites are not ready or API was already called
-    }
-
-    // For immediate calls (like after removing items), skip debouncing
-    if (immediate) {
-      await performFetchQuoteDetails();
-      return;
-    }
-
-    // Debounce multiple rapid calls (for useFocusEffect)
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    timeoutRef.current = setTimeout(async () => {
-      if (isFetchingRef.current) {
-        console.log('🔄 Already fetching, skipping duplicate call');
-        return;
-      }
-      await performFetchQuoteDetails();
-    }, 100); // MG 1-6-2026: Reduced debounce from 500ms to 100ms for faster data loading when refetching
-  };
-
-  const performFetchQuoteDetails = async () => {
-    if (!deviceInfo || !location) {
-      return;
-    }
-
-    // Set fetching flag
-    isFetchingRef.current = true;
-    console.log('🔄 Starting GetQuote API call...');
-
-    const currentDate = new Date();
-    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
-      currentDate.getDate()
-    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
-      2,
-      '0'
-    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
-    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
-    const key = CryptoJS.SHA1(keyString).toString();
-    const crewzControlVersion = '1';
-    // const serial = jobObj.Serial || quoteSerial
-    const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
-      deviceInfo.id
-    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
-
-    console.log('Fetching Quote on Focus: ', url);
-
-    try {
-      const response = await fetch(url);
-      const data = await response.text();
-      const parser = new XMLParser();
-      const result = parser.parse(data);
-      console.log('GetQuote Data from ProjectUpdate: ', data);
-      if (result.ResultInfo?.Result === 'Success') {
-        const quote = result.ResultInfo.Selections?.Quote || {};
-
-        console.log('Fetched Quote Data: ', quote);
-
-        // MG 1-6-2026: Use parseFloat().toFixed(2) instead of .toString() to preserve decimal places
-        // This ensures hours display as "2.00" instead of "2" when refetching data
-        setQuoteHours(quote.Hour ? parseFloat(quote.Hour).toFixed(2) : '0.00');
-        setAmount(quote.Amount ? quote.Amount.toString() : '');
-        setMustCompleteDate(quote.MustCompleteBy || '');
-        setMinCrew(quote.MinCrew !== undefined ? String(quote.MinCrew) : '0');
-        setBlackoutDate(quote.BlackoutDate || '');
-        setAvailableDate(quote.AvailableDate || '');
-        setUrgency(quote.Priority || '');
-
-        // 🔄 Restore Skills with Day selections
-        if (quote.Skills) {
-          const fetchedSkills = normalizeToArray(quote.Skills.Skill);
-          console.log('📥 Restoring Skills - Raw data:', JSON.stringify(fetchedSkills, null, 2));
-          setSkills(fetchedSkills.map((skill: any) => {
-            const dayValue = skill.SkillDay || '';
-            console.log(`  Skill "${skill.SkillName}" - SkillDay: ${dayValue}`);
-            return {
-              ...skill,
-              selectedNumber: dayValue
-            };
-          }));
-        }
-
-        // 🔄 Restore Equipments with Day selections
-        if (quote.Equipments) {
-          const fetchedEquipments = normalizeToArray(quote.Equipments.Equipment);
-          console.log('📥 Restoring Equipments - Raw data:', JSON.stringify(fetchedEquipments, null, 2));
-          setEquipments(fetchedEquipments.map((equipment: any) => {
-            const dayValue = equipment.EquipmentDay || '';
-            console.log(`  Equipment "${equipment.EquipmentName}" - EquipmentDay: ${dayValue}`);
-            return {
-              ...equipment,
-              selectedNumber: dayValue
-            };
-          }));
-        }
-
-        // 🔄 Restore Work Packages with Day selections
-        if (quote.QuoteWorkPackages) {
-          const fetchedWorkPackages = normalizeToArray(quote.QuoteWorkPackages.QuoteWorkPackage);
-          console.log('📥 Restoring Work Packages - Raw data:', JSON.stringify(fetchedWorkPackages, null, 2));
-          setQuoteWorkPackages(fetchedWorkPackages.map((qwp: any) => {
-            const dayValue = qwp.QuoteWorkPackageDay || '';
-            console.log(`  WorkPackage "${qwp.QuoteWorkPackageName}" - QuoteWorkPackageDay: ${dayValue}`);
-            return {
-              ...qwp,
-              selectedNumber: dayValue
-            };
-          }));
-        }
-      } else {
-        // MG 12-26-2025
-        // Display API error message only once (prevents duplicate alerts)
-        if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching quote details:', error);
-    } finally {
-      // Clear fetching flag
-      isFetchingRef.current = false;
-      console.log('✅ GetQuote API call completed');
-    }
-  };
 
   const handleUpdateSkill = async (skillSerial: number, newCount: number) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
@@ -1432,6 +1447,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 //   };
  //--------------------------------------------------------------------------------------
   const handleBackPress = () => {
+    // MG 1-8-2026: Set loading flag FIRST to prevent dropdown onChange from firing during navigation/unmount
+    isLoadingDataRef.current = true;
+    
     // Save MultiDayHour data before navigating away
     // Use multiDayFlag instead of isMultiDay to avoid timing issues
     if (multiDayFlag === 1 && multiDayHours) {
@@ -1451,6 +1469,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   };
 
   const handleCancel = async () => {
+    // MG 1-8-2026: Set loading flag FIRST to prevent dropdown onChange from firing during navigation/unmount
+    isLoadingDataRef.current = true;
+    
     // Save MultiDayHour data before navigating away
     // Use multiDayFlag instead of isMultiDay to avoid timing issues
     if (multiDayFlag === 1 && multiDayHours) {
@@ -1661,7 +1682,6 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                 <Text style={styles.inputLabel}>Priority:</Text>
                 <View style={styles.dropdownWrapper}>
                   <DropDownPicker
-                    key={`priority-${urgency}`}
                     open={urgencyOpen}
                     value={urgency}
                     items={[
@@ -1673,13 +1693,21 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     setValue={setUrgency}
                     onChangeValue={(value) => {
                       if (value) {
-                        setUrgency(value); // Update state first
+                        // MG 1-8-2026: Skip handleSave if data is being loaded from API
+                        if (isLoadingDataRef.current) {
+                          console.log('🚫 Priority onChange skipped - data loading from API');
+                          return;
+                        }
+                        // MG 1-8-2026: Removed duplicate setUrgency call (setValue already handles it)
+                        // MG 1-8-2026: Removed dynamic key prop to prevent component remounting
+                        // Only call handleSave to update the API
                         handleSave(value, "Priority", true);
                       }
                     }}
                     style={[styles.dropdownStyle, styles.inputField]}
                     dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex: 1000 }]}
                     zIndex={1000}
+                    placeholder=""
                   />
                 </View>
               </View>
