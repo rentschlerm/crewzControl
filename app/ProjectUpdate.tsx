@@ -146,7 +146,9 @@ const ProjectUpdate: React.FC = () => {
   const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
   
   const [customerName, setName] = useState(jobObj?.Name);
-  const [amount, setAmount] = useState(jobObj?.amount || '');
+  // MG 1-6-2026: Check both uppercase 'Amount' (from raw API) and lowercase 'amount' (from Job interface)
+  // to handle case sensitivity when jobObj is passed from Project.tsx fetchQuoteDetails
+  const [amount, setAmount] = useState((jobObj as any)?.Amount || (jobObj as any)?.amount || '');
   // const [expense, setExpense] = useState(jobObj?.Expense);
   const [expense, setExpense] = useState<string>(
   jobObj?.Expense !== undefined ? String(jobObj.Expense) : "0"
@@ -178,13 +180,16 @@ const ProjectUpdate: React.FC = () => {
   const [city, setCity] = useState(jobObj?.City);
   const [quoteNum, setQuoteNum] = useState(jobObj?.QuoteNum);
   const [serial, setserial] = useState(jobObj?.Serial);
-  // const [quoteHours, setQuoteHours] = useState(jobObj?.Hour ?? '0.00');
+  // MG 1-6-2026: Initialize hours with .toFixed(2) to ensure decimal places are always shown (e.g., "2.00" not "2")
+  // This prevents hours from displaying without decimals when quote is first opened
   const [quoteHours, setQuoteHours] = useState(() => {
   const initial = parseFloat(jobObj?.Hour);
   return !isNaN(initial) ? initial.toFixed(2) : '';
 });
   
-  const [urgency, setUrgency] = useState('');
+  // MG 1-8-2026: Initialize urgency from jobObj.Priority to avoid blank dropdown on load
+  // Project.tsx already fetches this data before navigation, so use it immediately
+  const [urgency, setUrgency] = useState((jobObj as any)?.Priority || '');
   const [urgencyOpen, setUrgencyOpen] = useState(false);
   const [multiDayOpen, setMultiDayOpen] = useState(false);
   const [quoteWorkPackages, setQuoteWorkPackages] = useState<any[]>([]);
@@ -301,29 +306,50 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   const [isPickerVisible, setIsPickerVisible] = useState(true);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFetchingRef = useRef<boolean>(false);
+  // MG 1-6-2026: Track if this is the first time loading the quote to prevent duplicate API call
+  // Data is already fetched by Project.tsx, so we skip the initial useFocusEffect fetch
+  const isFirstMountRef = useRef<boolean>(true);
 
 
   const hoursInputRef = useRef<TextInput>(null);
   const multiDayInputRefs = useRef<{ [key: number]: TextInput | null }>({});
   const handleSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSavingRef = useRef<boolean>(false);
+  // MG 12-26-2025: Track shown error messages to prevent duplicate alerts
   const shownErrorsRef = useRef<Set<string>>(new Set());
-  const isScreenActiveRef = useRef<boolean>(true);
-  const currentQuoteSerialRef = useRef<string | number | null>(null);
+  const previousSerialRef = useRef<string | number | null>(null);
+  // MG 12-26-2025: Track if user made any edits to show errors only for user actions
+  const userEditedRef = useRef<boolean>(false);
+  // MG 1-8-2026: Track when data is being loaded from API to prevent dropdown onChange from triggering saves
+  const isLoadingDataRef = useRef<boolean>(false);
 
-  // MG 12-29-2025
-  // Helper function to show error only once per quote per screen session
+  // MG 12-26-2025: Helper function to show error only once per session and only for user edits
   const showErrorOnce = (message: string) => {
-    const messageKey = `${jobObj?.Serial}_${message.trim()}`;
-    
-    if (!isScreenActiveRef.current || shownErrorsRef.current.has(messageKey)) {
-      console.log('⏭️ Skipping error message (screen inactive or already shown for this quote)');
-      return;
+    // Only show error if user actually made an edit
+    if (userEditedRef.current && !shownErrorsRef.current.has(message)) {
+      shownErrorsRef.current.add(message);
+      Alert.alert('Error', message, [{ text: 'OK' }]);
     }
-    
-    Alert.alert('Error', message, [{ text: 'OK' }]);
-    shownErrorsRef.current.add(messageKey);
   };
+
+  // MG 12-26-2025: Reset shown errors and edit flag when opening a DIFFERENT quote (not when navigating away)
+  useEffect(() => {
+    const currentSerial = jobObj?.Serial;
+    if (currentSerial && previousSerialRef.current !== null && previousSerialRef.current !== currentSerial) {
+      // Serial changed to a different valid quote - clear errors and reset edit flag
+      shownErrorsRef.current.clear();
+      userEditedRef.current = false;
+      // MG 1-6-2026: Reset first mount flag so we skip duplicate API call when opening a new quote
+      // This ensures data from Project.tsx is used without refetching
+      isFirstMountRef.current = true;
+    }
+    previousSerialRef.current = currentSerial;
+  }, [jobObj?.Serial]);
+
+  // MG 12-26-2025: Reset edit flag when screen first loads
+  useEffect(() => {
+    userEditedRef.current = false;
+  }, []);
 
   // Function to format a specific day's input
   const formatDayInput = (day: number) => {
@@ -363,26 +389,167 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     };
   }, []);
 
-  // MG 12-29-2025
-  // Fixed duplicate GetQuote API calls on mount by removing deviceInfo, location, and authorizationCode 
-  // from dependencies. These were causing the effect to fire 2-3 times as each dependency loaded.
-  // Now only depends on jobObj?.Serial to fetch quote details once per quote.
+  // MG 1-8-2026: Moved before useFocusEffect and wrapped in useCallback
+  // This prevents function recreation and ensures stable reference for useFocusEffect dependency
+  const performFetchQuoteDetails = useCallback(async () => {
+    if (!deviceInfo || !location) {
+      return;
+    }
+
+    // Set fetching flag
+    isFetchingRef.current = true;
+    // MG 1-8-2026: Set loading flag to prevent dropdown onChange from triggering saves
+    isLoadingDataRef.current = true;
+    console.log('🔄 Starting GetQuote API call...');
+
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+    const crewzControlVersion = '1';
+    // const serial = jobObj.Serial || quoteSerial
+    const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+
+    console.log('Fetching Quote on Focus: ', url);
+
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+      console.log('GetQuote Data from ProjectUpdate: ', data);
+      if (result.ResultInfo?.Result === 'Success') {
+        const quote = result.ResultInfo.Selections?.Quote || {};
+
+        console.log('Fetched Quote Data: ', quote);
+
+        // MG 1-6-2026: Use parseFloat().toFixed(2) instead of .toString() to preserve decimal places
+        // This ensures hours display as "2.00" instead of "2" when refetching data
+        setQuoteHours(quote.Hour ? parseFloat(quote.Hour).toFixed(2) : '0.00');
+        setAmount(quote.Amount ? quote.Amount.toString() : '');
+        setMustCompleteDate(quote.MustCompleteBy || '');
+        setMinCrew(quote.MinCrew !== undefined ? String(quote.MinCrew) : '0');
+        setBlackoutDate(quote.BlackoutDate || '');
+        setAvailableDate(quote.AvailableDate || '');
+        setUrgency(quote.Priority || '');
+
+        // 🔄 Restore Skills with Day selections
+        if (quote.Skills) {
+          const fetchedSkills = normalizeToArray(quote.Skills.Skill);
+          console.log('📥 Restoring Skills - Raw data:', JSON.stringify(fetchedSkills, null, 2));
+          setSkills(fetchedSkills.map((skill: any) => {
+            const dayValue = skill.SkillDay || '';
+            console.log(`  Skill "${skill.SkillName}" - SkillDay: ${dayValue}`);
+            return {
+              ...skill,
+              selectedNumber: dayValue
+            };
+          }));
+        }
+
+        // 🔄 Restore Equipments with Day selections
+        if (quote.Equipments) {
+          const fetchedEquipments = normalizeToArray(quote.Equipments.Equipment);
+          console.log('📥 Restoring Equipments - Raw data:', JSON.stringify(fetchedEquipments, null, 2));
+          setEquipments(fetchedEquipments.map((equipment: any) => {
+            const dayValue = equipment.EquipmentDay || '';
+            console.log(`  Equipment "${equipment.EquipmentName}" - EquipmentDay: ${dayValue}`);
+            return {
+              ...equipment,
+              selectedNumber: dayValue
+            };
+          }));
+        }
+
+        // 🔄 Restore Work Packages with Day selections
+        if (quote.QuoteWorkPackages) {
+          const fetchedWorkPackages = normalizeToArray(quote.QuoteWorkPackages.QuoteWorkPackage);
+          console.log('📥 Restoring Work Packages - Raw data:', JSON.stringify(fetchedWorkPackages, null, 2));
+          setQuoteWorkPackages(fetchedWorkPackages.map((qwp: any) => {
+            const dayValue = qwp.QuoteWorkPackageDay || '';
+            console.log(`  WorkPackage "${qwp.QuoteWorkPackageName}" - QuoteWorkPackageDay: ${dayValue}`);
+            return {
+              ...qwp,
+              selectedNumber: dayValue
+            };
+          }));
+        }
+      } else {
+        // MG 12-26-2025
+        // Display API error message only once (prevents duplicate alerts)
+        if (result.ResultInfo?.Message) {
+          showErrorOnce(result.ResultInfo.Message);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching quote details:', error);
+    } finally {
+      // Clear fetching flag
+      isFetchingRef.current = false;
+      console.log('✅ GetQuote API call completed');
+      // MG 1-8-2026: Clear loading flag after state updates complete
+      // Use setTimeout to ensure React has processed all state updates (including setUrgency)
+      setTimeout(() => {
+        isLoadingDataRef.current = false;
+      }, 100);
+    }
+  }, [deviceInfo, location, authorizationCode, jobObj.Serial]);
+
+  // MG 1-8-2026: Wrapped in useCallback to prevent function recreation on every render
+  // This ensures useFocusEffect cleanup properly removes old handlers and prevents handler accumulation
+  const fetchQuoteDetails = useCallback(async (immediate = false) => {
+    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
+      return; // Exit early if prerequisites are not ready or API was already called
+    }
+
+    // For immediate calls (like after removing items), skip debouncing
+    if (immediate) {
+      await performFetchQuoteDetails();
+      return;
+    }
+
+    // Debounce multiple rapid calls (for useFocusEffect)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(async () => {
+      if (isFetchingRef.current) {
+        console.log('🔄 Already fetching, skipping duplicate call');
+        return;
+      }
+      await performFetchQuoteDetails();
+    }, 100); // MG 1-6-2026: Reduced debounce from 500ms to 100ms for faster data loading when refetching
+  }, [deviceInfo, location, authorizationCode, jobObj.Serial, performFetchQuoteDetails]);
+
+  // MG 1-6-2026: Modified useFocusEffect to prevent duplicate API call on initial load
+  // Project.tsx already fetched the data, so we use that until user leaves and returns
   useFocusEffect(
   useCallback(() => {
+    // Skip API call on first mount since data is already loaded from Project.tsx
+    if (isFirstMountRef.current) {
+      console.log("🔄 ProjectUpdate initial load, using existing data");
+      return () => {
+        // MG 1-6-2026: Only mark as no longer first mount when leaving the screen
+        // This prevents the flag from being reset by dependency changes (deviceInfo, location)
+        isFirstMountRef.current = false;
+      };
+    }
+
+    // On subsequent focuses, refresh the data
     console.log("🔄 ProjectUpdate focused, refreshing quote...");
-    
-    // Mark screen as active and clear error history for new session
-    isScreenActiveRef.current = true;
-    shownErrorsRef.current.clear();
-    
     fetchQuoteDetails();
 
     // optional cleanup when screen loses focus
     return () => {
       console.log("👋 ProjectUpdate unfocused");
-      // Mark screen as inactive to prevent errors from showing
-      isScreenActiveRef.current = false;
-      
       // Clear any pending timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -391,8 +558,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       // Clear fetching flag
       isFetchingRef.current = false;
     };
-  }, [jobObj?.Serial])
-);
+  }, [jobObj?.Serial, deviceInfo, location, authorizationCode, fetchQuoteDetails]) // MG 1-8-2026: Added fetchQuoteDetails to dependencies to prevent handler accumulation
+  );
 
   useEffect(() => {
     if (jobObj?.BlackoutDate) {
@@ -498,8 +665,13 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   })();
   
 
-  const handleSave = async (updated: string | string[], type: string) => {
-  console.log('🔍 handleSave called - type:', type, 'isSaving:', isSavingRef.current);
+  const handleSave = async (updated: string | string[], type: string, isUserAction: boolean = false) => {
+  console.log('🔍 handleSave called - type:', type, 'isUserAction:', isUserAction, 'isSaving:', isSavingRef.current);
+  
+  // MG 12-26-2025: Mark that user made an edit only if it's a user action
+  if (isUserAction) {
+    userEditedRef.current = true;
+  }
   
   // Clear any existing timeout
   if (handleSaveTimeoutRef.current) {
@@ -596,7 +768,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 
   // Strip out carriage returns and newlines from all values
   const cleanValue = (val: any) => String(val || '').replace(/[\r\n]/g, '');
-
+  
   const priorityValue = cleanValue(type === 'Priority' ? updated : urgency);
   const mustCompleteValue = cleanValue(type === 'MustCompleteBy' ? updated : mustCompleteDate);
   const notBeforeValue = cleanValue(type === 'NotBefore' ? updated : notBefore);
@@ -604,7 +776,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   const blackoutValue = cleanValue(uniqueBlackoutDates);
   const expenseClean = cleanValue(type === 'Expense' ? expense : expense || '0');
   const multiDayHourClean = cleanValue(multiDayHourValue);
-
+  
   // Minimum Crew handling
   let minCrewValue = minCrew;
   if (type === 'MinCrew') {
@@ -637,6 +809,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setMultiDayFlag(multiDayFlagValue);
       }
     } else {
+      // MG 12-26-2025
+      // Display API error message only once (prevents duplicate alerts)
       if (result.ResultInfo?.Message) {
         showErrorOnce(result.ResultInfo.Message);
       }
@@ -693,8 +867,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         fetchQuoteDetails(true); // Immediate call after removing work package
       } else {
+        // MG 12-26-2025
+        // Display API error message only if message exists (prevents empty alerts)
         if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
+          Alert.alert('Error', result.ResultInfo.Message);
         }
       }
     } catch (error) {
@@ -809,8 +985,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       );
         fetchQuoteDetails(true); // Immediate call after removing skill
       } else {
+        // MG 12-26-2025
+        // Display API error message only if message exists (prevents empty alerts)
         if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
+          Alert.alert('Error', result.ResultInfo.Message);
         }
       }
     } catch (error) {
@@ -852,8 +1030,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         fetchQuoteDetails(true); // Immediate call after removing equipment
       } else {
+        // MG 12-26-2025
+        // Display API error message only if message exists (prevents empty alerts)
         if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
+          Alert.alert('Error', result.ResultInfo.Message);
         }
       }
     } catch (error) {
@@ -914,136 +1094,14 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setModalVisible(false);
         fetchQuoteDetails(true); // Immediate call after removing resource group
       } else {
+        // MG 12-26-2025
+        // Display API error message only if message exists (prevents empty alerts)
         if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
+          Alert.alert('Error', result.ResultInfo.Message);
         }
       }
     } catch (error) {
       console.error('Error removing Equipment:', error);
-    }
-  };
-  
-  const fetchQuoteDetails = async (immediate = false) => {
-    if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
-      return; // Exit early if prerequisites are not ready or API was already called
-    }
-
-    // For immediate calls (like after removing items), skip debouncing
-    if (immediate) {
-      await performFetchQuoteDetails();
-      return;
-    }
-
-    // Debounce multiple rapid calls (for useFocusEffect)
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    timeoutRef.current = setTimeout(async () => {
-      if (isFetchingRef.current) {
-        console.log('🔄 Already fetching, skipping duplicate call');
-        return;
-      }
-      await performFetchQuoteDetails();
-    }, 500); // 500ms debounce to handle dependency changes
-  };
-
-  const performFetchQuoteDetails = async () => {
-    if (!deviceInfo || !location) {
-      return;
-    }
-
-    // Set fetching flag
-    isFetchingRef.current = true;
-    console.log('🔄 Starting GetQuote API call...');
-
-    const currentDate = new Date();
-    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
-      currentDate.getDate()
-    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
-      2,
-      '0'
-    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
-    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
-    const key = CryptoJS.SHA1(keyString).toString();
-    const crewzControlVersion = '1';
-    // const serial = jobObj.Serial || quoteSerial
-    const url = `https://CrewzControl.com/dev/CCService/GetQuote.php?DeviceID=${encodeURIComponent(
-      deviceInfo.id
-    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${jobObj.Serial}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
-
-    console.log('Fetching Quote on Focus: ', url);
-
-    try {
-      const response = await fetch(url);
-      const data = await response.text();
-      const parser = new XMLParser();
-      const result = parser.parse(data);
-      console.log('GetQuote Data from ProjectUpdate: ', data);
-      if (result.ResultInfo?.Result === 'Success') {
-        const quote = result.ResultInfo.Selections?.Quote || {};
-
-        console.log('Fetched Quote Data: ', quote);
-
-        setQuoteHours(quote.Hour ? quote.Hour.toString() : '0.00');
-        setAmount(quote.Amount ? quote.Amount.toString() : '');
-        setMustCompleteDate(quote.MustCompleteBy || '');
-        setMinCrew(quote.MinCrew !== undefined ? String(quote.MinCrew) : '0');
-        setBlackoutDate(quote.BlackoutDate || '');
-        setAvailableDate(quote.AvailableDate || '');
-        setUrgency(quote.Priority || '');
-
-        // 🔄 Restore Skills with Day selections
-        if (quote.Skills) {
-          const fetchedSkills = normalizeToArray(quote.Skills.Skill);
-          console.log('📥 Restoring Skills - Raw data:', JSON.stringify(fetchedSkills, null, 2));
-          setSkills(fetchedSkills.map((skill: any) => {
-            const dayValue = skill.SkillDay || '';
-            console.log(`  Skill "${skill.SkillName}" - SkillDay: ${dayValue}`);
-            return {
-              ...skill,
-              selectedNumber: dayValue
-            };
-          }));
-        }
-
-        // 🔄 Restore Equipments with Day selections
-        if (quote.Equipments) {
-          const fetchedEquipments = normalizeToArray(quote.Equipments.Equipment);
-          console.log('📥 Restoring Equipments - Raw data:', JSON.stringify(fetchedEquipments, null, 2));
-          setEquipments(fetchedEquipments.map((equipment: any) => {
-            const dayValue = equipment.EquipmentDay || '';
-            console.log(`  Equipment "${equipment.EquipmentName}" - EquipmentDay: ${dayValue}`);
-            return {
-              ...equipment,
-              selectedNumber: dayValue
-            };
-          }));
-        }
-
-        // 🔄 Restore Work Packages with Day selections
-        if (quote.QuoteWorkPackages) {
-          const fetchedWorkPackages = normalizeToArray(quote.QuoteWorkPackages.QuoteWorkPackage);
-          console.log('📥 Restoring Work Packages - Raw data:', JSON.stringify(fetchedWorkPackages, null, 2));
-          setQuoteWorkPackages(fetchedWorkPackages.map((qwp: any) => {
-            const dayValue = qwp.QuoteWorkPackageDay || '';
-            console.log(`  WorkPackage "${qwp.QuoteWorkPackageName}" - QuoteWorkPackageDay: ${dayValue}`);
-            return {
-              ...qwp,
-              selectedNumber: dayValue
-            };
-          }));
-        }
-      } else {
-        // Don't show errors when just loading/viewing the quote
-        console.log('GetQuote returned error (silent):', result.ResultInfo?.Message);
-      }
-    } catch (error) {
-      console.error('Error fetching quote details:', error);
-    } finally {
-      // Clear fetching flag
-      isFetchingRef.current = false;
-      console.log('✅ GetQuote API call completed');
     }
   };
 
@@ -1093,8 +1151,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
           ).filter(skill => skill.SkillCount > 0) //  Remove if quantity is 0
         );
       } else {
+        // MG 12-26-2025
+        // Display API error message only if message exists (prevents empty alerts)
         if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
+          Alert.alert('Error', result.ResultInfo.Message);
         }
       }
     } catch (error) {
@@ -1152,8 +1212,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         );
         
       } else {
+        // MG 12-26-2025
+        // Display API error message only if message exists (prevents empty alerts)
         if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
+          Alert.alert('Error', result.ResultInfo.Message);
         }
       }
     } catch (error) {
@@ -1206,8 +1268,14 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       if (result.ResultInfo?.Result === 'Success') {
         console.log('✅ Equipment day selection updated successfully');
       } else {
-        if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
+        const errorCode = result.ResultInfo?.ErrorCode || 'Unknown';
+        const errorMessage = result.ResultInfo?.Message;
+        console.error('❌ Equipment API Error Code:', errorCode);
+        console.error('❌ Equipment API Error Message:', errorMessage);
+        // MG 12-26-2025
+        // Display API error message only once (prevents duplicate alerts)
+        if (errorMessage) {
+          showErrorOnce(errorMessage);
         }
       }
     } catch (error) {
@@ -1260,8 +1328,14 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       if (result.ResultInfo?.Result === 'Success') {
         console.log('✅ Skill day selection updated successfully');
       } else {
-        if (result.ResultInfo?.Message) {
-          showErrorOnce(result.ResultInfo.Message);
+        const errorCode = result.ResultInfo?.ErrorCode || 'Unknown';
+        const errorMessage = result.ResultInfo?.Message;
+        console.error('❌ Skill API Error Code:', errorCode);
+        console.error('❌ Skill API Error Message:', errorMessage);
+        // MG 12-26-2025
+        // Display API error message only once (prevents duplicate alerts)
+        if (errorMessage) {
+          showErrorOnce(errorMessage);
         }
       }
     } catch (error) {
@@ -1372,25 +1446,45 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
 //     router.back()
 //   };
  //--------------------------------------------------------------------------------------
-  // MG 12-29-2025
-  // Added delays to prevent duplicate UpdateQuote API calls from race conditions.
-  // If user edits a field and immediately clicks back/submit, both onBlur and this button could fire handleSave.
-  // Added 250ms wait for pending onBlur saves to complete.
-  const handleBackPress = async () => {
-    // Wait a bit for any pending onBlur saves to complete
-    await new Promise(resolve => setTimeout(resolve, 250));
+  const handleBackPress = () => {
+    // MG 1-8-2026: Set loading flag FIRST to prevent dropdown onChange from firing during navigation/unmount
+    isLoadingDataRef.current = true;
+    
+    // Save MultiDayHour data before navigating away
+    // Use multiDayFlag instead of isMultiDay to avoid timing issues
+    if (multiDayFlag === 1 && multiDayHours) {
+      const dayHourPairs = Object.entries(multiDayHours)
+        .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
+        .map(([day, hour]) => `${day}-${hour}`)
+        .join("|");
+      
+      if (dayHourPairs) {
+        setMultidayhour(dayHourPairs);
+        handleSave(dayHourPairs, "MultiDayHour");
+      }
+    }
     
     // Removed validation alert - let API handle validation
     router.push('/Project');
   };
 
-  // MG 12-29-2025
-  // Added delays to prevent duplicate UpdateQuote API calls from race conditions.
-  // If user edits a field and immediately clicks cancel, both onBlur and this button could fire handleSave.
-  // Added 250ms wait for pending onBlur saves to complete.
   const handleCancel = async () => {
-    // Wait a bit for any pending onBlur saves to complete
-    await new Promise(resolve => setTimeout(resolve, 250));
+    // MG 1-8-2026: Set loading flag FIRST to prevent dropdown onChange from firing during navigation/unmount
+    isLoadingDataRef.current = true;
+    
+    // Save MultiDayHour data before navigating away
+    // Use multiDayFlag instead of isMultiDay to avoid timing issues
+    if (multiDayFlag === 1 && multiDayHours) {
+      const dayHourPairs = Object.entries(multiDayHours)
+        .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
+        .map(([day, hour]) => `${day}-${hour}`)
+        .join("|");
+      
+      if (dayHourPairs) {
+        setMultidayhour(dayHourPairs);
+        handleSave(dayHourPairs, "MultiDayHour");
+      }
+    }
     
     router.push('/Project');
   };
@@ -1459,10 +1553,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     if (!isNaN(inputValue)) {
                       const normalized = inputValue.toString();
                       setExpense(normalized);
-                      handleSave(normalized, "Expense");
+                      handleSave(normalized, "Expense", true);
                     } else {
                       setExpense("0");
-                      handleSave("0", "Expense");
+                      handleSave("0", "Expense", true);
                     }
                   }}
                   placeholder="0"
@@ -1483,17 +1577,17 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     if (!isNaN(inputValue)) {
                       const normalized = inputValue.toString();
                       setMinCrew(normalized);
-                      handleSave(normalized, 'MinCrew');
+                      handleSave(normalized, 'MinCrew', true);
                     } else {
                       setMinCrew('0');
-                      handleSave('0', 'MinCrew');
+                      handleSave('0', 'MinCrew', true);
                     }
                   }}
                   placeholder="0"
                   keyboardType="number-pad"
                   style={styles.inputField}
                 />
-              </View>
+              </View> 
             {Number(multiDayFlag) === 0 ? (
               // 🔹 Single Hours input (default)
               <View style={styles.inputRow}>
@@ -1512,7 +1606,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                       const rounded = Math.round(inputValue * 4) / 4;
                       const formatted = rounded.toFixed(2);
                       setQuoteHours(formatted);
-                      handleSave(formatted, "Hours");
+                      handleSave(formatted, "Hours", true);
                     }
                   }}
                   placeholder="0.00"
@@ -1574,7 +1668,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                             .join("|");
 
                           setMultidayhour(dayHourPairs);
-                          handleSave(dayHourPairs, "MultiDayHour");
+                          handleSave(dayHourPairs, "MultiDayHour", true);
                         }}
                         placeholder="0"
                         keyboardType="decimal-pad"
@@ -1588,7 +1682,6 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                 <Text style={styles.inputLabel}>Priority:</Text>
                 <View style={styles.dropdownWrapper}>
                   <DropDownPicker
-                    key={`priority-${urgency}`}
                     open={urgencyOpen}
                     value={urgency}
                     items={[
@@ -1600,13 +1693,21 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                     setValue={setUrgency}
                     onChangeValue={(value) => {
                       if (value) {
-                        setUrgency(value); // Update state first
-                        handleSave(value, "Priority");
+                        // MG 1-8-2026: Skip handleSave if data is being loaded from API
+                        if (isLoadingDataRef.current) {
+                          console.log('🚫 Priority onChange skipped - data loading from API');
+                          return;
+                        }
+                        // MG 1-8-2026: Removed duplicate setUrgency call (setValue already handles it)
+                        // MG 1-8-2026: Removed dynamic key prop to prevent component remounting
+                        // Only call handleSave to update the API
+                        handleSave(value, "Priority", true);
                       }
                     }}
                     style={[styles.dropdownStyle, styles.inputField]}
                     dropDownContainerStyle={[styles.dropDownContainerStyle, { zIndex: 1000 }]}
                     zIndex={1000}
+                    placeholder=""
                   />
                 </View>
               </View>
@@ -1617,7 +1718,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   onChange={(date) => {
                     console.log('Not Before Updated:', date);
                     setNotBefore(date); // Updates the state
-                    handleSave(date, 'NotBefore');
+                    handleSave(date, 'NotBefore', true);
                   }}
                 />
                 {/* Removed Nice To Have By field per API update */}
@@ -1627,7 +1728,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   onChange={(date) => {
                     console.log('MustCompleteBy Updated:', date);
                     setMustCompleteDate(date); // Updates the state
-                    handleSave(date, 'MustCompleteBy');
+                    handleSave(date, 'MustCompleteBy', true);
                   }}
                 />
                             <DateTimePicker
@@ -1636,7 +1737,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                               onChange={(updatedDates) => {
                                 const cleanedDates = updatedDates.filter(date => /^\d{2}\/\d{2}\/\d{4}$/.test(date)); // ✅ Filter valid dates
                                 
-                                handleSave(cleanedDates.join(','), 'BlackoutDate'); // Send to API
+                                handleSave(cleanedDates.join(','), 'BlackoutDate', true); // Send to API
                               }}
                             />
 
@@ -1676,7 +1777,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   onChange={(date) => {
                     console.log('AvailableDate Updated:', date);
                     setAvailableDate(date); // Updates the state
-                    handleSave(date, 'AvailableDate');
+                    handleSave(date, 'AvailableDate', true);
                   }}
                 /> */}
                 
