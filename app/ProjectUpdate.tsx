@@ -436,8 +436,34 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setAmount(quote.Amount ? quote.Amount.toString() : '');
         setMustCompleteDate(quote.MustCompleteBy || '');
         setMinCrew(quote.MinCrew !== undefined ? String(quote.MinCrew) : '0');
-        setBlackoutDate(quote.BlackoutDate || '');
+        
+        // MG 1-12-2026: BUG FIX - Blackout dates need to update both singular and array states
+        // Problem: When refetching from API, only blackoutDate (string) was updated, but blackoutDates (array) was never updated
+        // Impact: DateTimePicker component uses the array state, so it showed stale/incorrect dates
+        // Solution: Parse the API response string and update both states to keep them in sync
+        const fetchedBlackoutDate = quote.BlackoutDate || '';
+        setBlackoutDate(fetchedBlackoutDate);
+        if (fetchedBlackoutDate) {
+          const blackoutDatesArray = fetchedBlackoutDate.split(',').map((date: string) => date.trim());
+          setBlackoutDates(blackoutDatesArray);
+        } else {
+          setBlackoutDates([]);
+        }
+        
         setAvailableDate(quote.AvailableDate || '');
+        
+        // MG 1-12-2026: BUG FIX - NotBefore was never being updated from API
+        // Problem: All other date fields (MustCompleteBy, AvailableDate, etc.) were updated on refetch, but NotBefore was missing
+        // Impact: User changes to "Do Not Schedule Before" date would appear to save but revert to old value on screen navigation
+        // Solution: Added setNotBefore() to update state when API returns fresh data
+        setNotBefore(quote.NotBefore || '');
+        
+        // MG 1-12-2026: BUG FIX - Expense was never being updated from API
+        // Problem: Similar to NotBefore, Expense field was never updated when refetching quote data
+        // Impact: User changes to Expense would revert to initial value after navigating away and back
+        // Solution: Added setExpense() to update state when API returns fresh data
+        setExpense(quote.Expense !== undefined ? String(quote.Expense) : '0');
+        
         setUrgency(quote.Priority || '');
 
         // 🔄 Restore Skills with Day selections
@@ -715,11 +741,20 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     ? validBlackoutDates.join(",") 
     : "";
 
+  // MG 1-12-2026: BUG FIX - Blackout dates save logic was appending instead of replacing
+  // Problem: Old code did [...blackoutDates, updated] which APPENDED new dates to existing ones
+  //          But DateTimePicker sends the COMPLETE list of dates (e.g., "01/15/2026,01/20/2026")
+  //          So it was treating the comma-separated string as ONE element: ["01/15/2026", "01/15/2026,01/20/2026"] (corrupted!)
+  // Impact: Blackout dates would get duplicated and malformed in the database
+  // Solution: REPLACE the entire array instead of appending. Parse the comma-separated string properly.
   let updatedBlackoutDates = blackoutDates;
   if (type === 'BlackoutDate') {
-    updatedBlackoutDates = Array.isArray(updated)
-      ? [...blackoutDates, ...updated]
-      : [...blackoutDates, updated];
+    if (Array.isArray(updated)) {
+      updatedBlackoutDates = updated;
+    } else if (typeof updated === 'string') {
+      // Parse the comma-separated string into an array
+      updatedBlackoutDates = updated.split(',').map((date: string) => date.trim()).filter((date: string) => date !== '');
+    }
   }
   const uniqueBlackoutDates = [...new Set(updatedBlackoutDates)].join(',');
 
@@ -774,7 +809,15 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   const notBeforeValue = cleanValue(type === 'NotBefore' ? updated : notBefore);
   const hoursValue = cleanValue(type === 'Hours' ? updated : (quoteHours || '0.00'));
   const blackoutValue = cleanValue(uniqueBlackoutDates);
-  const expenseClean = cleanValue(type === 'Expense' ? expense : expense || '0');
+  
+  // MG 1-12-2026: BUG FIX - Expense validation logic was computed but never used
+  // Problem: Lines 727-735 compute expenseValue with proper validation (check for NaN, default to "0")
+  //          But this line was doing: type === 'Expense' ? expense : expense (SAME value on both sides!)
+  //          So the validation logic above was completely bypassed
+  // Impact: Invalid expense values could be sent to API, and the computed expenseValue variable was wasted code
+  // Solution: Use the expenseValue that was already computed with validation above
+  const expenseClean = cleanValue(expenseValue);
+  
   const multiDayHourClean = cleanValue(multiDayHourValue);
   
   // Minimum Crew handling
@@ -804,6 +847,15 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
       console.log('✅ Quote updated successfully.');
       console.log('✅ Dates Array: ', uniqueBlackoutDates);
       setBlackoutDates(updatedBlackoutDates);
+      
+      // MG 1-12-2026: BUG FIX - Update singular blackoutDate string state after successful save
+      // Problem: When saving blackout dates, only setBlackoutDates(array) was called, but setBlackoutDate(string) was not
+      // Impact: The two states (blackoutDate and blackoutDates) would be out of sync after saving
+      // Solution: Update both states to keep them synchronized
+      if (type === 'BlackoutDate') {
+        setBlackoutDate(uniqueBlackoutDates);
+      }
+      
       // Only update MultiDayFlag if it's not already set by the button handler
       if (type !== "MultiDayFlag") {
         setMultiDayFlag(multiDayFlagValue);
@@ -1736,6 +1788,15 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                               initialDates={blackoutDate} // 🔹 Persist blackout dates from API
                               onChange={(updatedDates) => {
                                 const cleanedDates = updatedDates.filter(date => /^\d{2}\/\d{2}\/\d{4}$/.test(date)); // ✅ Filter valid dates
+                                
+                                // MG 1-12-2026: BUG FIX - Update local state IMMEDIATELY before saving (standard React pattern)
+                                // Problem: onChange handler only called handleSave but never updated state
+                                //          Compare to "Must Complete By" (lines 1749-1753) which does: setMustCompleteDate(date) THEN handleSave()
+                                // Impact: UI state was out of sync with DateTimePicker's internal state
+                                //         If save failed or user navigated quickly, changes would be lost
+                                // Solution: Update both state variables immediately for optimistic UI update, then save to API
+                                setBlackoutDates(cleanedDates);
+                                setBlackoutDate(cleanedDates.join(','));
                                 
                                 handleSave(cleanedDates.join(','), 'BlackoutDate', true); // Send to API
                               }}
