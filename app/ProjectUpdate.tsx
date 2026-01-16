@@ -2254,10 +2254,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                 ) : (
                   <Text style={styles.emptyText}>No Skills Selected.</Text>
                 )}
-              
+              </View>
 
-              {/*// Equipment Section*/}
-              
+              {/* MG 1-15-2026: Equipment Section - HIDDEN - Change false to true to show */}
+              {false && <>
               <View style={styles.headerRow}>
                 <Text style={styles.sectionTitle}>Equipment</Text>
                 <TouchableOpacity
@@ -2270,7 +2270,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   }
                 >
                   <Text>
-                    <Icon name="plus" size={16} color="#fff" /> {/*//Smaller plus icon}*/}
+                    <Icon name="plus" size={16} color="#fff" />
                   </Text>
                 </TouchableOpacity>
                 </View>
@@ -2361,8 +2361,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                 ) : (
                   <Text style={styles.emptyText}>No Equipment Selected.</Text>
                 )}
+              </>}
+              {/* MG 1-15-2026: END Equipment Section */}
               
-              </View>
               </View>
 
           {/* Footer (Buttons) */}
