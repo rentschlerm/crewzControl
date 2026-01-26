@@ -19,6 +19,24 @@ interface CustomDatePickerProps {
   labelStyle?: TextStyle;
 }
 
+// MG 1-15-2026: Helper function to parse MM/DD/YYYY format correctly
+// Problem: new Date("01/16/2026") doesn't parse reliably across all systems
+// Solution: Parse the string manually and construct Date object
+const parseDate = (dateString: string): Date | undefined => {
+  if (!dateString || dateString.trim() === '') return undefined;
+  
+  const parts = dateString.split('/');
+  if (parts.length !== 3) return undefined;
+  
+  const month = parseInt(parts[0], 10) - 1; // Month is 0-indexed
+  const day = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+  
+  if (isNaN(month) || isNaN(day) || isNaN(year)) return undefined;
+  
+  return new Date(year, month, day);
+};
+
 const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   label,
   value = '',
@@ -27,14 +45,33 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   labelStyle,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  
+  // MG 1-15-2026: Initialize year/month from value prop if it exists, otherwise use today
+  // This ensures when calendar opens, it shows the month of the selected date, not always current month
+  const initialDate = value ? (parseDate(value) || new Date()) : new Date();
+  const [currentYear, setCurrentYear] = useState(initialDate.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(initialDate.getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    value ? new Date(value) : undefined
+    value ? parseDate(value) : undefined
   );
   const [showYearPicker, setShowYearPicker] = useState(false);
 
   const yearsToDisplay = Array.from({ length: 15 }, (_, index) => currentYear - 7 + index);
+
+  // MG 1-15-2026: Update calendar year/month and selected date when value prop changes from parent
+  // This ensures if the date is changed externally (like from API refetch), the calendar shows the correct month
+  useEffect(() => {
+    if (value) {
+      const newDate = parseDate(value);
+      if (newDate) {
+        setSelectedDate(newDate);
+        setCurrentYear(newDate.getFullYear());
+        setCurrentMonth(newDate.getMonth());
+      }
+    } else {
+      setSelectedDate(undefined);
+    }
+  }, [value]);
 
   const toggleDatePicker = () => {
     if (!readOnly) {
@@ -45,12 +82,28 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   const daysInMonth = (month: number, year: number) =>
     new Date(year, month + 1, 0).getDate();
 
+  // MG 1-15-2026: Added ability to deselect date by clicking on already-selected date
+  // Problem: User couldn't clear/remove a date once selected
+  // Solution: If clicking on the same date that's already selected, clear it and pass empty string to parent
   const handleDateSelect = (day: number, month: number) => {
     const newDate = new Date(currentYear, month, day);
-    setSelectedDate(newDate);
-    setShowPicker(false);
-    const formattedDate = formatDate(newDate); // Format the selected date
-    onChange(formattedDate); // Pass the formatted date to the parent
+    
+    // Check if clicking on the already-selected date to deselect it
+    if (selectedDate && 
+        selectedDate.getDate() === day && 
+        selectedDate.getMonth() === month &&
+        selectedDate.getFullYear() === currentYear) {
+      // Deselect - clear the date
+      setSelectedDate(undefined);
+      setShowPicker(false);
+      onChange(''); // Pass empty string to clear the field
+    } else {
+      // Select new date
+      setSelectedDate(newDate);
+      setShowPicker(false);
+      const formattedDate = formatDate(newDate);
+      onChange(formattedDate);
+    }
   };
 
   const handleNextMonth = () => {

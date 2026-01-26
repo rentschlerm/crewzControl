@@ -75,59 +75,8 @@ interface Service {
   WorkPackages: WorkPackage | WorkPackage[] | undefined;
 }
 
-//M.G. 10/6/2025
-// Fixed Multi-Day functionality: replaced broken dropdowns with Alert dialogs, 
-// fixed text truncation and UI layout issues, added separate MultiDayButton component
-
-// Two separate buttons - no re-rendering, just show/hide
-const MultiDayOffButton: React.FC<{
-  isUpdatingMultiDay: boolean;
-  onPress: () => void;
-  style?: any;
-}> = ({ isUpdatingMultiDay, onPress, style }) => {
-  return (
-    <TouchableOpacity 
-      onPress={() => {
-        console.log('🚨 MultiDay OFF button pressed!');
-        onPress();
-      }}
-      disabled={isUpdatingMultiDay}
-      style={[
-        styles.cancelButton,
-        isUpdatingMultiDay && { opacity: 0.7 },
-        style
-      ]}>
-      <Text style={styles.cancelButtonText}>
-        {isUpdatingMultiDay ? "Updating..." : "Add Multi-Day"}
-      </Text>
-    </TouchableOpacity>
-  );
-};
-
-const MultiDayOnButton: React.FC<{
-  isUpdatingMultiDay: boolean;
-  onPress: () => void;
-  style?: any;
-}> = ({ isUpdatingMultiDay, onPress, style }) => {
-  return (
-    <TouchableOpacity 
-      onPress={() => {
-        console.log('🚨 MultiDay ON button pressed!');
-        onPress();
-      }}
-      disabled={isUpdatingMultiDay}
-      style={[
-        styles.cancelButton,
-        { backgroundColor: '#007BFF' },
-        isUpdatingMultiDay && { opacity: 0.7 },
-        style
-      ]}>
-      <Text style={[styles.cancelButtonText, { color: 'white' }]}>
-        {isUpdatingMultiDay ? "Updating..." : "Remove Multi-Day"}
-      </Text>
-    </TouchableOpacity>
-  );
-};
+//M.G. 1-16-2026
+// Removed Multi-Day button components - replaced with DayCount field approach
 
 const ProjectUpdate: React.FC = () => {
    const { fetchJobs } = useJobs();
@@ -154,28 +103,6 @@ const ProjectUpdate: React.FC = () => {
   jobObj?.Expense !== undefined ? String(jobObj.Expense) : "0"
 );
   const [multidayhour, setMultidayhour] = useState((jobObj as any)?.MultiDayHour);
-  const [isUpdatingMultiDay, setIsUpdatingMultiDay] = useState(false);
-  
-  // Initialize multi-day mode based on received MultiDayFlag
-  useEffect(() => {
-      const initialMultiDayFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
-    console.log('🔄 Initializing Multi-Day mode:', { 
-        jobObjMultiDayFlag: (jobObj as any)?.MultiDayFlag, 
-      initialMultiDayFlag,
-      currentLocalFlag: localMultiDayFlag,
-      isUpdatingMultiDay
-      });
-      
-    // Only initialize if we're not currently updating (to prevent overriding manual changes)
-    if (!isUpdatingMultiDay) {
-      setMultiDayFlag(initialMultiDayFlag);
-      // Only update localMultiDayFlag if it's different from the initial value
-      if (localMultiDayFlag !== initialMultiDayFlag) {
-      setLocalMultiDayFlag(initialMultiDayFlag);
-      }
-      setIsMultiDay(initialMultiDayFlag === 1);
-    }
-  }, [jobObj?.Serial]); // Only depend on Serial to prevent loops
   const [address, setAddress] = useState(jobObj?.Address);
   const [city, setCity] = useState(jobObj?.City);
   const [quoteNum, setQuoteNum] = useState(jobObj?.QuoteNum);
@@ -205,8 +132,22 @@ const ProjectUpdate: React.FC = () => {
 
   const { location, fetchLocation } = useLocation(); // custom hook
 
-  const [isMultiDay, setIsMultiDay] = useState(false);//track Multi-Day button
-  const [multiDayFlag, setMultiDayFlag] = useState<0 | 1>(0);
+  // MG 1-16-2026: NEW - DayCount replaces MultiDayFlag approach
+  // This state tracks the number of days for the job (minimum 1)
+  // Used to dynamically render "Day 1 Hours", "Day 2 Hours", etc. input fields
+  // and to determine how many day selection chips to show for resources
+  const [dayCount, setDayCount] = useState<number>(() => {
+    // Initialize from jobObj.DayCount if available, default to 1
+    const initialValue = (jobObj as any)?.DayCount || 1;
+    console.log('🔢 [INIT] DayCount initialized:', initialValue);
+    return initialValue;
+  });
+  // MG 1-16-2026: Separate state for input display to allow empty field while editing
+  // This allows users to delete/clear the field temporarily while typing
+  // The actual dayCount state (used by UI logic) always maintains minimum value of 1
+  const [dayCountInput, setDayCountInput] = useState<string>(() => {
+    return String((jobObj as any)?.DayCount || 1);
+  });
   const [multiDayHours, setMultiDayHours] = useState<{ [key: number]: string }>({});
   
   // Parse multidayhour string into multiDayHours state when component loads
@@ -221,64 +162,6 @@ const ProjectUpdate: React.FC = () => {
       console.log('🔄 Loaded saved MultiDayHours:', parsedHours);
     }
   }, [multidayhour]);
-  
-  const [forceRender, setForceRender] = useState(0);
-  const [localMultiDayFlag, setLocalMultiDayFlag] = useState<0 | 1>(() => {
-    const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
-    console.log('🔄 Initializing localMultiDayFlag:', initialFlag);
-    return initialFlag;
-  });
-  const [buttonRenderKey, setButtonRenderKey] = useState(0);
-  const [forceUpdate, setForceUpdate] = useState(0);
-  const [componentKey, setComponentKey] = useState(0);
-  const [showMultiDayUI, setShowMultiDayUI] = useState(() => {
-    const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
-    return initialFlag === 1;
-  });
-  const buttonRef = useRef<any>(null);
-  const stateRef = useRef({ localMultiDayFlag, isUpdatingMultiDay });
-  const [buttonClickCount, setButtonClickCount] = useState(0);
-  const [buttonState, setButtonState] = useState(() => {
-    const initialFlag = (jobObj as any)?.MultiDayFlag === 1 ? 1 : 0;
-    return {
-      flag: initialFlag,
-      text: initialFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
-      buttonStyle: initialFlag === 1 ? { backgroundColor: '#007BFF' } : {},
-      textStyle: initialFlag === 1 ? { color: 'white' } : {}
-    };
-  });
-
-  // Debug state changes
-  useEffect(() => {
-    console.log('🔄 State changed - multiDayFlag:', multiDayFlag, 'isMultiDay:', isMultiDay);
-  }, [multiDayFlag, isMultiDay]);
-
-  // Keep ref updated with current state
-  useEffect(() => {
-    stateRef.current = { localMultiDayFlag, isUpdatingMultiDay };
-  }, [localMultiDayFlag, isUpdatingMultiDay]);
-
-  const [selectedDays, setSelectedDays] = useState<number[]>([1]);
-  const getDayNumber = (val: string | undefined): number => {
-  if (!val) return 0;
-  const match = val.match(/DAY (\d+)/);
-  return match ? parseInt(match[1], 10) : 0;
-};
-const maxDaySelected = Math.max(
-  ...quoteWorkPackages.map(qwp => getDayNumber(qwp.selectedNumber)),
-  ...skills.map(skill => parseInt(skill.selectedNumber || "0")),
-  ...equipments.map(eq => parseInt(eq.selectedNumber || "0")),
-  1 // minimum 1 day
-);
-const safeMaxDaySelected = Math.max(1, maxDaySelected || 1);
-Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
-  // const [multiDayHours, setMultiDayHours] = useState<Record<string, string>>({
-  //   "1": "",
-  //   "2": "",
-  //   "3": "",
-  //   "4": "",
-  //   "5": ""
-  // });
 
   const [mustCompleteDate, setMustCompleteDate] = useState(jobObj?.MustCompleteBy);
   const [minCrew, setMinCrew] = useState<string>(
@@ -322,6 +205,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   const userEditedRef = useRef<boolean>(false);
   // MG 1-8-2026: Track when data is being loaded from API to prevent dropdown onChange from triggering saves
   const isLoadingDataRef = useRef<boolean>(false);
+  // MG 1-20-2026: Track last saved priority to prevent duplicate API calls on re-render
+  const lastSavedPriorityRef = useRef<string>('');
 
   // MG 12-26-2025: Helper function to show error only once per session and only for user edits
   const showErrorOnce = (message: string) => {
@@ -349,6 +234,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   // MG 12-26-2025: Reset edit flag when screen first loads
   useEffect(() => {
     userEditedRef.current = false;
+    // MG 1-20-2026: Initialize lastSavedPriority with current value to prevent duplicate saves on mount
+    lastSavedPriorityRef.current = (jobObj as any)?.Priority || '';
   }, []);
 
   // Function to format a specific day's input
@@ -437,6 +324,13 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setMustCompleteDate(quote.MustCompleteBy || '');
         setMinCrew(quote.MinCrew !== undefined ? String(quote.MinCrew) : '0');
         
+        // MG 1-16-2026: Parse DayCount from API response (replaces MultiDayFlag)
+        const fetchedDayCount = quote.DayCount ? parseInt(String(quote.DayCount), 10) : 1;
+        const validDayCount = fetchedDayCount >= 1 ? fetchedDayCount : 1;
+        console.log('🔢 [API GET] DayCount received from backend:', quote.DayCount, '→ parsed:', validDayCount);
+        setDayCount(validDayCount);
+        setDayCountInput(String(validDayCount));
+        
         // MG 1-12-2026: BUG FIX - Blackout dates need to update both singular and array states
         // Problem: When refetching from API, only blackoutDate (string) was updated, but blackoutDates (array) was never updated
         // Impact: DateTimePicker component uses the array state, so it showed stale/incorrect dates
@@ -464,48 +358,124 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         // Solution: Added setExpense() to update state when API returns fresh data
         setExpense(quote.Expense !== undefined ? String(quote.Expense) : '0');
         
-        setUrgency(quote.Priority || '');
+        // MG 1-20-2026: Update both state and ref to prevent duplicate API calls
+        const priority = quote.Priority || '';
+        setUrgency(priority);
+        lastSavedPriorityRef.current = priority;
 
-        // 🔄 Restore Skills with Day selections
+        // MG 1-20-2026: Restore Skills with Day selections
+        // Groups skills by Serial and combines day_number values into comma-separated string
+        // Handles case where backend returns multiple rows (one per day) for the same skill
         if (quote.Skills) {
           const fetchedSkills = normalizeToArray(quote.Skills.Skill);
           console.log('📥 Restoring Skills - Raw data:', JSON.stringify(fetchedSkills, null, 2));
-          setSkills(fetchedSkills.map((skill: any) => {
-            const dayValue = skill.SkillDay || '';
-            console.log(`  Skill "${skill.SkillName}" - SkillDay: ${dayValue}`);
-            return {
-              ...skill,
-              selectedNumber: dayValue
-            };
-          }));
+          
+          // Group skills by Serial and combine day_number values
+          // Backend may return multiple rows (one per day) for the same skill
+          const skillMap = new Map<number, any>();
+          fetchedSkills.forEach((skill: any) => {
+            const serial = skill.SkillSerial;
+            if (skillMap.has(serial)) {
+              // Combine day values
+              const existing = skillMap.get(serial);
+              const existingDays = existing.selectedNumber ? existing.selectedNumber.split(',') : [];
+              const newDay = skill.SkillDay ? String(skill.SkillDay) : '';
+              if (newDay && !existingDays.includes(newDay)) {
+                existingDays.push(newDay);
+              }
+              existing.selectedNumber = existingDays.sort((a: string, b: string) => parseInt(a) - parseInt(b)).join(',');
+            } else {
+              // First occurrence of this skill
+              const dayValue = skill.SkillDay ? String(skill.SkillDay) : '';
+              skillMap.set(serial, {
+                ...skill,
+                selectedNumber: dayValue
+              });
+            }
+          });
+          
+          const combinedSkills = Array.from(skillMap.values());
+          combinedSkills.forEach(skill => {
+            console.log(`  Skill "${skill.SkillName}" - Combined SkillDays: ${skill.selectedNumber}`);
+          });
+          setSkills(combinedSkills);
         }
 
-        // 🔄 Restore Equipments with Day selections
+        // MG 1-20-2026: Restore Equipments with Day selections
+        // Groups equipment by Serial and combines day_number values into comma-separated string
+        // Handles case where backend returns multiple rows (one per day) for the same equipment
         if (quote.Equipments) {
           const fetchedEquipments = normalizeToArray(quote.Equipments.Equipment);
           console.log('📥 Restoring Equipments - Raw data:', JSON.stringify(fetchedEquipments, null, 2));
-          setEquipments(fetchedEquipments.map((equipment: any) => {
-            const dayValue = equipment.EquipmentDay || '';
-            console.log(`  Equipment "${equipment.EquipmentName}" - EquipmentDay: ${dayValue}`);
-            return {
-              ...equipment,
-              selectedNumber: dayValue
-            };
-          }));
+          
+          // Group equipment by Serial and combine day_number values
+          // Backend may return multiple rows (one per day) for the same equipment
+          const equipmentMap = new Map<number, any>();
+          fetchedEquipments.forEach((equipment: any) => {
+            const serial = equipment.EquipmentSerial;
+            if (equipmentMap.has(serial)) {
+              // Combine day values
+              const existing = equipmentMap.get(serial);
+              const existingDays = existing.selectedNumber ? existing.selectedNumber.split(',') : [];
+              const newDay = equipment.EquipmentDay ? String(equipment.EquipmentDay) : '';
+              if (newDay && !existingDays.includes(newDay)) {
+                existingDays.push(newDay);
+              }
+              existing.selectedNumber = existingDays.sort((a: string, b: string) => parseInt(a) - parseInt(b)).join(',');
+            } else {
+              // First occurrence of this equipment
+              const dayValue = equipment.EquipmentDay ? String(equipment.EquipmentDay) : '';
+              equipmentMap.set(serial, {
+                ...equipment,
+                selectedNumber: dayValue
+              });
+            }
+          });
+          
+          const combinedEquipments = Array.from(equipmentMap.values());
+          combinedEquipments.forEach(equipment => {
+            console.log(`  Equipment "${equipment.EquipmentName}" - Combined EquipmentDays: ${equipment.selectedNumber}`);
+          });
+          setEquipments(combinedEquipments);
         }
 
-        // 🔄 Restore Work Packages with Day selections
+        // MG 1-20-2026: Restore Work Packages with Day selections
+        // Groups work packages by Serial and combines day_number values into comma-separated string
+        // Handles case where backend returns multiple rows (one per day) for the same work package
+        // NOTE: As of 1-21-2026, backend does not yet return QuoteWorkPackageDay field (pending fix)
         if (quote.QuoteWorkPackages) {
           const fetchedWorkPackages = normalizeToArray(quote.QuoteWorkPackages.QuoteWorkPackage);
           console.log('📥 Restoring Work Packages - Raw data:', JSON.stringify(fetchedWorkPackages, null, 2));
-          setQuoteWorkPackages(fetchedWorkPackages.map((qwp: any) => {
-            const dayValue = qwp.QuoteWorkPackageDay || '';
-            console.log(`  WorkPackage "${qwp.QuoteWorkPackageName}" - QuoteWorkPackageDay: ${dayValue}`);
-            return {
-              ...qwp,
-              selectedNumber: dayValue
-            };
-          }));
+          
+          // Group work packages by Serial and combine day_number values
+          // Backend may return multiple rows (one per day) for the same work package
+          const workPackageMap = new Map<number, any>();
+          fetchedWorkPackages.forEach((qwp: any) => {
+            const serial = qwp.QuoteWorkPackageSerial;
+            if (workPackageMap.has(serial)) {
+              // Combine day values
+              const existing = workPackageMap.get(serial);
+              const existingDays = existing.selectedNumber ? existing.selectedNumber.split(',') : [];
+              const newDay = qwp.QuoteWorkPackageDay ? String(qwp.QuoteWorkPackageDay) : '';
+              if (newDay && !existingDays.includes(newDay)) {
+                existingDays.push(newDay);
+              }
+              existing.selectedNumber = existingDays.sort((a: string, b: string) => parseInt(a) - parseInt(b)).join(',');
+            } else {
+              // First occurrence of this work package
+              const dayValue = qwp.QuoteWorkPackageDay ? String(qwp.QuoteWorkPackageDay) : '';
+              workPackageMap.set(serial, {
+                ...qwp,
+                selectedNumber: dayValue
+              });
+            }
+          });
+          
+          const combinedWorkPackages = Array.from(workPackageMap.values());
+          combinedWorkPackages.forEach(qwp => {
+            console.log(`  WorkPackage "${qwp.QuoteWorkPackageName}" - Combined QuoteWorkPackageDays: ${qwp.selectedNumber}`);
+          });
+          setQuoteWorkPackages(combinedWorkPackages);
         }
       } else {
         // MG 12-26-2025
@@ -768,38 +738,37 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     }
   }
 
-  // 🔹 MultiDayHour + MultiDayFlag
+  // 🔹 MultiDayHour + DayCount (MG 1-16-2026: Replaced MultiDayFlag with DayCount)
   let multiDayHourValue = multidayhour; // keep state value (string)
-  let multiDayFlagValue = multiDayFlag; // keep state value (0 or 1)
+  let dayCountValue = dayCount; // keep state value (integer)
+  
+  console.log('🔍 [DEBUG] Before processing - dayCount state:', dayCount);
+  console.log('🔍 [DEBUG] Before processing - updated param:', updated);
+  console.log('🔍 [DEBUG] Before processing - type:', type);
 
   if (type === "MultiDayHour") {
     multiDayHourValue = Array.isArray(updated) ? updated.join("|") : updated;
+    console.log('💾 [SAVE] MultiDayHour value:', multiDayHourValue);
   }
-  if (type === "MultiDayFlag") {
-    const flagValue = Array.isArray(updated) ? updated[0] : updated;
-    multiDayFlagValue = (flagValue === "1" || flagValue === "1") ? 1 : 0;
-    // When toggling Multi-Day flag, ensure multiDayHourValue is a proper string
-    if (multiDayFlagValue === 0) {
-      multiDayHourValue = ""; // Clear MultiDayHour when disabling Multi-Day
+  if (type === "DayCount") {
+    console.log('🔍 [DEBUG] Inside DayCount block - updated:', updated);
+    const countValue = Array.isArray(updated) ? updated[0] : updated;
+    console.log('🔍 [DEBUG] countValue after array check:', countValue);
+    dayCountValue = parseInt(String(countValue), 10);
+    console.log('🔍 [DEBUG] dayCountValue after parseInt:', dayCountValue);
+    // Ensure minimum value is 1
+    if (isNaN(dayCountValue) || dayCountValue < 1) {
+      console.log('🔍 [DEBUG] dayCountValue was invalid, setting to 1');
+      dayCountValue = 1;
     }
+    console.log('💾 [SAVE] DayCount value to send:', dayCountValue);
   }
+  
+  console.log('🔍 [DEBUG] Final dayCountValue for URL:', dayCountValue);
 
-  // 🔹 Day Selection Handling
-  if (type === "WorkPackageDay" || type === "SkillDay" || type === "EquipmentDay") {
-    // For day selections, we need to rebuild the MultiDayHour string
-    // The day selection is stored in local state and will be handled by the server
-    // when the quote is saved or when specific APIs are called
-    console.log(`📅 Day selection updated: ${type} = ${updated}`);
-    
-    // Rebuild MultiDayHour string from current state
-    const dayHourPairs = Object.entries(multiDayHours)
-      .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
-      .map(([day, hour]) => `${day}-${hour}`)
-      .join("|");
-    
-    multiDayHourValue = dayHourPairs;
-    setMultidayhour(dayHourPairs);
-  }
+  // 🔹 MG 1-20-2026: Removed WorkPackageDay from generic handler - now uses handleUpdateResourceGroupDay
+  // Day selections for Skills and Equipment are handled by their specific API handlers (handleUpdateSkillDay, handleUpdateEquipmentDay)
+  // This generic handler is only for MultiDayHour updates from the main quote form
 
   // Strip out carriage returns and newlines from all values
   const cleanValue = (val: any) => String(val || '').replace(/[\r\n]/g, '');
@@ -831,9 +800,14 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   }
   const minCrewClean = cleanValue(minCrewValue);
 
-  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${deviceInfo.id}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${priorityValue}&MustCompleteBy=${mustCompleteValue}&MinCrew=${minCrewClean}&BlackoutDate=${blackoutValue}&NotBefore=${notBeforeValue}&Hours=${hoursValue}&Expense=${expenseClean}&MultiDayHour=${multiDayHourClean}&MultiDayFlag=${multiDayFlagValue}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
-  console.log('MukltidayHour Value:', multiDayHourValue);
-  console.log('Request URL:', url);
+  console.log('🔍 [URL BUILD] About to build URL with dayCountValue:', dayCountValue, 'type:', typeof dayCountValue);
+
+  const url = `https://CrewzControl.com/dev/CCService/UpdateQuote.php?DeviceID=${deviceInfo.id}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&Serial=${serial}&CrewzControlVersion=${crewzControlVersion}&Priority=${priorityValue}&MustCompleteBy=${mustCompleteValue}&MinCrew=${minCrewClean}&BlackoutDate=${blackoutValue}&NotBefore=${notBeforeValue}&Hours=${hoursValue}&Expense=${expenseClean}&MultiDayHour=${multiDayHourClean}&DayCount=${dayCountValue}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+  console.log('📤 [API UPDATE] Sending to backend:');
+  console.log('   - DayCount:', dayCountValue);
+  console.log('   - MultiDayHour:', multiDayHourValue);
+  console.log('   - Hours:', hoursValue);
+  console.log('   - Full URL:', url);
 
   try {
     const response = await fetch(url);
@@ -844,7 +818,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     const result = parser.parse(data);
 
     if (result.ResultInfo?.Result === 'Success') {
-      console.log('✅ Quote updated successfully.');
+      console.log('✅ [API UPDATE] Quote updated successfully!');
+      if (type === 'DayCount') {
+        console.log('✅ [API UPDATE] DayCount saved to backend:', dayCountValue);
+      }
       console.log('✅ Dates Array: ', uniqueBlackoutDates);
       setBlackoutDates(updatedBlackoutDates);
       
@@ -856,9 +833,9 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
         setBlackoutDate(uniqueBlackoutDates);
       }
       
-      // Only update MultiDayFlag if it's not already set by the button handler
-      if (type !== "MultiDayFlag") {
-        setMultiDayFlag(multiDayFlagValue);
+      // MG 1-16-2026: Update DayCount if that was the type being saved
+      if (type === "DayCount") {
+        setDayCount(dayCountValue);
       }
     } else {
       // MG 12-26-2025
@@ -930,78 +907,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     }
   };
 
-  // Handle Multi-Day button press - simple function without useCallback
-  const handleMultiDayPress = async () => {
-    console.log('🚨 BUTTON CLICKED - handleMultiDayPress called!');
-    console.log('🚨 Current state:', { isUpdatingMultiDay, buttonState });
-    
-    if (isUpdatingMultiDay) {
-      console.log('🚨 Blocked - already updating');
-      return; // Prevent multiple clicks
-    }
-    
-    const newMultiDayFlag = buttonState.flag === 1 ? 0 : 1;
-    
-    console.log('🔄 Multi-Day button pressed:', { 
-      currentFlag: buttonState.flag, 
-      newFlag: newMultiDayFlag 
-    });
-    
-    // Update button state atomically
-    const newButtonState = {
-      flag: newMultiDayFlag,
-      text: newMultiDayFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
-      buttonStyle: newMultiDayFlag === 1 ? { backgroundColor: '#007BFF' } : {},
-      textStyle: newMultiDayFlag === 1 ? { color: 'white' } : {}
-    };
-    
-    // Update all states immediately - simple and direct
-    setButtonState(newButtonState);
-    setLocalMultiDayFlag(newMultiDayFlag);
-    setMultiDayFlag(newMultiDayFlag);
-    setIsMultiDay(newMultiDayFlag === 1);
-    setShowMultiDayUI(newMultiDayFlag === 1);
-    setIsUpdatingMultiDay(true);
-    
-    console.log('🔄 All states updated immediately:', newButtonState);
-    console.log('🔄 isMultiDay set to:', newMultiDayFlag === 1);
-    console.log('🔄 isUpdatingMultiDay set to true');
-    
-    // Add a delay to ensure "Updating..." is visible
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    try {
-      // Call UpdateQuote API with the new MultiDayFlag value
-      // Also preserve existing hours when toggling Multi-Day
-      if (newMultiDayFlag === 1 && quoteHours && parseFloat(quoteHours) > 0) {
-        // If enabling Multi-Day and there are existing hours, preserve them
-        console.log(`🔄 Preserving existing hours: ${quoteHours}`);
-      }
-      await handleSave(newMultiDayFlag.toString(), "MultiDayFlag");
-      console.log(`✅ Multi-Day flag updated to: ${newMultiDayFlag}`);
-    } catch (error) {
-      console.error('❌ Failed to update Multi-Day flag:', error);
-      // Simple revert - just flip the flag back
-      const revertedFlag = newMultiDayFlag === 1 ? 0 : 1;
-      const revertedButtonState = {
-        flag: revertedFlag,
-        text: revertedFlag === 1 ? "Remove Multi-Day" : "Add Multi-Day",
-        buttonStyle: revertedFlag === 1 ? { backgroundColor: '#007BFF' } : {},
-        textStyle: revertedFlag === 1 ? { color: 'white' } : {}
-      };
-      
-      // Revert all states immediately
-      setButtonState(revertedButtonState);
-      setLocalMultiDayFlag(revertedFlag);
-      setMultiDayFlag(revertedFlag);
-      setIsMultiDay(revertedFlag === 1);
-      setShowMultiDayUI(revertedFlag === 1);
-      console.error('Error', 'Failed to update Multi-Day setting. Please try again.');
-    } finally {
-      setIsUpdatingMultiDay(false);
-      console.log('🔄 isUpdatingMultiDay set to false');
-    }
-  };
+  // MG 1-16-2026: Removed handleMultiDayPress - no longer needed with DayCount approach
 
   const handleRemoveSkill = async (skillSerial: number ) => {
     if (!deviceInfo || !location || !authorizationCode || !skillSerial || !jobObj.Serial) {
@@ -1276,7 +1182,13 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   };
 
   // Update Equipment Day Selection using UpdateQuoteEquipment API
-  const handleUpdateEquipmentDay = async (equipmentSerial: number, day: string, count: number) => {
+  // MG 1-20-2026: FIXED - Send separate API calls for each day to work with backend's INT column
+  // MG 1-20-2026: WORKAROUND - Backend UPDATE replaces instead of adding. Clear all days first, then add each one.
+  // MG 1-21-2026: Update Equipment Day Selection using UpdateQuoteEquipment API
+  // Sends a single API call with comma-separated days (e.g., "1,2,3,4") per API specification
+  // This allows equipment to be assigned to multiple days in one request
+  // Parameters: equipmentSerial (item ID), dayString (e.g., "1,3,5"), count (quantity)
+  const handleUpdateEquipmentDay = async (equipmentSerial: number, dayString: string, count: number) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
       console.error('Missing Information', 'Device, location, or quote serial is missing');
       return;
@@ -1284,7 +1196,12 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   
     // Ensure count has a valid value (default to 1 if undefined/zero)
     const validCount = count && count > 0 ? count : 1;
-    console.log('📅 Equipment Day Update - Serial:', equipmentSerial, 'Day:', day, 'Count:', validCount);
+    
+    console.log('📤 [EQUIPMENT API] Updating equipment day selection:');
+    console.log('   - Equipment Serial:', equipmentSerial);
+    console.log('   - Selected Days:', dayString);
+    console.log('   - Count:', validCount);
+    console.log('   - ✅ Sending ONE API call with comma-separated days');
   
     const crewzControlVersion = '1';
     const currentDate = new Date();
@@ -1300,51 +1217,55 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   
     const serial = jobObj.Serial;
   
-    // API expects: Action=update, List, Quote, Count, Day (not EquipmentDay)
+    // MG 1-21-2026: Send ONE API call with comma-separated days (per API spec)
     const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteEquipment.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
-    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=update&List=${equipmentSerial}&Quote=${serial}&Count=${validCount}&Day=${day}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=update&List=${equipmentSerial}&Quote=${serial}&Count=${validCount}&Day=${dayString}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
   
-    console.log('📅 UpdateQuoteEquipment Day URL:', url);
+    console.log(`📅 UpdateQuoteEquipment URL:`, url);
   
     try {
       const response = await fetch(url);
       const data = await response.text();
-      console.log('📅 Equipment API Response:', data);
+      console.log(`📅 Equipment Day API Response:`, data);
   
       const parser = new XMLParser();
       const result = parser.parse(data);
       
-      console.log('📅 Parsed Equipment Result:', JSON.stringify(result, null, 2));
+      console.log(`📅 Parsed Equipment Day Result:`, JSON.stringify(result, null, 2));
   
       if (result.ResultInfo?.Result === 'Success') {
-        console.log('✅ Equipment day selection updated successfully');
+        console.log(`✅ Equipment days updated successfully: ${dayString}`);
       } else {
-        const errorCode = result.ResultInfo?.ErrorCode || 'Unknown';
+        const errorCode = result.ResultInfo?.ErrorNumber || 'Unknown';
         const errorMessage = result.ResultInfo?.Message;
-        console.error('❌ Equipment API Error Code:', errorCode);
-        console.error('❌ Equipment API Error Message:', errorMessage);
-        // MG 12-26-2025
-        // Display API error message only once (prevents duplicate alerts)
+        console.error(`❌ Equipment Day API Error Code:`, errorCode);
+        console.error(`❌ Equipment Day API Error Message:`, errorMessage);
         if (errorMessage) {
           showErrorOnce(errorMessage);
         }
       }
     } catch (error) {
-      console.error('❌ Error updating equipment day:', error);
+      console.error(`❌ Error updating equipment days:`, error);
     }
+    console.log('✅ Equipment day update completed');
   };
 
-  // Update Skill Day Selection using UpdateQuoteSkill API
-  const handleUpdateSkillDay = async (skillSerial: number, day: string, count: number) => {
+  // MG 1-21-2026: Update Resource Group (Work Package) Day Selection using UpdateQuoteResourceGroup API
+  // Sends a single API call with comma-separated days (e.g., "1,2,3,4") per API specification
+  // This allows work packages to be assigned to multiple days in one request
+  // Parameters: resourceGroupSerial (QuoteWorkPackageSerial), dayString (e.g., "1,3,5")
+  // Fixed Error 104 by matching exact parameter order from API spec (Longitude/Latitude before Action)
+  const handleUpdateResourceGroupDay = async (resourceGroupSerial: number, dayString: string) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
       console.error('Missing Information', 'Device, location, or quote serial is missing');
       return;
     }
   
-    // Ensure count has a valid value (default to 1 if undefined/zero)
-    const validCount = count && count > 0 ? count : 1;
-    console.log('📅 Skill Day Update - Serial:', skillSerial, 'Day:', day, 'Count:', validCount);
+    console.log('📤 [RESOURCEGROUP API] Updating work package day selection:');
+    console.log('   - Resource Group Serial:', resourceGroupSerial);
+    console.log('   - Selected Days:', dayString);
+    console.log('   - ✅ Sending ONE API call with comma-separated days');
   
     const crewzControlVersion = '1';
     const currentDate = new Date();
@@ -1360,39 +1281,106 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   
     const serial = jobObj.Serial;
   
-    // API expects: Action=update, List, Quote, Count, Day (not SkillDay)
-    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteSkill.php?DeviceID=${encodeURIComponent(
+    // MG 1-21-2026: Send ONE API call with comma-separated days (per API spec)
+    // MG 1-21-2026: Parameter order matches EXACT example from API spec
+    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteResourceGroup.php?DeviceID=${encodeURIComponent(
       deviceInfo.id
-    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=update&List=${skillSerial}&Quote=${serial}&Count=${validCount}&Day=${day}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Action=update&List=${resourceGroupSerial}&Day=${dayString}&Quote=${serial}`;
   
-    console.log('📅 UpdateQuoteSkill Day URL:', url);
+    console.log(`📅 UpdateQuoteResourceGroup URL:`, url);
   
     try {
       const response = await fetch(url);
       const data = await response.text();
-      console.log('📅 Skill API Response:', data);
+      console.log(`📅 ResourceGroup Day API Response:`, data);
   
       const parser = new XMLParser();
       const result = parser.parse(data);
       
-      console.log('📅 Parsed Skill Result:', JSON.stringify(result, null, 2));
+      console.log(`📅 Parsed ResourceGroup Day Result:`, JSON.stringify(result, null, 2));
   
       if (result.ResultInfo?.Result === 'Success') {
-        console.log('✅ Skill day selection updated successfully');
+        console.log(`✅ Work package days updated successfully: ${dayString}`);
       } else {
-        const errorCode = result.ResultInfo?.ErrorCode || 'Unknown';
+        const errorCode = result.ResultInfo?.ErrorNumber || 'Unknown';
         const errorMessage = result.ResultInfo?.Message;
-        console.error('❌ Skill API Error Code:', errorCode);
-        console.error('❌ Skill API Error Message:', errorMessage);
-        // MG 12-26-2025
-        // Display API error message only once (prevents duplicate alerts)
+        console.error(`❌ Work package Day API Error Code:`, errorCode);
+        console.error(`❌ Work package Day API Error Message:`, errorMessage);
         if (errorMessage) {
           showErrorOnce(errorMessage);
         }
       }
     } catch (error) {
-      console.error('❌ Error updating skill day:', error);
+      console.error(`❌ Error updating work package days:`, error);
     }
+    console.log('✅ Work package day update completed');
+  };
+
+  // MG 1-21-2026: Update Skill Day Selection using UpdateQuoteSkill API
+  // Sends a single API call with comma-separated days (e.g., "1,2,3,4") per API specification
+  // This allows skills to be assigned to multiple days in one request
+  // Parameters: skillSerial (item ID), dayString (e.g., "1,3,5"), count (quantity)
+  const handleUpdateSkillDay = async (skillSerial: number, dayString: string, count: number) => {
+    if (!deviceInfo || !location || !jobObj.Serial) {
+      console.error('Missing Information', 'Device, location, or quote serial is missing');
+      return;
+    }
+  
+    // Ensure count has a valid value (default to 1 if undefined/zero)
+    const validCount = count && count > 0 ? count : 1;
+    
+    console.log('📤 [SKILL API] Updating skill day selection:');
+    console.log('   - Skill Serial:', skillSerial);
+    console.log('   - Selected Days:', dayString);
+    console.log('   - Count:', validCount);
+    console.log('   - ✅ Sending ONE API call with comma-separated days');
+  
+    const crewzControlVersion = '1';
+    const currentDate = new Date();
+    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(
+      currentDate.getDate()
+    ).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(
+      2,
+      '0'
+    )}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+  
+    const keyString = `${deviceInfo.id}${formattedDate}${authorizationCode}`;
+    const key = CryptoJS.SHA1(keyString).toString();
+  
+    const serial = jobObj.Serial;
+  
+    // MG 1-21-2026: Send ONE API call with comma-separated days (per API spec)
+    const url = `https://CrewzControl.com/dev/CCService/UpdateQuoteSkill.php?DeviceID=${encodeURIComponent(
+      deviceInfo.id
+    )}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Action=update&List=${skillSerial}&Quote=${serial}&Count=${validCount}&Day=${dayString}&Longitude=${location.longitude}&Latitude=${location.latitude}`;
+  
+    console.log(`📅 UpdateQuoteSkill URL:`, url);
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.text();
+      console.log(`📅 Skill Day API Response:`, data);
+  
+      const parser = new XMLParser();
+      const result = parser.parse(data);
+      
+      console.log(`📅 Parsed Skill Day Result:`, JSON.stringify(result, null, 2));
+  
+      if (result.ResultInfo?.Result === 'Success') {
+        console.log(`✅ Skill days updated successfully: ${dayString}`);
+      } else {
+        const errorCode = result.ResultInfo?.ErrorNumber || 'Unknown';
+        const errorMessage = result.ResultInfo?.Message;
+        console.error(`❌ Skill Day API Error Code:`, errorCode);
+        console.error(`❌ Skill Day API Error Message:`, errorMessage);
+        if (errorMessage) {
+          showErrorOnce(errorMessage);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error updating skill days:`, error);
+    }
+    console.log('✅ Skill day update completed');
   };
   
 
@@ -1502,9 +1490,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     // MG 1-8-2026: Set loading flag FIRST to prevent dropdown onChange from firing during navigation/unmount
     isLoadingDataRef.current = true;
     
-    // Save MultiDayHour data before navigating away
-    // Use multiDayFlag instead of isMultiDay to avoid timing issues
-    if (multiDayFlag === 1 && multiDayHours) {
+    // MG 1-16-2026: Save MultiDayHour data before navigating away (use dayCount instead of multiDayFlag)
+    if (dayCount > 1 && multiDayHours) {
       const dayHourPairs = Object.entries(multiDayHours)
         .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
         .map(([day, hour]) => `${day}-${hour}`)
@@ -1524,9 +1511,8 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
     // MG 1-8-2026: Set loading flag FIRST to prevent dropdown onChange from firing during navigation/unmount
     isLoadingDataRef.current = true;
     
-    // Save MultiDayHour data before navigating away
-    // Use multiDayFlag instead of isMultiDay to avoid timing issues
-    if (multiDayFlag === 1 && multiDayHours) {
+    // MG 1-16-2026: Save MultiDayHour data before navigating away (use dayCount instead of multiDayFlag)
+    if (dayCount > 1 && multiDayHours) {
       const dayHourPairs = Object.entries(multiDayHours)
         .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
         .map(([day, hour]) => `${day}-${hour}`)
@@ -1546,7 +1532,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   }
   
   return (
-    <SafeAreaView key={`multiday-${componentKey}`} style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
     <ImageBackground
       source={require('../assets/images/background.png')}
       style={styles.background}
@@ -1639,8 +1625,64 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   keyboardType="number-pad"
                   style={styles.inputField}
                 />
-              </View> 
-            {Number(multiDayFlag) === 0 ? (
+              </View>
+
+              {/* MG 1-16-2026: NEW - Number of Days Input */}
+              {/* Allows user to specify how many days the job will take (minimum 1) */}
+              {/* Dynamically controls how many "Day X Hours" fields are shown below */}
+              {/* Also controls how many day selection chips appear for skills/equipment/work packages */}
+              <View style={styles.inputRow}>
+                <Text style={styles.inputLabel}>
+                  Number of Days:
+                </Text>
+                <TextInput
+                  value={dayCountInput}
+                  onChangeText={(text) => {
+                    console.log('🔢 [INPUT] User typing:', text);
+                    // Update display immediately (allows empty field)
+                    setDayCountInput(text);
+                    
+                    // Update actual dayCount for UI logic
+                    if (text === '') {
+                      console.log('🔢 [INPUT] Empty field, keeping dayCount=1 for UI');
+                      // Keep dayCount at 1 while field is empty to prevent UI breaking
+                      setDayCount(1);
+                    } else {
+                      const numValue = parseInt(text, 10);
+                      if (!isNaN(numValue) && numValue >= 1 && numValue <= 999) {
+                        console.log('🔢 [INPUT] Valid number, setting dayCount:', numValue);
+                        setDayCount(numValue);
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    console.log('🔢 [BLUR] User left field, input value:', dayCountInput);
+                    // When user clicks away, ensure valid value
+                    if (dayCountInput === '' || parseInt(dayCountInput, 10) < 1) {
+                      // Empty or invalid = default to 1
+                      console.log('🔢 [BLUR] Empty/invalid, defaulting to 1');
+                      setDayCount(1);
+                      setDayCountInput('1');
+                      handleSave('1', "DayCount", true);
+                    } else {
+                      const finalValue = parseInt(dayCountInput, 10);
+                      console.log('🔢 [BLUR] Valid value, saving:', finalValue);
+                      setDayCount(finalValue);
+                      setDayCountInput(String(finalValue));
+                      handleSave(String(finalValue), "DayCount", true);
+                    }
+                  }}
+                  placeholder="1"
+                  keyboardType="number-pad"
+                  style={styles.inputField}
+                  selectTextOnFocus={true}
+                />
+              </View>
+
+            {/* MG 1-16-2026: Dynamic Hours Input Rendering */}
+            {/* If dayCount = 1, shows single "Hours" field */}
+            {/* If dayCount > 1, shows multiple "Day 1 Hours", "Day 2 Hours", etc. fields */}
+            {dayCount === 1 ? (
               // 🔹 Single Hours input (default)
               <View style={styles.inputRow}>
                 <Text style={styles.inputLabel}>
@@ -1667,11 +1709,11 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                 />
               </View>
             ) : (
-              // 🔹 Multi-day Hours inputs (Day 1 → Day N depending on dropdowns)
+              // 🔹 Multi-day Hours inputs (Day 1 → Day N based on dayCount)
               <View style={{ marginTop: 15 }}>
-                 {Array.from({ length: maxDaySelected }, (_, i) => i + 1).map(day => (
+                 {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => (
                     <View key={day} style={styles.inputRow}>
-                      <Text style={styles.inputLabel}>Hours Day {day}:</Text>
+                      <Text style={styles.inputLabel}>Day {day} Hours:</Text>
                       <TextInput
                         ref={(ref) => {
                           multiDayInputRefs.current[day] = ref;
@@ -1750,6 +1792,14 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                           console.log('🚫 Priority onChange skipped - data loading from API');
                           return;
                         }
+                        // MG 1-20-2026: FIX - Only save if value actually changed from last saved value
+                        // DropDownPicker can trigger onChangeValue during re-renders even if value didn't change
+                        if (value === lastSavedPriorityRef.current) {
+                          console.log('🚫 Priority onChange skipped - value unchanged:', value);
+                          return;
+                        }
+                        console.log('✅ Priority onChange - saving new value:', value, '(was:', lastSavedPriorityRef.current, ')');
+                        lastSavedPriorityRef.current = value;
                         // MG 1-8-2026: Removed duplicate setUrgency call (setValue already handles it)
                         // MG 1-8-2026: Removed dynamic key prop to prevent component remounting
                         // Only call handleSave to update the API
@@ -2008,63 +2058,65 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
   return (
     <View key={index} style={[styles.workPackageContainer, { zIndex: pickerZ, overflow: 'visible' }]}>
       <View style={[styles.rowContainer, { alignItems: 'center', zIndex: pickerZ, overflow: 'visible' }]}>
-        <View style={[styles.leftGroup, { zIndex: pickerZ, overflow: 'visible' }]}>
-          {showMultiDayUI && (
-            <TouchableOpacity 
-              style={{ 
-                marginRight: 8, 
-                minWidth: 80,
-                height: 30,
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: '#f0f0f0',
-                borderRadius: 4,
-                paddingHorizontal: 4,
-                borderWidth: 1,
-                borderColor: '#ccc'
-              }}
-              onPress={() => {
-                Alert.alert(
-                  'Select Day',
-                  'Choose the day for this work package:',
-                  [
-                    { text: 'DAY 1', onPress: () => { 
-                      qwp.selectedNumber = '1'; 
+        <View style={[styles.leftGroup, { zIndex: pickerZ, overflow: 'visible', flexDirection: 'column', alignItems: 'flex-start', flex: 1 }]}>
+          {/* MG 1-20-2026: Multi-select day chips for work packages */}
+          {/* Displays clickable chips (1, 2, 3, etc.) allowing users to select multiple days */}
+          {/* Selected days are highlighted in blue, unselected in gray */}
+          {dayCount > 1 && (
+            <View style={{ marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap' }}>
+              {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
+                const selectedDays = qwp.selectedNumber ? String(qwp.selectedNumber).split(',').map((d: string) => d.trim()) : [];
+                const isSelected = selectedDays.includes(String(day));
+                
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      marginRight: 4,
+                      marginBottom: 4,
+                      borderRadius: 4,
+                      backgroundColor: isSelected ? '#007BFF' : '#f0f0f0',
+                      borderWidth: 1,
+                      borderColor: isSelected ? '#007BFF' : '#ccc',
+                    }}
+                    onPress={() => {
+                      console.log(`📦 [WORKPACKAGE CHIP] User tapped day ${day} for work package "${qwp.QuoteWorkPackageName}"`);
+                      console.log(`📦 [WORKPACKAGE CHIP] Currently selected days:`, selectedDays);
+                      let updatedDays: string[];
+                      if (isSelected) {
+                        // Remove day
+                        updatedDays = selectedDays.filter((d: string) => d !== String(day));
+                        console.log(`📦 [WORKPACKAGE CHIP] Removing day ${day}`);
+                      } else {
+                        // Add day
+                        updatedDays = [...selectedDays, String(day)].sort((a: string, b: string) => parseInt(a) - parseInt(b));
+                        console.log(`📦 [WORKPACKAGE CHIP] Adding day ${day}`);
+                      }
+                      // Ensure at least one day is selected
+                      if (updatedDays.length === 0) {
+                        updatedDays = ['1'];
+                        console.log(`📦 [WORKPACKAGE CHIP] No days selected, defaulting to day 1`);
+                      }
+                      const dayString = updatedDays.join(',');
+                      console.log(`📦 [WORKPACKAGE CHIP] Final selected days:`, dayString);
+                      qwp.selectedNumber = dayString;
                       setQuoteWorkPackages([...quoteWorkPackages]);
-                      handleSave('1', 'WorkPackageDay');
-                    } },
-                    { text: 'DAY 2', onPress: () => { 
-                      qwp.selectedNumber = '2'; 
-                      setQuoteWorkPackages([...quoteWorkPackages]);
-                      handleSave('2', 'WorkPackageDay');
-                    } },
-                    { text: 'DAY 3', onPress: () => { 
-                      qwp.selectedNumber = '3'; 
-                      setQuoteWorkPackages([...quoteWorkPackages]);
-                      handleSave('3', 'WorkPackageDay');
-                    } },
-                    { text: 'DAY 4', onPress: () => { 
-                      qwp.selectedNumber = '4'; 
-                      setQuoteWorkPackages([...quoteWorkPackages]);
-                      handleSave('4', 'WorkPackageDay');
-                    } },
-                    { text: 'DAY 5', onPress: () => { 
-                      qwp.selectedNumber = '5'; 
-                      setQuoteWorkPackages([...quoteWorkPackages]);
-                      handleSave('5', 'WorkPackageDay');
-                    } },
-                    { text: 'Cancel', style: 'cancel' }
-                  ]
+                      // MG 1-20-2026: Call specific API for work package day updates
+                      handleUpdateResourceGroupDay(qwp.QuoteWorkPackageSerial, dayString);
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, color: isSelected ? '#fff' : '#000', fontWeight: 'bold' }}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
                 );
-              }}
-            >
-              <Text style={{ fontSize: 12, color: '#000' }}>
-                DAY {qwp.selectedNumber ?? '1'}
-              </Text>
-            </TouchableOpacity>
+              })}
+            </View>
           )}
                    <Text
-            style={[styles.workPackageTitle, { flex: 1, marginRight: 8 }]}
+            style={[styles.workPackageTitle, { marginRight: 8 }]}
             numberOfLines={2}
             ellipsizeMode="tail"
           >
@@ -2171,61 +2223,64 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   skills.map((skill, skillIndex) => (
                     <View key={skillIndex} style={styles.workPackageContainer}>
                       <View style={styles.rowContainer}>
-                        {showMultiDayUI && (
-                        <TouchableOpacity 
-                          style={{ 
-                            marginRight: 8, 
-                            minWidth: 80,
-                            height: 30,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: '#f0f0f0',
-                            borderRadius: 4,
-                            paddingHorizontal: 4,
-                            borderWidth: 1,
-                            borderColor: '#ccc'
-                          }}
-                          onPress={() => {
-                            Alert.alert(
-                              'Select Day',
-                              'Choose the day for this skill:',
-                              [
-                                { text: 'DAY 1', onPress: () => { 
-                                  skill.selectedNumber = '1'; 
-                                  setSkills([...skills]);
-                                  handleUpdateSkillDay(skill.SkillSerial, '1', skill.SkillCount);
-                                } },
-                                { text: 'DAY 2', onPress: () => { 
-                                  skill.selectedNumber = '2'; 
-                                  setSkills([...skills]);
-                                  handleUpdateSkillDay(skill.SkillSerial, '2', skill.SkillCount);
-                                } },
-                                { text: 'DAY 3', onPress: () => { 
-                                  skill.selectedNumber = '3'; 
-                                  setSkills([...skills]);
-                                  handleUpdateSkillDay(skill.SkillSerial, '3', skill.SkillCount);
-                                } },
-                                { text: 'DAY 4', onPress: () => { 
-                                  skill.selectedNumber = '4'; 
-                                  setSkills([...skills]);
-                                  handleUpdateSkillDay(skill.SkillSerial, '4', skill.SkillCount);
-                                } },
-                                { text: 'DAY 5', onPress: () => { 
-                                  skill.selectedNumber = '5'; 
-                                  setSkills([...skills]);
-                                  handleUpdateSkillDay(skill.SkillSerial, '5', skill.SkillCount);
-                                } },
-                                { text: 'Cancel', style: 'cancel' }
-                              ]
-                            );
-                          }}
-                        >
-                          <Text style={{ fontSize: 12, color: '#000' }}>
-                            DAY {skill.selectedNumber || '1'}
-                          </Text>
-                        </TouchableOpacity>
-                              )}
-                        <Text style={[styles.workPackageTitle, { flex: 1, marginRight: 8 }]} numberOfLines={2} ellipsizeMode="tail">{skill.SkillName}</Text>
+                        <View style={{ flexDirection: 'column', alignItems: 'flex-start', flex: 1 }}>
+                          {/* MG 1-20-2026: Multi-select day chips for skills */}
+                          {/* Displays clickable chips (1, 2, 3, etc.) allowing users to select multiple days */}
+                          {/* Selected days are highlighted in blue, unselected in gray */}
+                          {dayCount > 1 && (
+                          <View style={{ marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap' }}>
+                            {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
+                              const selectedDays = skill.selectedNumber ? skill.selectedNumber.split(',').map((d: string) => d.trim()) : [];
+                              const isSelected = selectedDays.includes(String(day));
+                              
+                              return (
+                                <TouchableOpacity
+                                  key={day}
+                                  style={{
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                    marginRight: 4,
+                                    marginBottom: 4,
+                                    borderRadius: 4,
+                                    backgroundColor: isSelected ? '#007BFF' : '#f0f0f0',
+                                    borderWidth: 1,
+                                    borderColor: isSelected ? '#007BFF' : '#ccc',
+                                  }}
+                                  onPress={() => {
+                                    console.log(`🎯 [SKILL CHIP] User tapped day ${day} for skill "${skill.SkillName}"`);
+                                    console.log(`🎯 [SKILL CHIP] Currently selected days:`, selectedDays);
+                                    let updatedDays: string[];
+                                    if (isSelected) {
+                                      // Remove day
+                                      updatedDays = selectedDays.filter((d: string) => d !== String(day));
+                                      console.log(`🎯 [SKILL CHIP] Removing day ${day}`);
+                                    } else {
+                                      // Add day
+                                      updatedDays = [...selectedDays, String(day)].sort((a: string, b: string) => parseInt(a) - parseInt(b));
+                                      console.log(`🎯 [SKILL CHIP] Adding day ${day}`);
+                                    }
+                                    // Ensure at least one day is selected
+                                    if (updatedDays.length === 0) {
+                                      updatedDays = ['1'];
+                                      console.log(`🎯 [SKILL CHIP] No days selected, defaulting to day 1`);
+                                    }
+                                    const dayString = updatedDays.join(',');
+                                    console.log(`🎯 [SKILL CHIP] Final selected days:`, dayString);
+                                    skill.selectedNumber = dayString;
+                                    setSkills([...skills]);
+                                    handleUpdateSkillDay(skill.SkillSerial, dayString, skill.SkillCount);
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 11, color: isSelected ? '#fff' : '#000', fontWeight: 'bold' }}>
+                                    {day}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                                )}
+                          <Text style={[styles.workPackageTitle, { marginRight: 8 }]} numberOfLines={2} ellipsizeMode="tail">{skill.SkillName}</Text>
+                        </View>
                         <View style={[styles.buttonGroup, { marginLeft: 0 }]}>
                         {/* 🔻 Decrease Quantity or Remove Skill */}
                         <TouchableOpacity
@@ -2254,10 +2309,10 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                 ) : (
                   <Text style={styles.emptyText}>No Skills Selected.</Text>
                 )}
-              
+              </View>
 
-              {/*// Equipment Section*/}
-              
+              {/* MG 1-15-2026: Equipment Section - HIDDEN - Change false to true to show */}
+              {false && <>
               <View style={styles.headerRow}>
                 <Text style={styles.sectionTitle}>Equipment</Text>
                 <TouchableOpacity
@@ -2270,7 +2325,7 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   }
                 >
                   <Text>
-                    <Icon name="plus" size={16} color="#fff" /> {/*//Smaller plus icon}*/}
+                    <Icon name="plus" size={16} color="#fff" />
                   </Text>
                 </TouchableOpacity>
                 </View>
@@ -2278,61 +2333,64 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                   equipments.map((equipment, equipmentIndex) => (
                     <View key={equipmentIndex} style={styles.workPackageContainer}>
                       <View style={styles.headerRow}>
-                        {showMultiDayUI && (
-                        <TouchableOpacity 
-                          style={{ 
-                            marginRight: 8, 
-                            minWidth: 80,
-                            height: 30,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: '#f0f0f0',
-                            borderRadius: 4,
-                            paddingHorizontal: 4,
-                            borderWidth: 1,
-                            borderColor: '#ccc'
-                          }}
-                          onPress={() => {
-                            Alert.alert(
-                              'Select Day',
-                              'Choose the day for this equipment:',
-                              [
-                                { text: 'DAY 1', onPress: () => { 
-                                  equipment.selectedNumber = '1'; 
-                                  setEquipments([...equipments]);
-                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '1', equipment.EquipmentCount);
-                                } },
-                                { text: 'DAY 2', onPress: () => { 
-                                  equipment.selectedNumber = '2'; 
-                                  setEquipments([...equipments]);
-                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '2', equipment.EquipmentCount);
-                                } },
-                                { text: 'DAY 3', onPress: () => { 
-                                  equipment.selectedNumber = '3'; 
-                                  setEquipments([...equipments]);
-                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '3', equipment.EquipmentCount);
-                                } },
-                                { text: 'DAY 4', onPress: () => { 
-                                  equipment.selectedNumber = '4'; 
-                                  setEquipments([...equipments]);
-                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '4', equipment.EquipmentCount);
-                                } },
-                                { text: 'DAY 5', onPress: () => { 
-                                  equipment.selectedNumber = '5'; 
-                                  setEquipments([...equipments]);
-                                  handleUpdateEquipmentDay(equipment.EquipmentSerial, '5', equipment.EquipmentCount);
-                                } },
-                                { text: 'Cancel', style: 'cancel' }
-                              ]
-                            );
-                          }}
-                        >
-                          <Text style={{ fontSize: 12, color: '#000' }}>
-                            DAY {equipment.selectedNumber || '1'}
-                          </Text>
-                        </TouchableOpacity>
-                              )}
-                        <Text style={[styles.workPackageTitle, { flex: 1, marginRight: 8 }]} numberOfLines={2} ellipsizeMode="tail">{equipment.EquipmentName}</Text>
+                        <View style={{ flexDirection: 'column', alignItems: 'flex-start', flex: 1 }}>
+                          {/* MG 1-20-2026: Multi-select day chips for equipment */}
+                          {/* Displays clickable chips (1, 2, 3, etc.) allowing users to select multiple days */}
+                          {/* Selected days are highlighted in blue, unselected in gray */}
+                          {dayCount > 1 && (
+                          <View style={{ marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap' }}>
+                            {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
+                              const selectedDays = equipment.selectedNumber ? equipment.selectedNumber.split(',').map((d: string) => d.trim()) : [];
+                              const isSelected = selectedDays.includes(String(day));
+                              
+                              return (
+                                <TouchableOpacity
+                                  key={day}
+                                  style={{
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                    marginRight: 4,
+                                    marginBottom: 4,
+                                    borderRadius: 4,
+                                    backgroundColor: isSelected ? '#007BFF' : '#f0f0f0',
+                                    borderWidth: 1,
+                                    borderColor: isSelected ? '#007BFF' : '#ccc',
+                                  }}
+                                  onPress={() => {
+                                    console.log(`🔧 [EQUIPMENT CHIP] User tapped day ${day} for equipment "${equipment.EquipmentName}"`);
+                                    console.log(`🔧 [EQUIPMENT CHIP] Currently selected days:`, selectedDays);
+                                    let updatedDays: string[];
+                                    if (isSelected) {
+                                      // Remove day
+                                      updatedDays = selectedDays.filter((d: string) => d !== String(day));
+                                      console.log(`🔧 [EQUIPMENT CHIP] Removing day ${day}`);
+                                    } else {
+                                      // Add day
+                                      updatedDays = [...selectedDays, String(day)].sort((a: string, b: string) => parseInt(a) - parseInt(b));
+                                      console.log(`🔧 [EQUIPMENT CHIP] Adding day ${day}`);
+                                    }
+                                    // Ensure at least one day is selected
+                                    if (updatedDays.length === 0) {
+                                      updatedDays = ['1'];
+                                      console.log(`🔧 [EQUIPMENT CHIP] No days selected, defaulting to day 1`);
+                                    }
+                                    const dayString = updatedDays.join(',');
+                                    console.log(`🔧 [EQUIPMENT CHIP] Final selected days:`, dayString);
+                                    equipment.selectedNumber = dayString;
+                                    setEquipments([...equipments]);
+                                    handleUpdateEquipmentDay(equipment.EquipmentSerial, dayString, equipment.EquipmentCount);
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 11, color: isSelected ? '#fff' : '#000', fontWeight: 'bold' }}>
+                                    {day}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                                )}
+                          <Text style={[styles.workPackageTitle, { marginRight: 8 }]} numberOfLines={2} ellipsizeMode="tail">{equipment.EquipmentName}</Text>
+                        </View>
                         <View style={[styles.buttonGroup, { marginLeft: 0 }]}>
                           {/*//🔻 Decrease Quantity or Remove Skill*/}
                         <TouchableOpacity
@@ -2361,30 +2419,15 @@ Array.from({ length: safeMaxDaySelected }, (_, i) => i + 1)
                 ) : (
                   <Text style={styles.emptyText}>No Equipment Selected.</Text>
                 )}
+              </>}
+              {/* MG 1-15-2026: END Equipment Section */}
               
-              </View>
               </View>
 
           {/* Footer (Buttons) */}
           <View style={styles.footer}>
-            <TouchableOpacity onPress={handleCancel} style={[styles.cancelButton, { flex: 0.4 }]}>
+            <TouchableOpacity onPress={handleCancel} style={[styles.cancelButton, { flex: 1 }]}>
               <Text style={styles.cancelButtonText}>Back</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => {
-                console.log('🚨 Direct button pressed!');
-                handleMultiDayPress();
-              }}
-              disabled={isUpdatingMultiDay}
-              style={[
-                styles.cancelButton,
-                buttonState.buttonStyle,
-                isUpdatingMultiDay && { opacity: 0.7 },
-                { flex: 0.6 }
-              ]}>
-              <Text style={[styles.cancelButtonText, buttonState.textStyle]}>
-                {isUpdatingMultiDay ? "Updating..." : buttonState.text}
-              </Text>
             </TouchableOpacity>
             {/* <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
               <Text style={styles.saveButtonText}>Save</Text>
