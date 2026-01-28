@@ -2063,8 +2063,12 @@ const ProjectUpdate: React.FC = () => {
           {/* Displays clickable chips (1, 2, 3, etc.) allowing users to select multiple days */}
           {/* Selected days are highlighted in blue, unselected in gray */}
           {dayCount > 1 && (
-            <View style={{ marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap' }}>
-              {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
+            <View style={{ marginBottom: 8 }}>
+              <Text style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>
+                Select Days (Blue = Selected):
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
                 const selectedDays = qwp.selectedNumber ? String(qwp.selectedNumber).split(',').map((d: string) => d.trim()) : [];
                 const isSelected = selectedDays.includes(String(day));
                 
@@ -2113,6 +2117,7 @@ const ProjectUpdate: React.FC = () => {
                   </TouchableOpacity>
                 );
               })}
+              </View>
             </View>
           )}
                    <Text
@@ -2228,8 +2233,12 @@ const ProjectUpdate: React.FC = () => {
                           {/* Displays clickable chips (1, 2, 3, etc.) allowing users to select multiple days */}
                           {/* Selected days are highlighted in blue, unselected in gray */}
                           {dayCount > 1 && (
-                          <View style={{ marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap' }}>
-                            {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
+                          <View style={{ marginBottom: 8 }}>
+                            <Text style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>
+                              Select Days (Blue = Selected):
+                            </Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                              {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
                               const selectedDays = skill.selectedNumber ? skill.selectedNumber.split(',').map((d: string) => d.trim()) : [];
                               const isSelected = selectedDays.includes(String(day));
                               
@@ -2277,6 +2286,7 @@ const ProjectUpdate: React.FC = () => {
                                 </TouchableOpacity>
                               );
                             })}
+                            </View>
                           </View>
                                 )}
                           <Text style={[styles.workPackageTitle, { marginRight: 8 }]} numberOfLines={2} ellipsizeMode="tail">{skill.SkillName}</Text>
@@ -2338,8 +2348,12 @@ const ProjectUpdate: React.FC = () => {
                           {/* Displays clickable chips (1, 2, 3, etc.) allowing users to select multiple days */}
                           {/* Selected days are highlighted in blue, unselected in gray */}
                           {dayCount > 1 && (
-                          <View style={{ marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap' }}>
-                            {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
+                          <View style={{ marginBottom: 8 }}>
+                            <Text style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>
+                              Select Days (Blue = Selected):
+                            </Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                              {Array.from({ length: dayCount }, (_, i) => i + 1).map(day => {
                               const selectedDays = equipment.selectedNumber ? equipment.selectedNumber.split(',').map((d: string) => d.trim()) : [];
                               const isSelected = selectedDays.includes(String(day));
                               
@@ -2387,6 +2401,7 @@ const ProjectUpdate: React.FC = () => {
                                 </TouchableOpacity>
                               );
                             })}
+                            </View>
                           </View>
                                 )}
                           <Text style={[styles.workPackageTitle, { marginRight: 8 }]} numberOfLines={2} ellipsizeMode="tail">{equipment.EquipmentName}</Text>

@@ -1,14 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Modal,
-  FlatList,
   StyleSheet,
   Dimensions,
   TextStyle,
 } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 
 interface CustomDatePickerProps {
   label: string;
@@ -46,30 +46,26 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   
-  // MG 1-15-2026: Initialize year/month from value prop if it exists, otherwise use today
-  // This ensures when calendar opens, it shows the month of the selected date, not always current month
-  const initialDate = value ? (parseDate(value) || new Date()) : new Date();
-  const [currentYear, setCurrentYear] = useState(initialDate.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(initialDate.getMonth());
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    value ? parseDate(value) : undefined
-  );
-  const [showYearPicker, setShowYearPicker] = useState(false);
+  // MG 1-26-2026: Track selected date in ISO format for Calendar component
+  const [selectedDateISO, setSelectedDateISO] = useState<string>('');
 
-  const yearsToDisplay = Array.from({ length: 15 }, (_, index) => currentYear - 7 + index);
+  // MG 1-26-2026: Convert MM/DD/YYYY to YYYY-MM-DD for Calendar component
+  const convertToISO = (dateStr: string): string => {
+    if (!dateStr || dateStr.trim() === '') return '';
+    const parsed = parseDate(dateStr);
+    if (!parsed) return '';
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
-  // MG 1-15-2026: Update calendar year/month and selected date when value prop changes from parent
-  // This ensures if the date is changed externally (like from API refetch), the calendar shows the correct month
+  // MG 1-26-2026: Update selected date when value prop changes
   useEffect(() => {
     if (value) {
-      const newDate = parseDate(value);
-      if (newDate) {
-        setSelectedDate(newDate);
-        setCurrentYear(newDate.getFullYear());
-        setCurrentMonth(newDate.getMonth());
-      }
+      setSelectedDateISO(convertToISO(value));
     } else {
-      setSelectedDate(undefined);
+      setSelectedDateISO('');
     }
   }, [value]);
 
@@ -79,149 +75,31 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     }
   };
 
-  const daysInMonth = (month: number, year: number) =>
-    new Date(year, month + 1, 0).getDate();
+  // Function to format the date as MM/DD/YYYY
+  const formatDate = (date: Date): string => {
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
 
-  // MG 1-15-2026: Added ability to deselect date by clicking on already-selected date
-  // Problem: User couldn't clear/remove a date once selected
-  // Solution: If clicking on the same date that's already selected, clear it and pass empty string to parent
-  const handleDateSelect = (day: number, month: number) => {
-    const newDate = new Date(currentYear, month, day);
+  // MG 1-26-2026: Handle date selection from Calendar component
+  const handleDayPress = (day: { dateString: string }) => {
+    const selectedDate = new Date(day.dateString);
     
-    // Check if clicking on the already-selected date to deselect it
-    if (selectedDate && 
-        selectedDate.getDate() === day && 
-        selectedDate.getMonth() === month &&
-        selectedDate.getFullYear() === currentYear) {
+    // Check if clicking on already-selected date to deselect it
+    if (selectedDateISO === day.dateString) {
       // Deselect - clear the date
-      setSelectedDate(undefined);
+      setSelectedDateISO('');
       setShowPicker(false);
       onChange(''); // Pass empty string to clear the field
     } else {
       // Select new date
-      setSelectedDate(newDate);
+      setSelectedDateISO(day.dateString);
       setShowPicker(false);
-      const formattedDate = formatDate(newDate);
+      const formattedDate = formatDate(selectedDate);
       onChange(formattedDate);
     }
-  };
-
-  const handleNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
-  };
-
-  const handlePreviousMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
-  };
-
-  const handleYearSelect = (year: number) => {
-    setCurrentYear(year);
-    setShowYearPicker(false);
-  };
-
-  // Function to format the date as MM/DD/YY
-  const formatDate = (date: Date): string => {
-    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Month is 0-indexed
-    const day = date.getDate().toString().padStart(2, '0');
-    const year = date.getFullYear(); // Get the last two digits of the year
-    return `${month}/${day}/${year}`;
-  };
-
-  const renderCalendar = () => {
-    const days = Array.from(
-      { length: daysInMonth(currentMonth, currentYear) },
-      (_, index) => index + 1
-    );
-
-    return (
-      <View style={styles.monthContainer}>
-        <View style={styles.monthHeader}>
-          <TouchableOpacity onPress={handlePreviousMonth}>
-            <Text style={styles.arrowText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.monthName}>
-            {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long' })}
-          </Text>
-          <TouchableOpacity onPress={() => setShowYearPicker(true)}>
-            <Text style={styles.monthName}>{currentYear}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleNextMonth}>
-            <Text style={styles.arrowText}>→</Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          data={days}
-          keyExtractor={(item) => item.toString()}
-          numColumns={7}
-          renderItem={({ item: day }) => (
-            <TouchableOpacity
-              style={[
-                styles.dayButton,
-                selectedDate?.getDate() === day && selectedDate.getMonth() === currentMonth
-                  ? styles.selectedDayButton
-                  : null,
-              ]}
-              onPress={() => handleDateSelect(day, currentMonth)}
-            >
-              <Text
-                style={[
-                  styles.dayText,
-                  selectedDate?.getDate() === day && selectedDate.getMonth() === currentMonth
-                    ? styles.selectedDayText
-                    : null,
-                ]}
-              >
-                {day}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
-    );
-  };
-
-  const renderYearPicker = () => {
-    return (
-      <Modal
-        transparent={true}
-        animationType="slide"
-        visible={showYearPicker}
-        onRequestClose={() => setShowYearPicker(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.pickerContainer}>
-            <FlatList
-              data={yearsToDisplay}
-              keyExtractor={(item) => item.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.yearOption}
-                  onPress={() => handleYearSelect(item)}
-                >
-                  <Text style={styles.yearText}>{item}</Text>
-                </TouchableOpacity>
-              )}
-            />
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowYearPicker(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
   };
 
   return (
@@ -243,19 +121,40 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           onRequestClose={toggleDatePicker}
         >
           <View style={styles.modalContainer}>
-            <View style={styles.pickerContainer}>
-              {renderCalendar()}
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={toggleDatePicker}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
+            <Calendar
+              minDate={new Date().toISOString().split('T')[0]} // MG 1-26-2026: Disable past dates - only today and future dates can be selected
+              enableSwipeMonths={true}
+              markedDates={
+                selectedDateISO
+                  ? { [selectedDateISO]: { selected: true, marked: true } }
+                  : {}
+              }
+              onDayPress={handleDayPress}
+              theme={{
+                calendarBackground: 'white',
+                textSectionTitleColor: '#b6c1cd',
+                selectedDayBackgroundColor: '#00adf5',
+                selectedDayTextColor: '#ffffff',
+                todayTextColor: '#00adf5',
+                dayTextColor: '#2d4150',
+                textDisabledColor: '#d9e1e8',
+                arrowColor: '#00adf5',
+                monthTextColor: 'black',
+                textMonthFontWeight: 'bold',
+                textDayFontSize: 16,
+                textMonthFontSize: 18,
+                textDayHeaderFontSize: 14,
+              }}
+            />
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={toggleDatePicker}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
           </View>
         </Modal>
       )}
-      {renderYearPicker()}
     </View>
   );
   
@@ -304,67 +203,12 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  pickerContainer: {
-    backgroundColor: 'white',
     padding: 20,
-    borderRadius: 15,
-    alignItems: 'center',
-    width: width * 0.9,
-    maxHeight: height * 0.75,
-  },
-  monthContainer: {
-    alignItems: 'center',
-    marginVertical: 5,
-    width: '100%',
-  },
-  monthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 15,
-    paddingHorizontal: 15,
-  },
-  monthName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  arrowText: {
-    fontSize: 20,
-    color: '#007bff',
-  },
-  dayButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: 5,
-    padding: 10,
-    width: 38,
-    height: 38,
-    borderRadius: 50,
-    backgroundColor: '#f0f0f0',
-  },
-  selectedDayButton: {
-    backgroundColor: '#007bff',
-  },
-  dayText: {
-    fontSize: 16,
-  },
-  selectedDayText: {
-    color: 'white',
-  },
-  yearOption: {
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-  },
-  yearText: {
-    fontSize: 25,
   },
   closeButton: {
     marginTop: 20,
+    alignSelf: 'center',
     backgroundColor: '#007bff',
     paddingVertical: 10,
     paddingHorizontal: 20,
@@ -373,6 +217,7 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: 'white',
     fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 

@@ -32,7 +32,11 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   // 🔹 Handles selecting/deselecting dates
   const handleDayPress = (day: { dateString: string }) => {
     const selectedDate = new Date(day.dateString);
+    
+    // MG 1-15-2026: Compare only dates (not time) to properly allow "today"
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
 
     if (selectedDate < today) {
       alert('You cannot select past dates.');
@@ -77,7 +81,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
         <Modal transparent animationType="slide" visible={isCalendarVisible}>
           <View style={styles.modalContainer}>
             <Calendar
-              minDate={new Date().toISOString().split('T')[0]} // Disable past dates
+              minDate={new Date().toISOString().split('T')[0]} // MG 1-15-2026: Disable past dates - only today and future dates can be selected
               enableSwipeMonths={true} // 🔹 Swipeable calendar
               markedDates={selectedDates.reduce((acc, date) => {
                 if (date.includes('/')) {
@@ -88,6 +92,21 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
                 return acc;
               }, {} as Record<string, { selected: boolean; marked: boolean }>)}
               onDayPress={handleDayPress} // Select/Deselect dates
+              theme={{
+                calendarBackground: 'white',
+                textSectionTitleColor: '#b6c1cd',
+                selectedDayBackgroundColor: '#00adf5',
+                selectedDayTextColor: '#ffffff',
+                todayTextColor: '#00adf5',
+                dayTextColor: '#2d4150',
+                textDisabledColor: '#d9e1e8',
+                arrowColor: '#00adf5',
+                monthTextColor: 'black',
+                textMonthFontWeight: 'bold',
+                textDayFontSize: 16,
+                textMonthFontSize: 18,
+                textDayHeaderFontSize: 14,
+              }}
             />
             <TouchableOpacity
               style={styles.closeButton}
@@ -140,13 +159,14 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   closeButton: {
-    marginTop: 10,
+    marginTop: 20,
     alignSelf: 'center',
-    backgroundColor: 'red',
-    padding: 10,
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 5,
   },
-  closeButtonText: { color: 'white', fontSize: 16 },
+  closeButtonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
 });
 
 export default DateTimePicker;
