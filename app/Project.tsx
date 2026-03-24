@@ -113,7 +113,10 @@ const Project: React.FC = () => {
   console.log('jobsReady, jobs.length:', jobsContext?.jobsReady, jobsContext?.jobs?.length);
   console.log('deviceInfo, location:', deviceInfo, location);
 
-  const { jobs, jobsReady } = jobsContext; // Destructure jobs and jobsReady from context
+  //M.G. 1-29-2026
+  //Get location loading state for dual-stage validation (location ready + quotes ready)
+  //This enables showing "Loading location..." vs "Loading quotes..." to user
+  const { jobs, jobsReady, isLoadingLocation } = jobsContext;
 
   const showLoading = !jobsReady;
 
@@ -320,11 +323,14 @@ return (
             style={LogoStyles.logo}
             resizeMode="contain"
           />
-          {/* Loading overlay when jobs are still being prepared */}
+          {/* MG 1-29-2026: Dual-stage loading - shows location or quotes loading */}
           {showLoading && (
             <View style={styles.centeredLoading} pointerEvents="none">
               <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={{ marginTop: 8 }}>Loading quotes...</Text>
+              {/* M.G. 1-29-2026 - Dynamic loading message based on what's being loaded */}
+              <Text style={{ marginTop: 8 }}>
+                {isLoadingLocation ? 'Loading location...' : 'Loading quotes...'}
+              </Text>
             </View>
           )}
           {isLoadingQuote && (
