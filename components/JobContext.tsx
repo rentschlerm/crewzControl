@@ -61,7 +61,10 @@ interface JobsContextType {
   authorizationCode: string | null;
   setAuthorizationCode: (code: string) => void; 
   refreshJobs: () => Promise<void>;
-   fetchJobs: () => Promise<void>;
+  fetchJobs: () => Promise<void>;
+  //M.G. 1-29-2026
+  //Location loading state shared across all screens
+  isLoadingLocation: boolean;
 }
 
 // Create a default context value
@@ -75,7 +78,10 @@ const defaultContext: JobsContextType = {
   refreshJobs: async () => { },
   fetchJobs: function (): Promise<void> {
     throw new Error('Function not implemented.');
-  }
+  },
+  //M.G. 1-29-2026
+  //Default location loading to true until location is fetched
+  isLoadingLocation: true,
 };
 
 export const JobsContext = createContext<JobsContextType>(defaultContext);
@@ -90,6 +96,20 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   const isFetchingJobsRef = useRef<boolean>(false); // Use ref to avoid dependency loop
   const [jobsFetched, setJobsFetched] = useState<boolean>(false); // Track if jobs are already fetched
   const { location, fetchLocation } = useLocation();
+  
+  //M.G. 1-29-2026
+  //Track location loading state (first checkpoint before showing quotes)
+  //Prevents fetching quotes without location which causes blank data (-1-, -, $0)
+  const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(true);
+
+  //M.G. 1-29-2026
+  //Monitor location state and clear loading flag when location becomes available
+  //This allows the loading indicator to show "Loading quotes..." instead of "Loading location..."
+  useEffect(() => {
+    if (location || jobsReady) {
+      setIsLoadingLocation(false);
+    }
+  }, [location, jobsReady]);
 
   // Fetch device info and initialize it in context
   useEffect(() => {
@@ -135,11 +155,13 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      //  JCM 01/18/2025: Ensure longitude and latitude are available
-      // if (!longitude || !latitude) {
-      //   console.log('Location data is missing. Unable to fetch jobs.');
-      //   return;
-      // }
+      //M.G. 1-29-2026
+      //Ensure longitude and latitude are available before fetching quotes
+      //Prevents API from receiving undefined location which causes incomplete data (-1-, -, $0)
+      if (!longitude || !latitude) {
+        console.log('Location data is missing. Unable to fetch jobs.');
+        return;
+      }
 
       try {
         const crewzControlVersion = '10';
@@ -266,7 +288,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     setAuthorizationCode,
     refreshJobs: fetchJobs,
     fetchJobs,
-  }), [jobs, updateJob, jobsReady, deviceInfo, authorizationCode, fetchJobs]);
+    isLoadingLocation,
+  }), [jobs, updateJob, jobsReady, deviceInfo, authorizationCode, fetchJobs, isLoadingLocation]);
 
   return (
     <JobsContext.Provider value={contextValue}>

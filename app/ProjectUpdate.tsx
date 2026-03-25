@@ -860,7 +860,28 @@ const ProjectUpdate: React.FC = () => {
     
   // }
   
+  //M.G. 1-29-2026
+  //Show confirmation popup before deleting equipment group
+  //Prevents accidental deletion when user taps minus button
   const handleRemoveQuoteWorkPackage = async (quoteWorkPackageSerial: number) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this item?',
+      [
+        {
+          text: 'No',
+          style: 'cancel',
+          onPress: () => console.log('Delete cancelled')
+        },
+        {
+          text: 'Yes',
+          onPress: () => performRemoveQuoteWorkPackage(quoteWorkPackageSerial)
+        }
+      ]
+    );
+  };
+
+  const performRemoveQuoteWorkPackage = async (quoteWorkPackageSerial: number) => {
     if (!deviceInfo || !location || !authorizationCode || !jobObj.Serial) {
       console.error('Error', 'Device info, location, authorization code, or quote serial is missing.');
       return;
@@ -1063,12 +1084,39 @@ const ProjectUpdate: React.FC = () => {
     }
   };
 
+  //M.G. 1-29-2026
+  //Handle skill quantity update with confirmation popup when deleting (quantity = 0)
+  //Prevents accidental deletion when user reduces quantity to zero
   const handleUpdateSkill = async (skillSerial: number, newCount: number) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
       console.error('Missing Information', 'Device, location, or quote serial is missing');
       return;
     }
-  
+
+    if (newCount === 0) {
+      Alert.alert(
+        'Confirm Delete',
+        'Are you sure you want to delete this item?',
+        [
+          {
+            text: 'No',
+            style: 'cancel',
+            onPress: () => console.log('Delete cancelled')
+          },
+          {
+            text: 'Yes',
+            onPress: () => performUpdateSkill(skillSerial, newCount)
+          }
+        ]
+      );
+      return;
+    }
+
+    // If not deleting, proceed directly
+    await performUpdateSkill(skillSerial, newCount);
+  };
+
+  const performUpdateSkill = async (skillSerial: number, newCount: number) => {
     const action = newCount > 0 ? "update" : "remove"; //  Use 'update' or 'remove'
     const crewzControlVersion = '1';
     const currentDate = new Date();
@@ -1121,12 +1169,39 @@ const ProjectUpdate: React.FC = () => {
   };
 
 
+  //M.G. 1-29-2026
+  //Handle equipment quantity update with confirmation popup when deleting (quantity = 0)
+  //Prevents accidental deletion when user reduces quantity to zero
   const handleUpdateEquipment = async (equipmentSerial: number, newCount: number) => {
     if (!deviceInfo || !location || !jobObj.Serial) {
       console.error('Missing Information', 'Device, location, or quote serial is missing');
       return;
     }
-  
+
+    if (newCount === 0) {
+      Alert.alert(
+        'Confirm Delete',
+        'Are you sure you want to delete this item?',
+        [
+          {
+            text: 'No',
+            style: 'cancel',
+            onPress: () => console.log('Delete cancelled')
+          },
+          {
+            text: 'Yes',
+            onPress: () => performUpdateEquipment(equipmentSerial, newCount)
+          }
+        ]
+      );
+      return;
+    }
+
+    // If not deleting, proceed directly
+    await performUpdateEquipment(equipmentSerial, newCount);
+  };
+
+  const performUpdateEquipment = async (equipmentSerial: number, newCount: number) => {
     const action = newCount > 0 ? "update" : "remove"; //  Use 'update' or 'remove'
     const crewzControlVersion = '1';
     const currentDate = new Date();
