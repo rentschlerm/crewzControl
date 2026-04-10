@@ -17,7 +17,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JobsContext, Job } from '@/components/JobContext'; // Import the context and Job type
 import { useRouter, useFocusEffect } from 'expo-router'; // Import useRouter and useFocusEffect
 import LogoStyles from '../components/LogoStyles';
@@ -73,6 +73,7 @@ const Project: React.FC = () => {
     softwareVersion: string | number | boolean; id: string; type: string; model: string; version: string 
 } | null>(null);
   const { location, fetchLocation } = useLocation(); // Use the custom hook
+  const insets = useSafeAreaInsets();
 
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -311,12 +312,12 @@ const Project: React.FC = () => {
   }
 };
 return (
-  <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top']}>
+  <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={['top']}>
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={{ flex: 1 }}>
         <ImageBackground
           source={require('../assets/images/background.png')}
-          style={styles.background}
+          style={[styles.background, { paddingBottom: 20 + insets.bottom }]}
         >
           <Image
             source={require('../assets/images/crewzControlIcon.png')}
@@ -340,31 +341,39 @@ return (
             </View>
           )}
           <View style={styles.mainDiv}>
-            <View style={styles.sectionDiv}>
-              <Text style={styles.sectionTitle}>Close to:</Text>
-              {jobs.length > 0 ? (
-                <JobListItem 
-                  job={jobs[0]} 
-                  onPress={handleJobPress} 
-                  isLoading={loadingQuoteId === jobs[0].id}
-                />
-              ) : (
-                <Text style={styles.loadingText}>Preparing quotes...</Text>
-              )}
-            </View>
+            <ScrollView
+              style={styles.mainScroll}
+              contentContainerStyle={styles.mainScrollContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              showsVerticalScrollIndicator
+            >
+              <View style={styles.sectionDiv}>
+                <Text style={styles.sectionTitle}>Close to:</Text>
+                {jobs.length > 0 ? (
+                  <JobListItem 
+                    job={jobs[0]} 
+                    onPress={handleJobPress} 
+                    isLoading={loadingQuoteId === jobs[0].id}
+                  />
+                ) : (
+                  <Text style={styles.loadingText}>Preparing quotes...</Text>
+                )}
+              </View>
 
-            <View style={styles.sectionDiv}>
-              <Text style={styles.sectionTitle}>Recent:</Text>
-              {/* M.G. 10/1/2025 - Display up to 5 quotes in recent list */}
-              {jobs.slice(1, 6).map((item) => (
-                <JobListItem 
-                  key={item.id.toString()} 
-                  job={item} 
-                  onPress={handleJobPress}
-                  isLoading={loadingQuoteId === item.id}
-                />
-              ))}
-            </View>
+              <View style={styles.sectionDiv}>
+                <Text style={styles.sectionTitle}>Recent:</Text>
+                {/* M.G. 10/1/2025 - Display up to 5 quotes in recent list */}
+                {jobs.slice(1, 6).map((item) => (
+                  <JobListItem 
+                    key={item.id.toString()} 
+                    job={item} 
+                    onPress={handleJobPress}
+                    isLoading={loadingQuoteId === item.id}
+                  />
+                ))}
+              </View>
+            </ScrollView>
 
             <View style={styles.searchContainer}>
               <TouchableOpacity 
@@ -460,12 +469,21 @@ const styles = StyleSheet.create({
     zIndex: 2000,
   },
   mainDiv: {
+    flex: 1,
+    minHeight: 0,
     padding: 10,
     backgroundColor: '#ffffff',
     borderRadius: 15,
     marginBottom: 20, // Spacing for the sections
     // M.G. 10/1/2025 - Adjusted marginTop to position quote container closer to header
-    marginTop: 60 // Adjusted to avoid covering the CREWZ CONTROL header
+    marginTop: 60, // Adjusted to avoid covering the CREWZ CONTROL header
+  },
+  mainScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+  mainScrollContent: {
+    paddingBottom: 8,
   },
   loadingText: {
     fontSize: 18,
@@ -535,6 +553,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
     // M.G. 10/1/2025 - Reduced marginTop for more compact layout
     marginTop: 10, // Reduced from 20
   },
