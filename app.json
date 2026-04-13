@@ -28,6 +28,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff",
+        "package": "com.cerenimbus.crewzcontrol",
         "versionCode": 9
       },
       "package": "com.doomjay09.crewzControl",
