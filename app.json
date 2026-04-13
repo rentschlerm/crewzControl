@@ -29,7 +29,7 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff",
         "package": "com.cerenimbus.crewzcontrol",
-        "versionCode": 9
+        "versionCode": 10
       },
       "package": "com.doomjay09.crewzControl",
       "permissions": [
