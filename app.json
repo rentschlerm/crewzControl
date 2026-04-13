@@ -28,7 +28,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff",
-        "versionCode": 1
+        "versionCode": 9
       },
       "package": "com.doomjay09.crewzControl",
       "permissions": [
