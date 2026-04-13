@@ -27,7 +27,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+        "versionCode": 1
       },
       "package": "com.doomjay09.crewzControl",
       "permissions": [
