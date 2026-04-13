@@ -25,13 +25,12 @@
       "jsEngine": "jsc"
     },
     "android": {
+      "package": "com.cerenimbus.crewzcontrol",
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#ffffff",
-        "package": "com.cerenimbus.crewzcontrol",
-        "versionCode": 10
+        "backgroundColor": "#ffffff"
       },
-      "package": "com.doomjay09.crewzControl",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
