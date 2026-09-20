@@ -6,6 +6,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { JobsContext } from '../components/JobContext'; // Import the context
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
+import { checkSessionExpired } from '../components/SessionManager';
+
 const SecurityCodeScreen: React.FC = () => {
   const router = useRouter();
   const { deviceInfo, location } = useLocalSearchParams();
@@ -44,6 +47,9 @@ const SecurityCodeScreen: React.FC = () => {
 
       const parser = new XMLParser();
       const result = parser.parse(data);
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
 
       const resultInfo = result?.ResultInfo;
 

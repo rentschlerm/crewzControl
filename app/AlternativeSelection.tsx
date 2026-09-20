@@ -21,6 +21,9 @@ import { JobsContext } from '../components/JobContext';
 import { useQuotes } from '../components/QuoteContext';
 import { XMLParser } from 'fast-xml-parser';
 
+// RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
+import { checkSessionExpired } from '../components/SessionManager';
+
 interface Alternative {
   AlternateHour: string;
   name: string;
@@ -222,6 +225,9 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
     const updateParser = new XMLParser();
     const updateResult = updateParser.parse(updateData);
 
+    // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+    if (checkSessionExpired(updateResult)) return;
+
     if (updateResult.ResultInfo?.Result === "Success") {
       console.log("✅ Resource options updated successfully.");
 
@@ -240,6 +246,9 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
 
       const fetchParser = new XMLParser();
       const fetchResult = fetchParser.parse(fetchData);
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(fetchResult)) return;
 
       if (fetchResult.ResultInfo?.Result === "Success") {
         console.log("Fetched updated quote data:", fetchResult.ResultInfo.Selections.Quote);

@@ -21,6 +21,9 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import CustomDatePicker from '../components/CustomDatePicker';
 import { getDeviceInfo } from '../components/DeviceUtils';
 import { XMLParser } from 'fast-xml-parser';
+
+// RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
+import { checkSessionExpired } from '../components/SessionManager';
 import CryptoJS from 'crypto-js';
 import { FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome'; 
@@ -312,6 +315,9 @@ const ProjectUpdate: React.FC = () => {
       const parser = new XMLParser();
       const result = parser.parse(data);
       console.log('GetQuote Data from ProjectUpdate: ', data);
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         const quote = result.ResultInfo.Selections?.Quote || {};
 
@@ -817,6 +823,9 @@ const ProjectUpdate: React.FC = () => {
     const parser = new XMLParser();
     const result = parser.parse(data);
 
+    // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+    if (checkSessionExpired(result)) return;
+
     if (result.ResultInfo?.Result === 'Success') {
       console.log('✅ [API UPDATE] Quote updated successfully!');
       if (type === 'DayCount') {
@@ -909,7 +918,10 @@ const ProjectUpdate: React.FC = () => {
       const data = await response.text();
       const parser = new XMLParser();
       const result = parser.parse(data);
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         // Alert.alert('Success', 'Quote Work Package removed successfully.');
         setQuoteWorkPackages((prev) =>
@@ -954,7 +966,10 @@ const ProjectUpdate: React.FC = () => {
       const data = await response.text();
       const parser = new XMLParser();
       const result = parser.parse(data);
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         // Alert.alert('Success', 'Skill removed successfully.');
         // setSkillModalVisible(false);
@@ -1000,7 +1015,10 @@ const ProjectUpdate: React.FC = () => {
       const data = await response.text();
       const parser = new XMLParser();
       const result = parser.parse(data);
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         // Alert.alert('Success', 'Equipment removed successfully.');
         // setEquipmentModalVisible(false);
@@ -1063,7 +1081,10 @@ const ProjectUpdate: React.FC = () => {
   
       const parser = new XMLParser();
       const result = parser.parse(data);
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         // Alert.alert(
         //   'Resource Removed',
@@ -1145,7 +1166,10 @@ const ProjectUpdate: React.FC = () => {
   
       const parser = new XMLParser();
       const result = parser.parse(data);
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         console.log('✅ Skill updated successfully');
         //  Update state for the UI
@@ -1230,7 +1254,10 @@ const ProjectUpdate: React.FC = () => {
   
       const parser = new XMLParser();
       const result = parser.parse(data);
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         console.log('✅ Equipment updated successfully');
         fetchQuoteDetails(true); // Immediate call after updating equipment
@@ -1308,7 +1335,10 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
       
       console.log(`📅 Parsed Equipment Day Result:`, JSON.stringify(result, null, 2));
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         console.log(`✅ Equipment days updated successfully: ${dayString}`);
       } else {
@@ -1373,7 +1403,10 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
       
       console.log(`📅 Parsed ResourceGroup Day Result:`, JSON.stringify(result, null, 2));
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         console.log(`✅ Work package days updated successfully: ${dayString}`);
       } else {
@@ -1440,7 +1473,10 @@ const ProjectUpdate: React.FC = () => {
       const result = parser.parse(data);
       
       console.log(`📅 Parsed Skill Day Result:`, JSON.stringify(result, null, 2));
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return;
+
       if (result.ResultInfo?.Result === 'Success') {
         console.log(`✅ Skill days updated successfully: ${dayString}`);
       } else {

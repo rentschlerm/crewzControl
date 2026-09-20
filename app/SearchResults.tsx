@@ -13,6 +13,9 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { JobsContext, Job } from '@/components/JobContext';
 import { XMLParser } from 'fast-xml-parser';
+
+// RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
+import { checkSessionExpired } from '../components/SessionManager';
 import useLocation from '@/hooks/useLocation';
 import CryptoJS from 'crypto-js';
 import { getDeviceInfo } from '@/components/DeviceUtils';
@@ -117,6 +120,9 @@ useEffect(() => {
       const parser = new XMLParser();
       const result = parser.parse(data);
   console.log('GetQuote Data: ', data);
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return null;
+
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {

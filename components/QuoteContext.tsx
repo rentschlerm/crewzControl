@@ -5,6 +5,9 @@ import { XMLParser } from 'fast-xml-parser';
 import * as Location from 'expo-location';
 import { useJobs } from './JobContext'; // deviceInfo + authorizationCode
 
+// RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
+import { checkSessionExpired } from './SessionManager';
+
 // ----------------------
 // Types
 // ----------------------
@@ -77,6 +80,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
 
       const parser = new XMLParser();
       const result = parser.parse(data);
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return null;
 
       if (result.ResultInfo?.Result === 'Success') {
         let rawQuotes = result.ResultInfo.Selections?.Quote;

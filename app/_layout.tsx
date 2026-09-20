@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { JobsProvider } from "../components/JobContext"; 
 import { QuoteProvider } from "../components/QuoteContext";
 import { initDebug } from '../components/Debug';
+import SessionExpiredModal from "../components/SessionExpiredModal";
 
 export default function RootLayout() {
   // Initialize debug behavior (overrides console methods when flagged off)
@@ -23,6 +24,11 @@ export default function RootLayout() {
           <Stack.Screen name="AddEquipmentsGroup" options={{ headerShown: false }}/>
           <Stack.Screen name="AddSkillsGroup" options={{ headerShown: false }}/>
         </Stack>
+
+        {/* RHCM 9-21-2026
+            Mounted at the root so an expired session (ErrorNumber 202) can
+            surface over any screen. */}
+        <SessionExpiredModal />
       </QuoteProvider>
       
     </JobsProvider>

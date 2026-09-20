@@ -18,6 +18,9 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import LogoStyles from "../components/LogoStyles";
 import { getDeviceInfo } from "../components/DeviceUtils";
 import { XMLParser } from "fast-xml-parser";
+
+// RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
+import { checkSessionExpired } from "../components/SessionManager";
 import CryptoJS from "crypto-js";
 import useLocation from "@/hooks/useLocation";
 
@@ -87,7 +90,10 @@ const AddResourceGroup: React.FC = () => {
         const parser = new XMLParser();
         const result = parser.parse(data);
         console.log(result);
-  
+
+        // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+        if (checkSessionExpired(result)) return;
+
         if (result.ResultInfo?.Result === "Success") {
           const groups =
             Array.isArray(result.ResultInfo.Selections?.ResourceGroup)
@@ -169,7 +175,10 @@ const AddResourceGroup: React.FC = () => {
       const updateData = await updateResponse.text();
       const updateParser = new XMLParser();
       const updateResult = updateParser.parse(updateData);
-  
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(updateResult)) return;
+
       if (updateResult.ResultInfo?.Result === "Success") {
          // JCM 01/15/2025: Commented the alert to remove the updated popup as it's not necessary
         //Alert.alert("Success", "Resource groups updated successfully.");
@@ -183,7 +192,10 @@ const AddResourceGroup: React.FC = () => {
         const fetchData = await fetchResponse.text();
         const fetchParser = new XMLParser();
         const fetchResult = fetchParser.parse(fetchData);
-  
+
+        // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+        if (checkSessionExpired(fetchResult)) return;
+
         if (fetchResult.ResultInfo?.Result === "Success") {
           console.log("Fetched updated quote data:", fetchResult.ResultInfo.Selections.Quote);
   
