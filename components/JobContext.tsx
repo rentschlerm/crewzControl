@@ -8,6 +8,9 @@ import { Alert } from 'react-native';
 // JCM 01/17/2025: Import AsyncStorage to be used for getting the user's location if null once Project screen is redirected automatically (if has autorizationCode already)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
+import { checkSessionExpired, subscribeToSessionExpired } from './SessionManager';
+
 // Define the Job type
 export interface Job {
   Expense: number,
@@ -141,9 +144,18 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         isFetchingJobsRef.current = true;
         setIsFetchingJobs(true);
 
+      // RHCM 9-16-2026
+      // Take the location reading here, at the moment the quote list is requested,
+      // rather than relying on the one fetched when this provider mounted at app launch.
+      // getFreshLocation reuses any fix taken in the last 5 minutes, so this costs
+      // nothing on rapid refreshes but keeps a driver's coordinates current.
+      const freshLocation = await fetchLocation();
+
       // JCM 01/18/2025: Make variables for location's longitude and latitude to be used for the API URL
-      let longitude = location?.longitude;
-      let latitude = location?.latitude;
+      //RHCM 9-16-2026
+      // Use the fresh location if available, otherwise fall back to the last known location
+      let longitude = freshLocation?.longitude ?? location?.longitude;
+      let latitude = freshLocation?.latitude ?? location?.latitude;
 
       // JCM 01/18/2025: If location is null (fetchLocation returns null), retrieve it from AsyncStorage
       if (!longitude || !latitude) {
@@ -160,6 +172,14 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       //Prevents API from receiving undefined location which causes incomplete data (-1-, -, $0)
       if (!longitude || !latitude) {
         console.log('Location data is missing. Unable to fetch jobs.');
+        // RHCM 9-16-2026
+        // This return sits BEFORE the try/finally, so it has to clear the in-flight
+        // flags itself. Without this, one missing-location run left
+        // isFetchingJobsRef.current stuck at true and every later fetchJobs call
+        // bailed at the guard above — killing the quote list, and its location
+        // refresh, for the rest of the session.
+        isFetchingJobsRef.current = false;
+        setIsFetchingJobs(false);
         return;
       }
 
@@ -189,6 +209,11 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         // Parse XML response
         const parser = new XMLParser();
         const result = parser.parse(data);
+
+        // RHCM 9-21-2026: ErrorNumber 202 means the session is gone - bail out,
+        // the modal and redirect to sign-in are handled centrally.
+        if (checkSessionExpired(result)) return;
+
         const resultInfo = result?.ResultInfo;
 
         if (resultInfo && resultInfo.Result === 'Success') {
@@ -270,6 +295,25 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         clearTimeout(fetchJobsTimeoutRef.current);
       }
     };
+  }, []);
+
+  // RHCM 9-21-2026
+  // Drop the in-memory session alongside the stored one. Without this the
+  // stale authorizationCode stays in context and immediately re-triggers
+  // fetchJobs (and another 202) after the user is sent back to sign-in.
+  useEffect(() => {
+    return subscribeToSessionExpired(() => {
+      if (fetchJobsTimeoutRef.current) {
+        clearTimeout(fetchJobsTimeoutRef.current);
+        fetchJobsTimeoutRef.current = null;
+      }
+      isFetchingJobsRef.current = false;
+      setIsFetchingJobs(false);
+      setAuthorizationCode(null);
+      setJobs([]);
+      setJobsReady(false);
+      setJobsFetched(false);
+    });
   }, []);
 
   const updateJob = useCallback((updatedJob: Job) => {

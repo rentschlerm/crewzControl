@@ -23,6 +23,9 @@ import { useRouter, useFocusEffect } from 'expo-router'; // Import useRouter and
 import LogoStyles from '../components/LogoStyles';
 import { getDeviceInfo } from '../components/DeviceUtils';
 import { XMLParser } from 'fast-xml-parser';
+
+// RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
+import { checkSessionExpired } from '../components/SessionManager';
 import CryptoJS from 'crypto-js';
 import useLocation from '@/hooks/useLocation';
 
@@ -150,6 +153,9 @@ const Project: React.FC = () => {
       const parser = new XMLParser();
       const result = parser.parse(data);
   console.log('GetQuote Data: ', data);
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return null;
+
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
@@ -167,18 +173,25 @@ const Project: React.FC = () => {
   };
 
   const fetchQuoteList = async () => {
-    if (!deviceInfo || !location) {
-      console.error('Device or location information is loading');
+    if (!deviceInfo) {
+      console.error('Device information is loading');
       return null;
     }
-  
+
+    // RHCM 9-16-2026: Refresh location at request time (5-minute cache).
+    const freshLocation = await fetchLocation();
+    if (!freshLocation) {
+      console.error('Location information is loading');
+      return null;
+    }
+
     const crewzControlVersion = '1'; // Hard-coded as per specification
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
     const keyString = `${deviceInfo.id}${formattedDate}`;
     const key = CryptoJS.SHA1(keyString).toString();
   
-    const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
+    const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${freshLocation.longitude}&Latitude=${freshLocation.latitude}&Language=EN`;
     console.log(`${url}`);
   
     try {
@@ -187,6 +200,9 @@ const Project: React.FC = () => {
       const parser = new XMLParser();
       const result = parser.parse(data);
       console.log('GetQuoteList Data: ', data);
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return null;
+
       if (result.ResultInfo?.Result === 'Success') {
         return result.ResultInfo.Selections?.Quote;
       } else {
@@ -214,14 +230,24 @@ const Project: React.FC = () => {
   };
 
   const handleSearchFromModal = async () => {
-    if (!deviceInfo || !location) {
+    if (!deviceInfo) {
       return null;
     }
-  
+
     setLoading(true); // Start loading spinner immediately
     setSearchTerm(modalSearchTerm); // Save the search term
-  
+
     try {
+      // RHCM 9-16-2026
+      // Refresh location as part of the search request (reuses any fix from the last
+      // 5 minutes). Previously this used whatever was captured when the screen mounted,
+      // which for a driver could be hours and many miles old.
+      const freshLocation = await fetchLocation();
+      if (!freshLocation) {
+        console.error('Location unavailable. Unable to perform search.');
+        return null;
+      }
+
       const crewzControlVersion = '10'; // Hard-coded as per specification
       const currentDate = new Date();
       const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}-${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
@@ -229,7 +255,7 @@ const Project: React.FC = () => {
       const key = CryptoJS.SHA1(keyString).toString();
   
       const search = encodeURIComponent(modalSearchTerm);
-      const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&Search=${search}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${location.longitude}&Latitude=${location.latitude}&Language=EN`;
+      const url = `https://crewzcontrol.com/dev/CCService/GetQuoteList.php?DeviceID=${encodeURIComponent(deviceInfo.id)}&Date=${formattedDate}&Key=${key}&Search=${search}&AC=${authorizationCode}&CrewzControlVersion=${crewzControlVersion}&Longitude=${freshLocation.longitude}&Latitude=${freshLocation.latitude}&Language=EN`;
       console.log(`${url}`);
   
       const response = await fetch(url);
@@ -237,6 +263,9 @@ const Project: React.FC = () => {
       const parser = new XMLParser();
       const result = parser.parse(data);
       console.log('Search Data: ', data);
+
+      // RHCM 9-21-2026: ErrorNumber 202 - session expired, handled centrally.
+      if (checkSessionExpired(result)) return null;
 
       const quotes = result.ResultInfo.Selections?.Quote;
 
