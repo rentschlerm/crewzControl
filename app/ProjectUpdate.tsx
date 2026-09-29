@@ -78,6 +78,11 @@ interface Service {
   WorkPackages: WorkPackage | WorkPackage[] | undefined;
 }
 
+// RHCM 9-25-2026: Remembers the scroll position per quote (keyed by Serial).
+// This lives outside the component so it survives when ProjectUpdate is
+// re-created by router.push() from AddResourceGroup / AddSkillsGroup / etc.
+const savedScrollOffsets: Record<string, number> = {};
+
 //M.G. 1-16-2026
 // Removed Multi-Day button components - replaced with DayCount field approach
 
@@ -210,6 +215,10 @@ const ProjectUpdate: React.FC = () => {
   const isLoadingDataRef = useRef<boolean>(false);
   // MG 1-20-2026: Track last saved priority to prevent duplicate API calls on re-render
   const lastSavedPriorityRef = useRef<string>('');
+  // RHCM 9-25-2026: Ref to the main FlatList so we can restore the scroll position
+  const listRef = useRef<FlatList>(null);
+  // RHCM 9-25-2026: Make sure we only restore the scroll position once per mount
+  const hasRestoredScrollRef = useRef<boolean>(false);
 
   // MG 12-26-2025: Helper function to show error only once per session and only for user edits
   const showErrorOnce = (message: string) => {
@@ -1615,6 +1624,8 @@ const ProjectUpdate: React.FC = () => {
     }
     
     // Removed validation alert - let API handle validation
+    // RHCM 9-25-2026: Leaving the quote, so forget its scroll position
+    delete savedScrollOffsets[String(jobObj.Serial)];
     router.push('/Project');
   };
 
@@ -1635,6 +1646,8 @@ const ProjectUpdate: React.FC = () => {
       }
     }
     
+    // RHCM 9-25-2026: Leaving the quote, so forget its scroll position
+    delete savedScrollOffsets[String(jobObj.Serial)];
     router.push('/Project');
   };
   
@@ -1654,8 +1667,30 @@ const ProjectUpdate: React.FC = () => {
         resizeMode="contain"
       />
       <FlatList
+        ref={listRef}
         data={[1]} // wrapper for the static content
         keyExtractor={(item, index) => index.toString()}
+        // RHCM 9-25-2026: Remember where the user is scrolled to, so when they
+        // come back from AddResourceGroup / AddSkillsGroup / AlternativeSelection
+        // (which router.push a new ProjectUpdate) we can return them to the same spot.
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          savedScrollOffsets[String(jobObj.Serial)] = e.nativeEvent.contentOffset.y;
+        }}
+        // RHCM 9-25-2026: Restore the saved position once the content is tall enough.
+        // Skills / Equipment Groups can load in after mount, so we wait for the height.
+        onContentSizeChange={(_, contentHeight) => {
+          if (hasRestoredScrollRef.current) return;
+          const offset = savedScrollOffsets[String(jobObj.Serial)] ?? 0;
+          if (offset <= 0) {
+            hasRestoredScrollRef.current = true;
+            return;
+          }
+          if (contentHeight >= offset) {
+            listRef.current?.scrollToOffset({ offset, animated: false });
+            hasRestoredScrollRef.current = true;
+          }
+        }}
         renderItem={() => (
           <View style={[styles.mainDiv,  { width: deviceWidth }]}>
             {/* Header */}
@@ -2112,6 +2147,8 @@ const ProjectUpdate: React.FC = () => {
                                           style={styles.saveButton}
                                           onPress={() => {
                                             handleProceed(selectedWorkPackage?.serial);
+                                            // RHCM 9-25-2026: Leaving the quote, so forget its scroll position
+                                            delete savedScrollOffsets[String(jobObj.Serial)];
                                             router.push('/Project');
                                           }}
                                         >
