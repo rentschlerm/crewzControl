@@ -16,6 +16,7 @@ import {
 import { JobsContext, Job } from '../components/JobContext';
 import { useQuotes } from "../components/QuoteContext"; 
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { buildMultiDayHourString } from './multiDayHourUtils';
 import LogoStyles from '../components/LogoStyles';
 import DropDownPicker from 'react-native-dropdown-picker';
 import CustomDatePicker from '../components/CustomDatePicker';
@@ -130,6 +131,7 @@ const ProjectUpdate: React.FC = () => {
   const [quoteWorkPackages, setQuoteWorkPackages] = useState<any[]>([]);
   const [skills, setSkills] = useState<any[]>([]);
   const [equipments, setEquipments] = useState<any[]>([]);
+  const [expandedNotes, setExpandedNotes] = useState<Record<number, boolean>>({});
   const [deviceInfo, setDeviceInfo] = useState<{
     softwareVersion: string | number | boolean;
     id: string;
@@ -157,6 +159,7 @@ const ProjectUpdate: React.FC = () => {
     return String((jobObj as any)?.DayCount || 1);
   });
   const [multiDayHours, setMultiDayHours] = useState<{ [key: number]: string }>({});
+  const latestMultiDayHoursRef = useRef<{ [key: number]: string }>({});
   
   // Parse multidayhour string into multiDayHours state when component loads
   useEffect(() => {
@@ -167,6 +170,7 @@ const ProjectUpdate: React.FC = () => {
         parsedHours[parseInt(day, 10)] = hour;
       });
       setMultiDayHours(parsedHours);
+      latestMultiDayHoursRef.current = parsedHours;
       console.log('🔄 Loaded saved MultiDayHours:', parsedHours);
     }
   }, [multidayhour]);
@@ -205,6 +209,7 @@ const ProjectUpdate: React.FC = () => {
   const hoursInputRef = useRef<TextInput>(null);
   const multiDayInputRefs = useRef<{ [key: number]: TextInput | null }>({});
   const handleSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const multiDaySaveVersionRef = useRef<number>(0);
   const isSavingRef = useRef<boolean>(false);
   // MG 12-26-2025: Track shown error messages to prevent duplicate alerts
   const shownErrorsRef = useRef<Set<string>>(new Set());
@@ -689,11 +694,18 @@ const ProjectUpdate: React.FC = () => {
     clearTimeout(handleSaveTimeoutRef.current);
     handleSaveTimeoutRef.current = null;
   }
+
+  const saveVersion = type === 'MultiDayHour' ? ++multiDaySaveVersionRef.current : 0;
   
   // Debounce the handleSave call by 200ms
   handleSaveTimeoutRef.current = setTimeout(async () => {
     if (!deviceInfo || !location || (!jobObj.Serial && !quoteSerial)) {
       console.error('Device, location, or quote serial information is missing');
+      return;
+    }
+
+    if (type === 'MultiDayHour' && saveVersion !== multiDaySaveVersionRef.current) {
+      console.log('🚫 handleSave skipped - stale MultiDayHour update');
       return;
     }
 
@@ -1612,10 +1624,7 @@ const ProjectUpdate: React.FC = () => {
     
     // MG 1-16-2026: Save MultiDayHour data before navigating away (use dayCount instead of multiDayFlag)
     if (dayCount > 1 && multiDayHours) {
-      const dayHourPairs = Object.entries(multiDayHours)
-        .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
-        .map(([day, hour]) => `${day}-${hour}`)
-        .join("|");
+      const dayHourPairs = buildMultiDayHourString(multiDayHours);
       
       if (dayHourPairs) {
         setMultidayhour(dayHourPairs);
@@ -1635,10 +1644,7 @@ const ProjectUpdate: React.FC = () => {
     
     // MG 1-16-2026: Save MultiDayHour data before navigating away (use dayCount instead of multiDayFlag)
     if (dayCount > 1 && multiDayHours) {
-      const dayHourPairs = Object.entries(multiDayHours)
-        .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
-        .map(([day, hour]) => `${day}-${hour}`)
-        .join("|");
+      const dayHourPairs = buildMultiDayHourString(multiDayHours);
       
       if (dayHourPairs) {
         setMultidayhour(dayHourPairs);
@@ -1866,11 +1872,16 @@ const ProjectUpdate: React.FC = () => {
                         }}
                         value={multiDayHours[day] || ""}
                         onChangeText={(text) => {
-                          // Simple - just update the state, no formatting while typing
-                          setMultiDayHours(prev => ({
-                            ...prev,
-                            [day]: text
-                          }));
+                          // Keep the live value in a ref so rapid delete/blur sequences never
+                          // read a stale render snapshot from the previous state update.
+                          setMultiDayHours(prev => {
+                            const nextHours = {
+                              ...prev,
+                              [day]: text,
+                            };
+                            latestMultiDayHoursRef.current = nextHours;
+                            return nextHours;
+                          });
                         }}
                         onFocus={() => {
                           // Format all other fields when focusing on this one
@@ -1882,33 +1893,31 @@ const ProjectUpdate: React.FC = () => {
                           });
                         }}
                         onBlur={() => {
-                          // Format the value to 2 decimal places when user finishes editing
-                          const currentValue = multiDayHours[day] || "";
-                          let formattedValue;
+                          // Use the latest live value from the ref, not the possibly stale
+                          // state snapshot captured from an earlier render during fast deletes.
+                          const currentValue = (latestMultiDayHoursRef.current[day] || "").trim();
+                          let formattedValue = "";
                           
-                          if (currentValue.trim() === "") {
-                            // If empty, set to 0.00
-                            formattedValue = "0.00";
-                          } else {
-                            // Format the value to 2 decimal places
+                          if (currentValue !== "") {
                             const numericValue = parseFloat(currentValue);
-                            formattedValue = isNaN(numericValue) ? "0.00" : numericValue.toFixed(2);
+                            formattedValue = isNaN(numericValue) ? "" : numericValue.toFixed(2);
                           }
 
-                          // Update state with formatted value
-                          setMultiDayHours(prev => ({
-                            ...prev,
-                            [day]: formattedValue
-                          }));
+                          setMultiDayHours(prev => {
+                            const nextHours = { ...prev };
 
-                          // Build MultiDayHour string for only days with values
-                          const dayHourPairs = Object.entries(multiDayHours)
-                            .filter(([day, hour]) => hour && hour !== "0.00" && hour !== "")
-                            .map(([day, hour]) => `${day}-${hour}`)
-                            .join("|");
+                            if (formattedValue === "") {
+                              delete nextHours[day];
+                            } else {
+                              nextHours[day] = formattedValue;
+                            }
 
-                          setMultidayhour(dayHourPairs);
-                          handleSave(dayHourPairs, "MultiDayHour", true);
+                            latestMultiDayHoursRef.current = nextHours;
+                            const dayHourPairs = buildMultiDayHourString(nextHours);
+                            setMultidayhour(dayHourPairs);
+                            handleSave(dayHourPairs, "MultiDayHour", true);
+                            return nextHours;
+                          });
                         }}
                         placeholder="0"
                         keyboardType="decimal-pad"
@@ -2044,6 +2053,14 @@ const ProjectUpdate: React.FC = () => {
               
               {services.map((service, index) => {
                 const workPackages = normalizeWorkPackages(service.WorkPackages);
+                const noteText = typeof service.QuoteDetailNote === 'object'
+                  ? service.QuoteDetailNote['#text'] || 'N/A'
+                  : service.QuoteDetailNote || 'N/A';
+                const isExpanded = !!expandedNotes[index];
+                const shouldTruncate = noteText.length > 120;
+                const displayedNote = shouldTruncate && !isExpanded
+                  ? `${noteText.slice(0, 120).trim()}...`
+                  : noteText;
                 
                 return (
                   <View key={index} style={styles.serviceContainer}>
@@ -2054,10 +2071,22 @@ const ProjectUpdate: React.FC = () => {
                     <Text style={styles.serviceTitle}>Quantity: {service.Quantity || '-'}</Text>
                     <Text style={styles.note}>
                       Note:{' '}
-                      {typeof service.QuoteDetailNote === 'object'
-                        ? service.QuoteDetailNote['#text']
-                        : service.QuoteDetailNote || 'N/A'}
+                      {displayedNote}
                     </Text>
+                    {shouldTruncate && (
+                      <TouchableOpacity
+                        onPress={() =>
+                          setExpandedNotes(prev => ({
+                            ...prev,
+                            [index]: !prev[index],
+                          }))
+                        }
+                      >
+                        <Text style={styles.seeMoreText}>
+                          {isExpanded ? 'See less' : 'See more'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
 
                     {/* Loop through Work Packages */}
                     {workPackages.map((wp, wpIndex) => {
@@ -2932,6 +2961,12 @@ dayPickerListLabel: {
     color: '#555',
     fontStyle: 'italic',
     marginTop: 4,
+    marginBottom: 6,
+  },
+  seeMoreText: {
+    color: '#007AFF',
+    fontSize: 13,
+    fontWeight: '600',
     marginBottom: 10,
   },
   subSectionTitle: {
