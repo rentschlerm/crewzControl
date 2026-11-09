@@ -20,6 +20,7 @@ import { getDeviceInfo } from '../components/DeviceUtils';
 import { JobsContext } from '../components/JobContext';
 import { useQuotes } from '../components/QuoteContext';
 import { XMLParser } from 'fast-xml-parser';
+import { RESOURCE_TYPE_OPTIONS, type ResourceType } from './resourceTypeOptions';
 
 // RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
 import { checkSessionExpired } from '../components/SessionManager';
@@ -118,6 +119,7 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
   };
 
   const [alternatives, setAlternatives] = useState<Alternative[]>(alternativesData);
+  const [resourceType, setResourceType] = useState<ResourceType>('equipment');
   const [isDataReady, setIsDataReady] = useState(false);
   
     useEffect(() => {
@@ -311,6 +313,33 @@ const alternativesData: Alternative[] = parsedAlternates.map((alt: any) => {
 
           <Text style={styles.subtitle}>Available Alternatives:</Text>
 
+          <View style={styles.resourceTypeSelector}>
+            {RESOURCE_TYPE_OPTIONS.map((option) => {
+              const selected = resourceType === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.radioOption,
+                    selected && styles.radioOptionSelected,
+                  ]}
+                  onPress={() => setResourceType(option.value)}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      selected && styles.radioCircleSelected,
+                    ]}
+                  >
+                    {selected && <View style={styles.radioDot} />}
+                  </View>
+                  <Text style={styles.radioLabel}>{option.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           {alternatives.length > 0 ? (
             alternatives.map((alt, index) => {
               // console.log('Rendering alt:', alt);  // Log alt to ensure data is correctly passed
@@ -439,6 +468,51 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 15,
     textAlign: 'center',
+  },
+  resourceTypeSelector: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#dfe8f1',
+    borderRadius: 999,
+    backgroundColor: '#f7faff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  radioOptionSelected: {
+    borderColor: '#20D5FF',
+    backgroundColor: '#eaf9ff',
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#7B7B7B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  radioCircleSelected: {
+    borderColor: '#20D5FF',
+  },
+  radioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#20D5FF',
+  },
+  radioLabel: {
+    fontSize: 15,
+    color: '#2f3b52',
+    fontWeight: '600',
   },
   hoursField: {
     flexDirection: 'row',

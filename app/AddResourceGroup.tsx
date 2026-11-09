@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import LogoStyles from "../components/LogoStyles";
 import { getDeviceInfo } from "../components/DeviceUtils";
 import { XMLParser } from "fast-xml-parser";
+import { RESOURCE_TYPE_OPTIONS, type ResourceType } from "./resourceTypeOptions";
 
 // RHCM 9-21-2026: Central guard for the ErrorNumber 202 "session expired" reply.
 import { checkSessionExpired } from "../components/SessionManager";
@@ -44,6 +45,7 @@ const AddResourceGroup: React.FC = () => {
 
   const [resourcePackages, setResourcePackages] = useState<ResourcePackage[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<Set<number>>(new Set());
+  const [resourceType, setResourceType] = useState<ResourceType>("equipment");
   const [proceedEnabled, setProceedEnabled] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const { job } = useLocalSearchParams(); // Fetch the job parameter
@@ -249,6 +251,33 @@ const AddResourceGroup: React.FC = () => {
             <Text style={styles.title}>Add Equipment Group</Text>
             <View style={{ width: 50 }} />
           </View>
+
+          <View style={styles.resourceTypeSelector}>
+            {RESOURCE_TYPE_OPTIONS.map((option) => {
+              const selected = resourceType === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.radioOption,
+                    selected && styles.radioOptionSelected,
+                  ]}
+                  onPress={() => setResourceType(option.value)}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      selected && styles.radioCircleSelected,
+                    ]}
+                  >
+                    {selected && <View style={styles.radioDot} />}
+                  </View>
+                  <Text style={styles.radioLabel}>{option.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
   
           {/* Conditional Loading */}
           {loading ? (
@@ -417,6 +446,51 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "600",
 
+  },
+  resourceTypeSelector: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    gap: 12,
+  },
+  radioOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#dfe8f1",
+    borderRadius: 999,
+    backgroundColor: "#f7faff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  radioOptionSelected: {
+    borderColor: "#20D5FF",
+    backgroundColor: "#eaf9ff",
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "#7B7B7B",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  radioCircleSelected: {
+    borderColor: "#20D5FF",
+  },
+  radioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#20D5FF",
+  },
+  radioLabel: {
+    fontSize: 15,
+    color: "#2f3b52",
+    fontWeight: "600",
   },
   item: {
     flexDirection: "row",
